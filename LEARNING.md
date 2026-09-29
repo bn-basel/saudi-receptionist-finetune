@@ -13,4 +13,27 @@ One entry per step: the concept in one paragraph, what we did, and what I learne
 - Created the repo and added a `commit-msg` git hook that refuses any `Co-authored-by` or "Generated with" line, so every commit has a single author.
 - Made the first commit and checked `git log` for trailers.
 
-**What I learned.** _(filled in after the Step 0 check questions)_
+**What I learned.**
+- Full fine-tuning costs about 16 **bytes** (not bits) per parameter: 8B × 16 B ≈ 128 GB, far above my 16 GB.
+- LoRA freezes **all** of the original weights and trains *new* small add-on matrices (about 0.5% of the size); it does not pick some original weights to train.
+- I first missed QLoRA's second half: the frozen weights are stored in **4-bit**, which shrinks them from about 16 GB to about 5 GB. Freezing (LoRA) plus 4-bit storage (Q) is what makes it fit.
+- The test set is written before the training data to stop **leakage**: if I write test cases after seeing the training data, they end up resembling it, and the score measures memory instead of skill. Baselines are a separate idea (Stage 5): they use the test set, but they are not the reason it comes first.
+
+---
+
+## Step 1 — Training environment on the RTX 5080
+
+**Concept.** Training runs on a stack of layers: GPU → NVIDIA driver → CUDA runtime (bundled inside the PyTorch download) → PyTorch → bitsandbytes (4-bit weights) → transformers / PEFT / TRL (model, LoRA adapters, training loop). Code for the GPU is compiled into *kernels* for specific architectures, and the RTX 5080 (Blackwell, compute capability 12.0) needs every layer to ship **sm_120** kernels, or it fails with "no kernel image is available". So before installing, we checked each layer's actual build, not just its announcements.
+
+**What we did.**
+- Researched the current support (29 Sep 2026): PyTorch 2.14 is the latest stable, with Windows CUDA 13.0 wheels; the bitsandbytes 0.50.2 build script compiles its Windows wheels for sm_120; Unsloth works on Windows but with fragile version pins and tested torch only up to 2.12.1; vLLM has no native Windows.
+- Chose **native Windows** with the plain Hugging Face stack (no Unsloth for now): nothing to install at system level, every piece supports sm_120, and plain Python moves to Linux cloud GPUs unchanged. WSL2 is the fallback if we need vLLM or Unsloth.
+- Pinned Python 3.12 and torch 2.12.1+cu130 (tested by both bitsandbytes and Unsloth) in `pyproject.toml`; `uv.lock` records every exact version.
+- Wrote `scripts/smoke_test.py` and ran it. All checks passed:
+  - PyTorch sees the RTX 5080 and has sm_120 kernels.
+  - A GPU matrix multiply matches the CPU exactly.
+  - A 4096×4096 weight matrix goes from 32 MB (16-bit) to 8 MB (4-bit NF4), with 9.2% rounding error per weight.
+  - A tiny random Llama-style model loaded in 4-bit, with LoRA on all linear layers: only the 69,632 adapter parameters are trainable (5.6% here; about 0.5% on an 8B model, because big layers grow faster than their adapters), and the loss fell from 7.01 to 3.35 in 40 steps. Peak VRAM: 201 MB.
+- Harmless warning noted: "triton not found" only disables flop counting; we chose not to install Triton.
+
+**What I learned.** _(filled in after the Step 1 check questions)_

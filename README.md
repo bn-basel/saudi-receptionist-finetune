@@ -11,9 +11,20 @@ The goal is to beat both the untuned base model and a strong API baseline on a h
 
 | Stage | What | Status |
 |---|---|---|
-| 0 | Big picture, machine check, repo setup | In progress |
+| 0 | Big picture, machine check, repo setup | Done |
+| 1 | Training environment on the RTX 5080 | Done (smoke test passes) |
 
 Nothing below this line is claimed until it is done and verified. Results, dataset card and model card will be added when they exist.
+
+## Reproduce
+
+Tested on Windows 11, RTX 5080 (16 GB, sm_120), NVIDIA driver 610.88, with [uv](https://docs.astral.sh/uv/).
+
+```bash
+git config core.hooksPath .githooks   # enable the commit-message guard (once per clone)
+uv sync                               # Python 3.12 + torch 2.12.1+cu130 + training libraries, from uv.lock
+uv run python scripts/smoke_test.py   # GPU, sm_120 kernels, 4-bit, and a tiny QLoRA training run
+```
 
 ## Learning log
 

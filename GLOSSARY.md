@@ -26,3 +26,15 @@ Short, plain definitions. Added to as each step introduces new terms.
 | **Compute capability** | NVIDIA's version number for a GPU's feature set. The RTX 5080 is 12.0 (Blackwell, "sm_120"); software must be built to support it. |
 | **Commit trailer** | A `Key: value` line at the end of a git commit message, such as `Co-authored-by:`. GitHub shows co-author trailers as extra contributors. |
 | **Git hook** | A script git runs at a certain moment. A `commit-msg` hook can inspect a commit message and refuse the commit. |
+| **Kernel (GPU)** | A small program compiled for one GPU architecture. A library without kernels for sm_120 fails on the RTX 5080 with "no kernel image is available". |
+| **CUDA runtime vs toolkit** | The runtime is the library programs need to use the GPU (PyTorch ships its own copy). The toolkit (`nvcc`) is only for compiling new GPU code. |
+| **Wheel** | A pre-built Python package file (`.whl`). PyTorch publishes a separate wheel per CUDA version, such as `cu130`. |
+| **Package index** | A server that `pip`/`uv` download packages from. PyPI is the default; PyTorch runs its own index for GPU builds. |
+| **Virtual environment** | A project-private folder (`.venv`) of Python packages, so projects do not break each other. |
+| **Lockfile** | `uv.lock`: the exact version of every package installed, so anyone can recreate the same environment. |
+| **NF4** | "NormalFloat 4-bit": the 4-bit format QLoRA uses, with its 16 levels spaced to suit the bell-shaped spread of model weights. |
+| **bitsandbytes** | The library that stores weights in 4-bit and runs the maths on them. |
+| **PEFT** | Hugging Face's library for adding LoRA adapters to a model. |
+| **TRL** | Hugging Face's library with ready-made training loops, such as `SFTTrainer`. |
+| **Triton** | A compiler for writing custom GPU kernels in Python. Used by speed-up libraries like Unsloth; not needed by the plain stack. |
+| **WSL2** | Windows Subsystem for Linux: a real Linux running inside Windows, with GPU access. Our fallback if native Windows fails. |
