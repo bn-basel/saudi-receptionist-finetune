@@ -1,0 +1,12 @@
+{
+  "model": "Qwen/Qwen3.5-9B",
+  "seq_len": 1024,
+  "vram_after_load_gb": 7.12,
+  "peak_vram_training_gb": 14.82,
+  "gpu_total_gb": 15.92,
+  "fits_in_vram": true,
+  "seconds_per_step": 12.64,
+  "tokens_per_second": 81,
+  "lora_trainable_params": 43278336,
+  "load_seconds": 20
+}

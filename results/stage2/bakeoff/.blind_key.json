@@ -1,0 +1,52 @@
+[
+  {
+    "i": 0,
+    "A": "google/gemma-4-12B-it",
+    "B": "Qwen/Qwen3.5-9B"
+  },
+  {
+    "i": 1,
+    "A": "Qwen/Qwen3.5-9B",
+    "B": "google/gemma-4-12B-it"
+  },
+  {
+    "i": 2,
+    "A": "Qwen/Qwen3.5-9B",
+    "B": "google/gemma-4-12B-it"
+  },
+  {
+    "i": 3,
+    "A": "google/gemma-4-12B-it",
+    "B": "Qwen/Qwen3.5-9B"
+  },
+  {
+    "i": 4,
+    "A": "Qwen/Qwen3.5-9B",
+    "B": "google/gemma-4-12B-it"
+  },
+  {
+    "i": 5,
+    "A": "google/gemma-4-12B-it",
+    "B": "Qwen/Qwen3.5-9B"
+  },
+  {
+    "i": 6,
+    "A": "Qwen/Qwen3.5-9B",
+    "B": "google/gemma-4-12B-it"
+  },
+  {
+    "i": 7,
+    "A": "Qwen/Qwen3.5-9B",
+    "B": "google/gemma-4-12B-it"
+  },
+  {
+    "i": 8,
+    "A": "google/gemma-4-12B-it",
+    "B": "Qwen/Qwen3.5-9B"
+  },
+  {
+    "i": 9,
+    "A": "google/gemma-4-12B-it",
+    "B": "Qwen/Qwen3.5-9B"
+  }
+]

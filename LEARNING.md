@@ -36,4 +36,22 @@ One entry per step: the concept in one paragraph, what we did, and what I learne
   - A tiny random Llama-style model loaded in 4-bit, with LoRA on all linear layers: only the 69,632 adapter parameters are trainable (5.6% here; about 0.5% on an 8B model, because big layers grow faster than their adapters), and the loss fell from 7.01 to 3.35 in 40 steps. Peak VRAM: 201 MB.
 - Harmless warning noted: "triton not found" only disables flop counting; we chose not to install Triton.
 
-**What I learned.** _(filled in after the Step 1 check questions)_
+**What I learned.**
+- The smoke test used a **separate tiny model**, not a piece of the 8B one. It proves the *pipeline* works on this GPU: the sm_120 kernels, 4-bit loading, LoRA adapters, the backward pass and the optimizer. It does **not** prove that an 8B model fits in 16 GB, how fast training will be, or anything about quality. Those get checked in Stages 2 and 7.
+- PyPI's torch for Windows is CPU-only. The CUDA builds live on PyTorch's own server, with one build per CUDA version (`cu130`). Without it, the version would read `+cpu` and the very first check, "GPU visible to PyTorch", would have failed.
+
+---
+
+## Step 2 — Choosing the base model
+
+**Concept.** The base model sets the ceiling for everything after it, and its licence decides what we may publish, because a fine-tune is a derivative of its base. Four things matter here. (1) **Licence:** Apache-2.0 allows modifying, publishing and commercial use, as long as the licence and notices are kept. (2) **Tokenizer fertility:** how many tokens a model needs per word of Saudi text; fewer means faster, cheaper, and more conversation per example. (3) **Chat template:** the exact text format a conversation becomes; if it has a slot for tools, the model already knows a tool-call format we can build on. (4) **Fit:** in QLoRA the whole model must sit in VRAM. For a mixture-of-experts (MoE) model that means *all* experts, not just the active ones, which is why the newest giant models (DeepSeek V4, GLM-5, Kimi K3, Qwen3.8) can only be competitors, not bases.
+
+**What we did.**
+- Scanned current open models from the Hugging Face API (general families, Chinese labs, Arabic-first models). Everything newer than Qwen3.5 in the Qwen family is 27B+ or MoE, too big for 16 GB. Mistral and Jais-2 were dropped by decision; Falcon-H1-Arabic is not openly published.
+- Measured tokenizers on a 30-message Saudi probe (generated with Mujawib, reviewed by me, kept out of git). Tokens per word: ALLaM-7B 1.79, Gemma-4-12B 2.22, Fanar-1-9B 2.33, Qwen3.5-9B 2.34, Granite-4.2-8B 4.21. ALLaM and Fanar have no tool support in their template (it crashes when a tool turn appears). Dialect words like `أبغى` get split by every tokenizer, while formal words stay whole: a visible sign of MSA-heavy training data.
+- Bake-off between Qwen3.5-9B and Gemma-4-12B-it (both Apache-2.0, both with tool templates):
+  - **Memory and speed** (4-bit, LoRA r=16 on all linear layers, batch 1): at 1,024 tokens both fit (Qwen 14.8 GB, 12.6 s/step; Gemma 14.6 GB, 7.8 s/step). At 2,048 tokens neither fits (Qwen 18.2 GB, Gemma 19.3 GB). On Windows the driver silently borrows system RAM instead of crashing, so running out of VRAM shows up as extreme slowness (Qwen: 180 s/step). Qwen is also slowed by the missing fast kernels for its linear-attention layers.
+  - **Blind dialect test:** 10 customer messages, same system prompt, A/B order shuffled per message, answer key hidden until I had judged. Gemma 9, Qwen 0, one tie leaning Gemma. A sign test puts 9–0 by luck at about 0.4%. Qwen drifted into Egyptian and Levantine forms and invented facts; Gemma's mistakes were claiming availability without checking, assuming today's date, and promising a location it did not have, all things tool calling should fix.
+- **Decision: `google/gemma-4-12B-it`**, Apache-2.0 (standard text, confirmed on Google's licence page). It won on dialect, tokenizer efficiency and speed, and it has a native tool-call format. Constraint for later stages: training examples of about 1,024 tokens unless Stage 7 finds memory savings.
+
+**What I learned.** _(filled in after the Step 2 check questions)_

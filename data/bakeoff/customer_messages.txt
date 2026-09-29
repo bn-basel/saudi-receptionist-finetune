@@ -1,0 +1,12 @@
+# Stage 2b bake-off inputs: customer messages (synthetic drafts, reviewed and corrected by Basel).
+# Used ONLY for the base-model bake-off. Never copy these into the test or training data.
+السلام عليكم
+كم سعر تنظيف الأسنان عندكم؟
+ابي احجز موعد يوم الخميس بعد العشا اذا فيه
+عندي الم قوي في ضرسي من امس وماقدرت انام، تقدرون تشوفوني اليوم؟
+ليه الكشف بـ١٠٠؟ العيادة اللي جنبكم ب٥٠ بس 🙄
+ممكن اكنسل موعدي بكرة؟ صار عندي ظرف
+التبييض يأثر على الاسنان؟ خايفة يخربها
+Hi, ابي اعرف location العيادة بالضبط
+تقبلون تأمين بوبا؟
+مشكورين ماقصرتوا والله، الدكتور كان مرة محترم 🌹

@@ -1,0 +1,11 @@
+<|im_start|>system
+You are provided with the following tools:
+
+<tools>
+{"type": "function", "function": {"name": "get_service_price", "description": "Look up the price of a service in Saudi riyals.", "parameters": {"type": "object", "properties": {"service": {"type": "string", "description": "Service name"}}, "required": ["service"]}}}
+</tools><|im_end|><|im_start|>system
+أنتِ موظفة استقبال في عيادة أسنان خيالية.<|im_end|><|im_start|>user
+كم سعر تنظيف الأسنان؟<|im_end|><|im_start|>assistant
+<think></think><tool_call><function=get_service_price><parameter=service>تنظيف الأسنان</parameter></function></tool_call><|im_end|><|im_start|>tool
+{"price": 250, "currency": "SAR"}<|im_end|><|im_start|>assistant
+<think></think>تنظيف الأسنان بـ250 ريال. تبين أحجز لك موعد؟<|im_end|>

@@ -13,8 +13,41 @@ The goal is to beat both the untuned base model and a strong API baseline on a h
 |---|---|---|
 | 0 | Big picture, machine check, repo setup | Done |
 | 1 | Training environment on the RTX 5080 | Done (smoke test passes) |
+| 2 | Base model choice | Done: [`google/gemma-4-12B-it`](https://huggingface.co/google/gemma-4-12B-it) (Apache-2.0) |
 
 Nothing below this line is claimed until it is done and verified. Results, dataset card and model card will be added when they exist.
+
+## Findings so far
+
+**Stage 2: choosing the base model.** Measured on our own Saudi-dialect text and on this GPU, not taken from vendor claims.
+
+| Candidate | Tokens per word (Saudi probe) | Tool-call template | QLoRA peak VRAM at 1,024 tokens | Seconds per training step |
+|---|---|---|---|---|
+| ALLaM-7B-Instruct-preview | 1.79 | none | - | - |
+| **Gemma-4-12B-it** | **2.22** | yes | **14.6 GB** | **7.8** |
+| Fanar-1-9B-Instruct | 2.33 | none | - | - |
+| Qwen3.5-9B | 2.34 | yes | 14.8 GB | 12.6 |
+| Granite-4.2-8B | 4.21 | yes | - | - |
+
+In a blind A/B test on 10 customer messages, judged by a native speaker before any fine-tuning, Gemma-4-12B-it won 9 and Qwen3.5-9B won 0 (1 tie). This is a small sample from one judge, used only to choose the base model. Details: [LEARNING.md](LEARNING.md#step-2--choosing-the-base-model), raw outputs in [`results/stage2/`](results/stage2/).
+
+## Roadmap (plan, not results)
+
+This is a comparison study as much as a fine-tune. The question is not only "did fine-tuning help?" but "is fine-tuning a small local model worth it compared with prompting strong models?"
+
+| Stage | Plan |
+|---|---|
+| 2 | Choose the base model: licence, Arabic quality, tokenizer efficiency on Saudi text, tool-call support, fits QLoRA in 16 GB |
+| 3 | Task spec: fictional businesses, tool schema, style switches (casual/formal, warm/plain, emoji on/off) |
+| 4 | Test set, written from scratch before any training data, then frozen |
+| 5 | Benchmark harness: one script runs any model over the test set and scores it the same way. Competitors: API models with one shared prompt, other open Arabic models, and the base model with a prompt and with few-shot examples |
+| 6 | Training data: licence audit, synthetic generation only where terms allow, native-speaker review, leakage check against the test set |
+| 7 | QLoRA training on the RTX 5080 |
+| 8 | Evaluation: automatic tool-call checks, blind A/B dialect review, confidence intervals, cost and speed per reply |
+| 9 | Publish: results table, raw outputs per model, side-by-side conversation gallery, dataset card, model card with honest limitations |
+| Later | The same data on a larger model in the cloud; other regional dialects, each with its own test set |
+
+Fairness rules for the comparison: every model gets the same prompt; the prompt is tuned on the validation set and frozen before any test results exist; each API's terms are checked before its outputs are published.
 
 ## Reproduce
 

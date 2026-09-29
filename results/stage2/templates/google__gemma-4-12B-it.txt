@@ -1,0 +1,6 @@
+<bos><|turn>system
+أنتِ موظفة استقبال في عيادة أسنان خيالية.<|tool>declaration:get_service_price{description:<|"|>Look up the price of a service in Saudi riyals.<|"|>,parameters:{properties:{service:{description:<|"|>Service name<|"|>,type:<|"|>STRING<|"|>}},required:[<|"|>service<|"|>],type:<|"|>OBJECT<|"|>}}<tool|><turn|>
+<|turn>user
+كم سعر تنظيف الأسنان؟<turn|>
+<|turn>model
+<|tool_call>call:get_service_price{service:<|"|>تنظيف الأسنان<|"|>}<tool_call|><|tool_response>response:get_service_price{value:<|"|>{"price": 250, "currency": "SAR"}<|"|>}<tool_response|>تنظيف الأسنان بـ250 ريال. تبين أحجز لك موعد؟<turn|>

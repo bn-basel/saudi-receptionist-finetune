@@ -28,3 +28,6 @@ data/cache/
 # OS
 Thumbs.db
 .DS_Store
+
+# Tokenizer probe text is generated with Mujawib (Basel's company service): kept local, never published
+data/probe/saudi_messages.txt

@@ -1,0 +1,12 @@
+{
+  "model": "google/gemma-4-12B-it",
+  "seq_len": 2048,
+  "vram_after_load_gb": 7.15,
+  "peak_vram_training_gb": 19.33,
+  "gpu_total_gb": 15.92,
+  "fits_in_vram": false,
+  "seconds_per_step": 14.87,
+  "tokens_per_second": 138,
+  "lora_trainable_params": 65568768,
+  "load_seconds": 23
+}

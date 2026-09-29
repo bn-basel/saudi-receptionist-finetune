@@ -38,3 +38,11 @@ Short, plain definitions. Added to as each step introduces new terms.
 | **TRL** | Hugging Face's library with ready-made training loops, such as `SFTTrainer`. |
 | **Triton** | A compiler for writing custom GPU kernels in Python. Used by speed-up libraries like Unsloth; not needed by the plain stack. |
 | **WSL2** | Windows Subsystem for Linux: a real Linux running inside Windows, with GPU access. Our fallback if native Windows fails. |
+| **Fertility** | Average tokens per word for a tokenizer on some text. Lower is better. On our Saudi probe it ranged from 1.79 (ALLaM) to 4.21 (Granite). |
+| **Derivative work** | Something made from someone else's work, such as a fine-tune of a base model. It must follow the base model's licence. |
+| **Apache-2.0** | A permissive licence: use, modify, publish and sell, as long as you keep the licence and notices and mark your changes. Includes a patent grant. |
+| **Mixture of experts (MoE)** | A model with many "expert" sub-networks, of which only a few run per token ("35B-A3B" = 35B total, 3B active). Fast to run, but all experts must fit in memory to fine-tune. |
+| **Sysmem fallback** | A Windows NVIDIA driver behaviour: when VRAM is full, it silently borrows system RAM instead of failing. The job keeps running, but 10–100× slower. |
+| **Blind test** | Judging outputs without knowing which system produced them, so expectations cannot bias the verdict. |
+| **Sign test** | A simple check of whether a win count could be luck: if two systems were equal, each decisive pick is a coin flip. |
+| **Catastrophic forgetting** | When fine-tuning on a narrow task makes a model worse at everything else. |

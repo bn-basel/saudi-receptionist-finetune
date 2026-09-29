@@ -8,6 +8,8 @@ dependencies = [
     "bitsandbytes>=0.50.2",
     "datasets>=5.0.1",
     "peft>=0.21.0",
+    "protobuf>=7.36.2",
+    "sentencepiece>=0.2.2",
     "torch==2.12.1",
     "transformers>=5.17.0",
     "trl>=1.14.0",
