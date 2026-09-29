@@ -54,4 +54,23 @@ One entry per step: the concept in one paragraph, what we did, and what I learne
   - **Blind dialect test:** 10 customer messages, same system prompt, A/B order shuffled per message, answer key hidden until I had judged. Gemma 9, Qwen 0, one tie leaning Gemma. A sign test puts 9–0 by luck at about 0.4%. Qwen drifted into Egyptian and Levantine forms and invented facts; Gemma's mistakes were claiming availability without checking, assuming today's date, and promising a location it did not have, all things tool calling should fix.
 - **Decision: `google/gemma-4-12B-it`**, Apache-2.0 (standard text, confirmed on Google's licence page). It won on dialect, tokenizer efficiency and speed, and it has a native tool-call format. Constraint for later stages: training examples of about 1,024 tokens unless Stage 7 finds memory savings.
 
-**What I learned.** _(filled in after the Step 2 check questions)_
+**What I learned.**
+- The missing fast kernels (the "environment") made Qwen slower at *every* length, but they cannot explain the jump from 12.6 to 180 s/step. The jump came from running out of VRAM: at 2,048 tokens Qwen needed 18.2 GB on a 15.9 GB card, so Windows moved the overflow into system RAM and the GPU spent most of its time waiting for data over the PCIe bus. Twice the text should cost about twice the time; the rest was the spill. So on Windows, a sudden huge slowdown is a memory warning, not a speed problem.
+- Shuffling A/B separately for every message does two jobs a fixed order cannot. It stops **position bias** (people lean toward the first or the second option regardless of content), and it stops me from **recognising a model by its style** after a few messages and effectively un-blinding the test.
+
+---
+
+## Step 3 — Task spec: businesses, tools, style switches, data format
+
+**Concept.** Before creating any data we fix the contract every later stage follows. The model never runs a tool: it only *writes* a request such as `call:get_available_slots{...}`. Our code runs it (a fake calendar built from `spec/` while we develop and evaluate; a real booking system in production), puts the result back into the conversation, and the model then writes its reply from that result. Tools are described with JSON Schema, and those descriptions are part of every conversation, so they cost tokens every time. Style switches work by *conditioning*: a line in the system prompt states the style, and training on many conversations with different values teaches the model to follow that line, so the tone can change without retraining.
+
+**What we did.**
+- Wrote [docs/TASK_SPEC.md](docs/TASK_SPEC.md): 4 fictional businesses (clinic, salon, car wash, restaurant), 6 tools, the expected tool sequence for each scenario, 5 checkable hard rules, 3 style switches (register, warmth, emoji), and the data format. Records store only the ingredients of the system prompt (business, style, time), and [scripts/prompt.py](scripts/prompt.py) rebuilds it, so the wording can improve later without regenerating data.
+- Put today's date, weekday and prayer times into the system prompt, fixing the bake-off mistake of guessing the day and letting the model turn "الخميس بعد العشا" into a real date and time.
+- Measured the budget with Gemma's own template: the first draft was 1,267 tokens (over the 1,024 that fit). Trimming the tool descriptions, dropping `reschedule_booking` and shortening the rules brought the reference conversation to 1,009 tokens. Stage 7 will look for memory savings to allow longer chats.
+- Decisions: general Saudi dialect for v1 (regional dialects later), masculine forms by default (always feminine at the women-only salon), and `reschedule_booking` kept out of training entirely but put in the test set as an *unseen tool*.
+- Reviewed the Arabic as a native speaker: corrected the style examples and the reference conversation.
+
+**What I learned.**
+- Between the model's `call:` line and its reply, *our* code runs the tool and inserts the result. The model only ever writes text. An "invented fact" is a price or time the model writes that never came from a tool result or the system prompt: it skipped the call, or ignored the result, and filled the gap from patterns in its weights.
+- Keeping `reschedule_booking` out of training is not about stopping it from inventing times. It is a **generalisation test**, like an exam question of a type the class never practised. If the model uses a tool it has never seen correctly, just from its definition, it has learned to *read* tool definitions, which means new tools can be added later without retraining. If we trained on it, a correct call would only prove memory, and we would have no evidence for that.

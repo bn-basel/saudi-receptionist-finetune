@@ -1,0 +1,30 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "reschedule_booking",
+      "description": "Move a booking to a new free time, only after the customer agrees.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "booking_id": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "description": "YYYY-MM-DD"
+          },
+          "time": {
+            "type": "string",
+            "description": "HH:MM"
+          }
+        },
+        "required": [
+          "booking_id",
+          "date",
+          "time"
+        ]
+      }
+    }
+  }
+]

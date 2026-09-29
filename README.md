@@ -14,6 +14,7 @@ The goal is to beat both the untuned base model and a strong API baseline on a h
 | 0 | Big picture, machine check, repo setup | Done |
 | 1 | Training environment on the RTX 5080 | Done (smoke test passes) |
 | 2 | Base model choice | Done: [`google/gemma-4-12B-it`](https://huggingface.co/google/gemma-4-12B-it) (Apache-2.0) |
+| 3 | Task spec: businesses, tools, style switches, data format | Done: [docs/TASK_SPEC.md](docs/TASK_SPEC.md) |
 
 Nothing below this line is claimed until it is done and verified. Results, dataset card and model card will be added when they exist.
 

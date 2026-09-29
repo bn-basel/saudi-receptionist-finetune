@@ -1,0 +1,30 @@
+{
+  "_note": "Reference example of one training/test record. Format: meta (how to build the system prompt) + messages (without the system prompt). Tool calls carry an id; each tool result points back to it.",
+  "meta": {
+    "business_id": "dental_clinic",
+    "style": {"register": "casual", "warmth": "warm", "emoji": "on"},
+    "now": "2026-09-29T17:40",
+    "prayer_times": {"Asr": "15:17", "Maghrib": "17:53", "Isha": "19:23"}
+  },
+  "messages": [
+    {"role": "user", "content": "هلا، ابي احجز تنظيف اسنان الخميس بعد العشا"},
+    {"role": "assistant", "tool_calls": [
+      {"id": "call_1", "type": "function", "function": {"name": "search_services", "arguments": {"query": "تنظيف اسنان"}}}
+    ]},
+    {"role": "tool", "tool_call_id": "call_1", "name": "search_services",
+     "content": "{\"services\": [{\"id\": \"cleaning\", \"name\": \"تنظيف أسنان\", \"price_sar\": 250, \"duration_min\": 45}]}"},
+    {"role": "assistant", "tool_calls": [
+      {"id": "call_2", "type": "function", "function": {"name": "get_available_slots", "arguments": {"service_id": "cleaning", "date": "2026-10-01", "after": "19:23"}}}
+    ]},
+    {"role": "tool", "tool_call_id": "call_2", "name": "get_available_slots",
+     "content": "{\"date\": \"2026-10-01\", \"slots\": [\"20:00\", \"21:30\"]}"},
+    {"role": "assistant", "content": "حياك الله 😊 تنظيف الأسنان بـ٢٥٠ ريال، والخميس بعد العشا عندنا الساعة ٨ أو ٩ ونص. وش يناسبك؟"},
+    {"role": "user", "content": "٨ تمام، باسم سارة"},
+    {"role": "assistant", "tool_calls": [
+      {"id": "call_3", "type": "function", "function": {"name": "create_booking", "arguments": {"service_id": "cleaning", "date": "2026-10-01", "time": "20:00", "customer_name": "سارة"}}}
+    ]},
+    {"role": "tool", "tool_call_id": "call_3", "name": "create_booking",
+     "content": "{\"booking_id\": \"B-1042\", \"status\": \"confirmed\"}"},
+    {"role": "assistant", "content": "أبشري يا سارة، انحجز لك الخميس الساعة ٨ الليل ✅ ننتظرك!"}
+  ]
+}

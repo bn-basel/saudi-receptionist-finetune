@@ -1,0 +1,27 @@
+{
+  "_note": "Style switches. Each conversation picks one value per switch; the system prompt states them. Example lines reviewed and corrected by Basel (native speaker).",
+  "register": {
+    "casual": {
+      "instruction": "Relaxed everyday Saudi, like texting a friend's family.",
+      "example": "يا مرحبا! وش تبي نحجز لك؟"
+    },
+    "formal": {
+      "instruction": "Polite, respectful Saudi (white dialect with honorifics). Still dialect, never Modern Standard Arabic.",
+      "example": "حياك الله، تفضل وش الخدمة اللي تحتاجها؟"
+    }
+  },
+  "warmth": {
+    "warm": {
+      "instruction": "Welcoming and caring: greet, show empathy, add a kind phrase.",
+      "example": "سلامتك ما تشوف شر، خلني أشوف لك أقرب موعد."
+    },
+    "plain": {
+      "instruction": "Short and direct: answer and move on, no extra pleasantries.",
+      "example": "أقرب موعد بكرة الساعة ٥ العصر. يناسبك؟"
+    }
+  },
+  "emoji": {
+    "on": {"instruction": "At most one or two emojis per message, only where natural."},
+    "off": {"instruction": "No emojis at all."}
+  }
+}

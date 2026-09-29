@@ -1,0 +1,186 @@
+[
+  {
+    "id": "dental_clinic",
+    "name": "عيادة ابتسامة المروج لطب الأسنان",
+    "type": "dental clinic",
+    "city": "الرياض",
+    "address": "حي المروج، طريق الأمير محمد بن سعد",
+    "map_link": "https://maps.example.com/ibtisama-almurooj",
+    "hours": "Sun-Thu 16:00-23:00; Fri-Sat closed",
+    "policies": [
+      "cancel or reschedule free up to 6 hours before",
+      "payment: cash, mada, Apple Pay",
+      "insurance: not accepted"
+    ],
+    "services": [
+      {
+        "id": "checkup",
+        "name": "كشف واستشارة",
+        "price_sar": 100,
+        "duration_min": 20
+      },
+      {
+        "id": "cleaning",
+        "name": "تنظيف أسنان",
+        "price_sar": 250,
+        "duration_min": 45
+      },
+      {
+        "id": "filling",
+        "name": "حشوة تجميلية",
+        "price_sar": 350,
+        "duration_min": 60
+      },
+      {
+        "id": "whitening",
+        "name": "تبييض",
+        "price_sar": 1200,
+        "duration_min": 90
+      },
+      {
+        "id": "braces_consult",
+        "name": "استشارة تقويم",
+        "price_sar": 150,
+        "duration_min": 30
+      }
+    ],
+    "assistant": {
+      "name": "نورة",
+      "gender": "female"
+    },
+    "customers": "unknown"
+  },
+  {
+    "id": "salon",
+    "name": "صالون لمسة ورد",
+    "type": "women's beauty salon",
+    "city": "جدة",
+    "address": "حي الروضة، شارع صاري",
+    "map_link": "https://maps.example.com/lamsat-ward",
+    "hours": "Sat-Thu 13:00-23:00; Fri 16:00-23:00",
+    "policies": [
+      "cancel free up to 3 hours before",
+      "payment: cash, mada, Apple Pay, Tabby"
+    ],
+    "services": [
+      {
+        "id": "haircut",
+        "name": "قص شعر",
+        "price_sar": 120,
+        "duration_min": 45
+      },
+      {
+        "id": "blowdry",
+        "name": "سشوار",
+        "price_sar": 90,
+        "duration_min": 40
+      },
+      {
+        "id": "hair_color",
+        "name": "صبغة شعر",
+        "price_sar": 350,
+        "duration_min": 120
+      },
+      {
+        "id": "manicure",
+        "name": "مناكير",
+        "price_sar": 80,
+        "duration_min": 40
+      },
+      {
+        "id": "bridal_makeup",
+        "name": "مكياج عروس",
+        "price_sar": 1500,
+        "duration_min": 150
+      }
+    ],
+    "assistant": {
+      "name": "ريم",
+      "gender": "female"
+    },
+    "customers": "women only"
+  },
+  {
+    "id": "car_wash",
+    "name": "مغسلة البريق",
+    "type": "car wash and detailing",
+    "city": "الدمام",
+    "address": "حي الشاطئ، طريق الخليج",
+    "map_link": "https://maps.example.com/albareeq",
+    "hours": "daily 08:00-00:00",
+    "policies": [
+      "prices for sedans; SUVs add 20 SAR",
+      "payment: cash, mada"
+    ],
+    "services": [
+      {
+        "id": "outside_wash",
+        "name": "غسيل خارجي",
+        "price_sar": 30,
+        "duration_min": 20
+      },
+      {
+        "id": "full_wash",
+        "name": "غسيل داخلي وخارجي",
+        "price_sar": 60,
+        "duration_min": 40
+      },
+      {
+        "id": "polish",
+        "name": "تلميع",
+        "price_sar": 250,
+        "duration_min": 120
+      },
+      {
+        "id": "nano_ceramic",
+        "name": "نانو سيراميك",
+        "price_sar": 900,
+        "duration_min": 240
+      }
+    ],
+    "assistant": {
+      "name": "فهد",
+      "gender": "male"
+    },
+    "customers": "unknown"
+  },
+  {
+    "id": "restaurant",
+    "name": "مطعم سفرة الديرة",
+    "type": "Saudi restaurant (table reservations)",
+    "city": "الرياض",
+    "address": "حي الملقا، طريق أنس بن مالك",
+    "map_link": "https://maps.example.com/sufrat-aldeera",
+    "hours": "daily 12:30-01:00",
+    "policies": [
+      "family section and singles section",
+      "reservations hold 15 minutes",
+      "payment: cash, mada, Apple Pay"
+    ],
+    "services": [
+      {
+        "id": "table_2",
+        "name": "طاولة لشخصين",
+        "price_sar": 0,
+        "duration_min": 90
+      },
+      {
+        "id": "table_4",
+        "name": "طاولة ٤ أشخاص",
+        "price_sar": 0,
+        "duration_min": 90
+      },
+      {
+        "id": "family_room",
+        "name": "جلسة عائلية خاصة (حتى ١٠ أشخاص)",
+        "price_sar": 200,
+        "duration_min": 120
+      }
+    ],
+    "assistant": {
+      "name": "سعود",
+      "gender": "male"
+    },
+    "customers": "unknown"
+  }
+]
