@@ -48,7 +48,16 @@
       "name": "نورة",
       "gender": "female"
     },
-    "customers": "unknown"
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "16:00-23:00",
+      "Tue": "16:00-23:00",
+      "Wed": "16:00-23:00",
+      "Thu": "16:00-23:00",
+      "Fri": null,
+      "Sat": null,
+      "Sun": "16:00-23:00"
+    }
   },
   {
     "id": "salon",
@@ -98,7 +107,16 @@
       "name": "ريم",
       "gender": "female"
     },
-    "customers": "women only"
+    "customers": "women only",
+    "schedule": {
+      "Mon": "13:00-23:00",
+      "Tue": "13:00-23:00",
+      "Wed": "13:00-23:00",
+      "Thu": "13:00-23:00",
+      "Fri": "16:00-23:00",
+      "Sat": "13:00-23:00",
+      "Sun": "13:00-23:00"
+    }
   },
   {
     "id": "car_wash",
@@ -142,7 +160,16 @@
       "name": "فهد",
       "gender": "male"
     },
-    "customers": "unknown"
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "08:00-24:00",
+      "Tue": "08:00-24:00",
+      "Wed": "08:00-24:00",
+      "Thu": "08:00-24:00",
+      "Fri": "08:00-24:00",
+      "Sat": "08:00-24:00",
+      "Sun": "08:00-24:00"
+    }
   },
   {
     "id": "restaurant",
@@ -181,6 +208,15 @@
       "name": "سعود",
       "gender": "male"
     },
-    "customers": "unknown"
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "12:30-25:00",
+      "Tue": "12:30-25:00",
+      "Wed": "12:30-25:00",
+      "Thu": "12:30-25:00",
+      "Fri": "12:30-25:00",
+      "Sat": "12:30-25:00",
+      "Sun": "12:30-25:00"
+    }
   }
 ]
