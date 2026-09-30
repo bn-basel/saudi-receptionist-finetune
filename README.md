@@ -1,6 +1,12 @@
 # saudi-dialect
 
-Fine-tuning a small open model (about 7–9B parameters) with QLoRA on one consumer GPU (RTX 5080, 16 GB) so that it:
+## Why this project
+
+I'm the founder of Mujawib, an AI agent receptionist for Saudi businesses. Today it runs on a large commercial API model. This project asks whether a small open model, fine-tuned on a single consumer GPU, can write more natural Saudi dialect *and* call booking tools correctly, and beat both that API model and Saudi Arabia's own open ALLaM model on a public, reproducible test set.
+
+## What it does
+
+Fine-tuning a small open model (Gemma-4-12B) with QLoRA on one consumer GPU (RTX 5080, 16 GB) so that it:
 
 1. writes natural Saudi dialect the way a friendly receptionist texts on WhatsApp, and
 2. calls tools correctly (price lookup, available times, booking) in the same conversation.
@@ -40,7 +46,7 @@ In a blind A/B test on 10 customer messages, judged by a native speaker before a
 | `data/test/test_v1.jsonl` | `6fc684b157e5719567ba347525a26bc62a6646755a089c3f7393341b1d41935f` |
 | `data/test/dev_v1.jsonl` | `6d1a148fe416b8d167ec0f50374ef86f4c78971ebd4e970f6b00a8aa5b095f8b` |
 
-Check them with `sha256sum data/test/*_v1.jsonl`. Any change to the test set becomes a new version (`test_v2`), never a silent edit.
+Check them with `sha256sum data/test/*_v1.jsonl` (Linux, macOS, Git Bash) or `Get-FileHash data/test/*_v1.jsonl -Algorithm SHA256` (PowerShell). Any change to the test set becomes a new version (`test_v2`), never a silent edit.
 
 **Known limitations so far.** The test messages are synthetic drafts reviewed and edited by one native speaker, so their phrasing is less varied than real customers. The dialect verdicts come from one judge.
 
@@ -50,9 +56,6 @@ This is a comparison study as much as a fine-tune. The question is not only "did
 
 | Stage | Plan |
 |---|---|
-| 2 | Choose the base model: licence, Arabic quality, tokenizer efficiency on Saudi text, tool-call support, fits QLoRA in 16 GB |
-| 3 | Task spec: fictional businesses, tool schema, style switches (casual/formal, warm/plain, emoji on/off) |
-| 4 | Test set, written from scratch before any training data, then frozen |
 | 5 | Benchmark harness: one script runs any model over the test set and scores it the same way. Competitors: API models with one shared prompt, other open Arabic models, and the base model with a prompt and with few-shot examples |
 | 6 | Training data: licence audit, synthetic generation only where terms allow, native-speaker review, leakage check against the test set |
 | 7 | QLoRA training on the RTX 5080 |
@@ -60,7 +63,7 @@ This is a comparison study as much as a fine-tune. The question is not only "did
 | 9 | Publish: results table, raw outputs per model, side-by-side conversation gallery, dataset card, model card with honest limitations |
 | Later | The same data on a larger model in the cloud; other regional dialects, each with its own test set |
 
-Fairness rules for the comparison: every model gets the same prompt; the prompt is tuned on the validation set and frozen before any test results exist; each API's terms are checked before its outputs are published.
+Fairness rules for the comparison: every model sees the same test cases, tools and system-prompt format. Prompt-only competitors are tested with the short prompt the fine-tuned model uses **and** with a longer, fully explained version, and both results are reported. Prompts are tuned only on the dev set and frozen before any test result exists. Each API's terms are checked before its outputs are published.
 
 ## Reproduce
 

@@ -74,3 +74,21 @@ One entry per step: the concept in one paragraph, what we did, and what I learne
 **What I learned.**
 - Between the model's `call:` line and its reply, *our* code runs the tool and inserts the result. The model only ever writes text. An "invented fact" is a price or time the model writes that never came from a tool result or the system prompt: it skipped the call, or ignored the result, and filled the gap from patterns in its weights.
 - Keeping `reschedule_booking` out of training is not about stopping it from inventing times. It is a **generalisation test**, like an exam question of a type the class never practised. If the model uses a tool it has never seen correctly, just from its definition, it has learned to *read* tool definitions, which means new tools can be added later without retraining. If we trained on it, a correct call would only prove memory, and we would have no evidence for that.
+
+---
+
+## Step 4 — The test set
+
+**Concept.** The test set is the exam behind every claim in the README, so three rules protect it. It is written **before** any training data, so it cannot drift toward what the model practised. It is **frozen**: its SHA-256 fingerprint is published, and changing even one character changes the fingerprint, so anyone can check it was never edited. And it is **never used for tuning**: prompts are tuned on a separate dev set, and the test set is only used for final scores. Each case is a conversation up to one decision plus the one correct next step, so every step of a flow is measured on its own and most checks are automatic (right tool, exact arguments, no invented numbers, emoji switch). At 160 cases, a score of around 80% carries roughly ±6 percentage points of uncertainty.
+
+**What we did.**
+- Designed 12 categories (160 test + 40 dev): prices, bookings with date phrases, offering slots, confirming, cancelling, business info, unknown questions, complaints, closed hours, small talk, a tool never seen in training (`reschedule_booking`), and pressure tests.
+- Built a deterministic fake backend ([scripts/backend.py](scripts/backend.py)) that answers every tool from `spec/`, and a builder ([scripts/build_testset.py](scripts/build_testset.py)) that assembles each case, validates it and computes the fingerprint.
+- The customer messages started as synthetic drafts. I reviewed all 200 rows as a native speaker, with a separate review pass checking dialect, style, gender agreement, tool calls, balance and overlap. That produced 13 rules, for example: no Arabizi anywhere; the assistant writes times with 0–9 and never mixes digit sets; formal replies say الصباح / المساء; customers pick a time in their own words; masculine forms unless the customer is known to be a woman, and always feminine at the women-only salon.
+- Some cases accept more than one correct answer, each reported separately. For the unseen tool: using it, the old cancel-and-rebook pattern, or confirming the new time first.
+- Checks before freezing: all tool calls valid, no near-duplicate customer lines within a category, overlap with the bake-off and probe messages low, no mixed digits, greetings matching the time of day. Fixed a line-ending issue so the fingerprint matches the file on GitHub on every OS.
+- Frozen on 2026-09-30. `test_v1.jsonl` SHA-256 `6fc684b1…1935f`, `dev_v1.jsonl` `6d1a148f…5f8b` (full values in [docs/TEST_SET.md](docs/TEST_SET.md)).
+
+**What I learned.**
+- Stopping each case at one decision shows exactly *which* decision the model gets wrong (right tool, wrong date), and it stops one early mistake from spoiling every step after it.
+- A frozen test set is never edited, even for a typo found later. Like a published exam, it gets a new version (`test_v2`) with its own fingerprint and a note of what changed, and every model is re-run on the new version; scores from v1 and v2 are never mixed. Otherwise "fixes" made after seeing results could quietly favour my own model.
