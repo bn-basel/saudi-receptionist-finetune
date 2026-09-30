@@ -48,6 +48,14 @@ In a blind A/B test on 10 customer messages, judged by a native speaker before a
 
 Check them with `sha256sum data/test/*_v1.jsonl` (Linux, macOS, Git Bash) or `Get-FileHash data/test/*_v1.jsonl -Algorithm SHA256` (PowerShell). Any change to the test set becomes a new version (`test_v2`), never a silent edit.
 
+**Stage 5: baselines (in progress).** Scored automatically on the 160 frozen test cases (scorer v1.1, 95% confidence interval in brackets):
+
+| Model | Setup | Pass rate |
+|---|---|---|
+| Gemma-4-12B-it, untuned | 4-bit, greedy, the short system prompt from [docs/TASK_SPEC.md](docs/TASK_SPEC.md) | **40.6%** (33.3–48.4%) |
+
+Untuned Gemma answers in fluent Saudi dialect but almost never uses its tools: 2 tool calls in 160 cases. It asks clarifying questions instead of checking prices or the calendar. In 13 answers it says a booking or cancellation is done when no tool did it, and in 5 it gives a wrong date. More baselines (ALLaM, API models, a longer prompt) will be added here as they run.
+
 **Known limitations so far.** The test messages are synthetic drafts reviewed and edited by one native speaker, so their phrasing is less varied than real customers. The dialect verdicts come from one judge.
 
 ## Roadmap (plan, not results)

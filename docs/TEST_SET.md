@@ -75,6 +75,24 @@ One JSON object per line in `data/test/test_v1.jsonl` and `data/test/dev_v1.json
 
 Built by [`scripts/build_testset.py`](../scripts/build_testset.py) from the drafts in [`scripts/testset_drafts.py`](../scripts/testset_drafts.py) and the reviewed sheet `data/test/sheet_v1.csv`; tool results come from the fake backend [`scripts/backend.py`](../scripts/backend.py).
 
+### Scoring details (scorer v1.1)
+
+Implemented in [`scripts/scoring.py`](../scripts/scoring.py), run by [`scripts/run_eval.py`](../scripts/run_eval.py), and tested by [`scripts/test_scoring.py`](../scripts/test_scoring.py): a model that always answers correctly must score 200/200, and 38 hand-made right and wrong answers must land on the right side. Every summary states the scorer version it was scored with.
+
+- Only the **first** tool call in the step is matched against the expectation; every call is checked for validity.
+- Argument values are compared after light normalisation: digits in either set, `8:00` → `08:00`, names ignoring spaces and hamza forms (`عبد الله` = `عبدالله`).
+- Numbers are read in both digit sets, and hours in 12- and 24-hour form (`7`, `٧`, `7 المساء` and `19:00` are the same hour). Links and list markers at the start of a line (`1.`, `2)`) are ignored.
+- A reply is checked for four problems:
+  1. **Invented numbers:** a number that appears nowhere in the system prompt, the customer's messages or a tool result.
+  2. **Times from nowhere:** a number used *as a time* (`الساعة 7`, `7 المسا`, `19:30`) must come from a tool result, the customer, or the business hours and clock in the prompt. Prayer times do not count, so Isha at 19:11 cannot make "7 المسا" look like a real slot.
+  3. **Wrong dates:** a date written as `8 أكتوبر` or `8/10` must match a real date in the conversation.
+  4. **Claimed actions:** saying something is done (`تم الحجز`, `ألغيت لك`) when no tool result confirms it.
+- These four checks also run on **every** answer that contains text, whatever was expected, and are reported as hallucination counts. A model that says "تم حجز موعدك" instead of calling `create_booking` fails the case either way, and is also counted as claiming an action it did not perform.
+- Style checks (emoji switch, replies mostly in Arabic script) are reported separately and do not change pass or fail.
+- Pass rates are reported with a 95% Wilson confidence interval.
+
+**Changelog.** v1.0 → v1.1 (2026-09-30), found by reading the first real outputs (untuned Gemma-4-12B-it on dev and test) by hand. v1.0 treated every number from 1 to 24 near a slot lookup as a time, so a price ("SUV يزيد 20 ريال"), a numbered list, or the customer's *current* booking time failed wrongly; and it did not check dates or claimed actions at all. v1.1 fixes both directions. The frozen test data did not change. Untuned Gemma moved from 14/40 to 15/40 on dev and from 61/160 to 65/160 on test. Every model is scored with the same version, and any later change gets a new version number and is listed here.
+
 ## 6. Authoring and provenance
 
 Customer messages are **synthetic drafts, reviewed and edited by a native speaker**, who rewrote any line that did not sound like a real customer. They deliberately include real WhatsApp habits: missing hamzas, typos, no punctuation, `ابي / ودي / بغيت`, both digit sets (٧ and 7), and English words inside Arabic text. English-only messages are allowed.
