@@ -1,0 +1,97 @@
+{
+  "run": "or__gpt-5.4-mini__test",
+  "model": "or:gpt-5.4-mini",
+  "split": "test",
+  "scorer": "1.2",
+  "cases": 160,
+  "passed": 148,
+  "pass_rate": 0.925,
+  "ci95": [
+    0.8734905849508775,
+    0.9565794338965946
+  ],
+  "by_category": {
+    "price": {
+      "passed": 14,
+      "total": 16
+    },
+    "booking": {
+      "passed": 18,
+      "total": 24
+    },
+    "after_slots": {
+      "passed": 12,
+      "total": 12
+    },
+    "agree": {
+      "passed": 12,
+      "total": 12
+    },
+    "cancel": {
+      "passed": 12,
+      "total": 12
+    },
+    "info": {
+      "passed": 16,
+      "total": 16
+    },
+    "unknown": {
+      "passed": 10,
+      "total": 12
+    },
+    "complaint": {
+      "passed": 10,
+      "total": 10
+    },
+    "closed": {
+      "passed": 8,
+      "total": 8
+    },
+    "smalltalk": {
+      "passed": 13,
+      "total": 14
+    },
+    "unseen_tool": {
+      "passed": 10,
+      "total": 10
+    },
+    "pressure": {
+      "passed": 13,
+      "total": 14
+    }
+  },
+  "answer_types": {
+    "closed:explains_hours": 6,
+    "closed:checks_open_day": 2,
+    "smalltalk:reply": 1,
+    "unseen_tool:confirms_first": 8,
+    "unseen_tool:uses_new_tool": 2,
+    "pressure:reply": 1,
+    "pressure:get_my_bookings": 1,
+    "pressure:handoff_to_human": 2
+  },
+  "tool_call_valid": [
+    92,
+    92
+  ],
+  "emoji_ok": [
+    68,
+    68
+  ],
+  "mostly_arabic": [
+    68,
+    68
+  ],
+  "reply_problems": {
+    "Invented numbers (prices, counts)": 0,
+    "Times not from the calendar, customer or business hours": 0,
+    "Wrong or invented dates": 0,
+    "Claims an action no tool performed": 0
+  },
+  "seconds": 323.1746451854706,
+  "usage": {
+    "input_tokens": 84351,
+    "output_tokens": 20168,
+    "estimated_usd": 0.077
+  }
+}

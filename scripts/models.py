@@ -1,17 +1,60 @@
 """Stage 5: model adapters. Each one turns (system prompt, messages, tools) into one step:
     {"text": str | None, "tool_calls": [{"name": ..., "arguments": {...}}], "raw": str}
 
-  oracle        Always answers with the case's first expected option. Only for testing
-                the harness: it must score 100%.
-  hf:<repo_id>  A local Hugging Face model in 4-bit (the same way it will be trained),
-                greedy decoding so every run gives the same output.
+  oracle           Always answers with the case's first expected option. Only for testing
+                   the harness: it must score 100%.
+  hf:<repo_id>     A local Hugging Face model in 4-bit (the same way it will be trained),
+                   greedy decoding so every run gives the same output.
+  or:<competitor>  An API model through OpenRouter, one of COMPETITORS below: a fixed model,
+                   fixed providers (so results are reproducible), thinking on, max_tokens 2048
+                   (the same cap the production setup uses), providers that store data excluded.
+
+The OpenRouter key comes from the environment or a local .env file (OPENROUTER_API_KEY).
+Keys, request headers and error text are never printed or stored: a failed call returns
+{"error": "HTTP <status>"} and is not saved as a prediction.
 """
 
 import json
+import os
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+API_MAX_TOKENS = 2048  # thinking included
+
+# Each competitor: OpenRouter model id, the providers allowed (tried in this order), and
+# USD per 1M tokens (input, output) at the most expensive allowed provider, used only as an
+# estimate when OpenRouter does not report the real cost.
+COMPETITORS = {
+    # The model Mujawib runs on in production: the "beat what I have" comparison.
+    "deepseek-v4.1-flash": {"model": "deepseek/deepseek-v4.1-flash", "providers": ["deepinfra", "fireworks"],
+                            "price": (0.45, 1.80)},
+    # One established model from each other major vendor, on the cheaper "flex" tier when available.
+    "gpt-5.4-mini": {"model": "openai/gpt-5.4-mini", "providers": ["openai/flex", "openai"], "price": (0.75, 4.50)},
+    "gemini-3.8-flash": {"model": "google/gemini-3.8-flash", "providers": ["google-ai-studio/flex", "google-ai-studio"],
+                         "price": (0.75, 3.75)},
+}
+
+
+def load_env() -> None:
+    """Read KEY=VALUE lines from .env into the environment, without printing anything."""
+    env = ROOT / ".env"
+    if env.exists():
+        for line in env.read_text(encoding="utf-8").splitlines():
+            if "=" in line and not line.lstrip().startswith("#"):
+                key, value = line.split("=", 1)
+                os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+def cost_usd(usage: dict, price: tuple[float, float] = (0.0, 0.0)) -> float:
+    """The real cost when the API reported it, otherwise an estimate from the token counts."""
+    if usage.get("cost") is not None:
+        return float(usage["cost"])
+    return (usage.get("input_tokens", 0) * price[0] + usage.get("output_tokens", 0) * price[1]) / 1e6
 
 
 class OracleModel:
     name = "oracle"
+    price = (0.0, 0.0)
 
     def step(self, case: dict, system_prompt: str, tools: list[dict]) -> dict:
         option = case["expect"]["options"][0]
@@ -33,6 +76,8 @@ class OracleModel:
 
 class HFModel:
     """Local model in 4-bit NF4, greedy decoding, thinking switched off."""
+
+    price = (0.0, 0.0)
 
     def __init__(self, repo_id: str, max_new_tokens: int = 256):
         import torch
@@ -76,9 +121,74 @@ class HFModel:
                 **({"parse_error": parsed["parse_error"]} if "parse_error" in parsed else {})}
 
 
+class OpenRouterModel:
+    """An API competitor through OpenRouter's OpenAI-compatible endpoint."""
+
+    def __init__(self, competitor: str):
+        import openai
+
+        load_env()
+        spec = COMPETITORS[competitor]
+        self.openai = openai
+        self.name, self.model, self.providers, self.price = competitor, spec["model"], spec["providers"], spec["price"]
+        self.client = openai.OpenAI(api_key=os.environ.get("OPENROUTER_API_KEY"),
+                                    base_url="https://openrouter.ai/api/v1")
+
+    @staticmethod
+    def convert(system_prompt: str, messages: list[dict]) -> list[dict]:
+        out = [{"role": "system", "content": system_prompt}]
+        for m in messages:
+            if m.get("tool_calls"):
+                out.append({"role": "assistant", "content": None, "tool_calls": [
+                    {"id": tc["id"], "type": "function", "function": {
+                        "name": tc["function"]["name"],
+                        "arguments": json.dumps(tc["function"]["arguments"], ensure_ascii=False)}}
+                    for tc in m["tool_calls"]]})
+            elif m["role"] == "tool":
+                out.append({"role": "tool", "tool_call_id": m["tool_call_id"], "content": m["content"]})
+            else:
+                out.append({"role": m["role"], "content": m["content"]})
+        return out
+
+    def step(self, case: dict, system_prompt: str, tools: list[dict]) -> dict:
+        try:
+            r = self.client.chat.completions.create(
+                model=self.model, max_tokens=API_MAX_TOKENS, tools=tools,
+                messages=self.convert(system_prompt, case["messages"]),
+                extra_body={
+                    "provider": {"order": self.providers, "only": self.providers, "data_collection": "deny"},
+                    "reasoning": {"enabled": True},
+                    "usage": {"include": True},
+                })
+        except self.openai.APIStatusError as e:
+            return {"error": f"HTTP {e.status_code}"}
+        except self.openai.APIConnectionError:
+            return {"error": "connection error"}
+        if not r.choices:
+            return {"error": "empty response"}
+        msg = r.choices[0].message
+        calls = []
+        for tc in msg.tool_calls or []:
+            try:
+                args = json.loads(tc.function.arguments or "{}")
+            except json.JSONDecodeError:
+                args = tc.function.arguments  # kept as text; the scorer marks it invalid
+            calls.append({"name": tc.function.name, "arguments": args})
+        extra = (r.usage.model_extra or {}) if r.usage else {}
+        return {"text": (msg.content or "").strip() or None, "tool_calls": calls, "raw": msg.content or "",
+                "stop_reason": r.choices[0].finish_reason,
+                "provider": (r.model_extra or {}).get("provider"),
+                "usage": {"input_tokens": r.usage.prompt_tokens, "output_tokens": r.usage.completion_tokens,
+                          "reasoning_tokens": getattr(r.usage.completion_tokens_details, "reasoning_tokens", None)
+                          if r.usage.completion_tokens_details else None,
+                          "cost": extra.get("cost")} if r.usage else {}}
+
+
 def load_model(spec: str):
     if spec == "oracle":
         return OracleModel()
     if spec.startswith("hf:"):
         return HFModel(spec[3:])
-    raise ValueError(f"unknown model {spec!r} (use oracle or hf:<repo_id>)")
+    if spec.startswith("or:"):
+        return OpenRouterModel(spec[3:])
+    raise ValueError(f"unknown model {spec!r} (use oracle, hf:<repo>, or or:<{'|'.join(COMPETITORS)}>)")

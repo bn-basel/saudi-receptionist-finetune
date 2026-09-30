@@ -1,0 +1,92 @@
+{
+  "run": "or__gemini-3.8-flash__dev",
+  "model": "or:gemini-3.8-flash",
+  "split": "dev",
+  "scorer": "1.2",
+  "cases": 40,
+  "passed": 37,
+  "pass_rate": 0.925,
+  "ci95": [
+    0.8013546984090248,
+    0.9741644432281419
+  ],
+  "by_category": {
+    "price": {
+      "passed": 4,
+      "total": 4
+    },
+    "booking": {
+      "passed": 6,
+      "total": 6
+    },
+    "after_slots": {
+      "passed": 3,
+      "total": 3
+    },
+    "agree": {
+      "passed": 2,
+      "total": 3
+    },
+    "cancel": {
+      "passed": 2,
+      "total": 3
+    },
+    "info": {
+      "passed": 4,
+      "total": 4
+    },
+    "unknown": {
+      "passed": 2,
+      "total": 3
+    },
+    "complaint": {
+      "passed": 3,
+      "total": 3
+    },
+    "closed": {
+      "passed": 2,
+      "total": 2
+    },
+    "smalltalk": {
+      "passed": 3,
+      "total": 3
+    },
+    "unseen_tool": {
+      "passed": 3,
+      "total": 3
+    },
+    "pressure": {
+      "passed": 3,
+      "total": 3
+    }
+  },
+  "answer_types": {
+    "closed:checks_open_day": 1,
+    "closed:explains_hours": 1,
+    "unseen_tool:confirms_first": 3
+  },
+  "tool_call_valid": [
+    24,
+    24
+  ],
+  "emoji_ok": [
+    16,
+    16
+  ],
+  "mostly_arabic": [
+    16,
+    16
+  ],
+  "reply_problems": {
+    "Invented numbers (prices, counts)": 0,
+    "Times not from the calendar, customer or business hours": 0,
+    "Wrong or invented dates": 0,
+    "Claims an action no tool performed": 0
+  },
+  "seconds": 104.00698661804199,
+  "usage": {
+    "input_tokens": 29819,
+    "output_tokens": 10815,
+    "estimated_usd": 0.0315
+  }
+}

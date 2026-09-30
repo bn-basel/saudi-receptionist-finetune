@@ -75,13 +75,13 @@ One JSON object per line in `data/test/test_v1.jsonl` and `data/test/dev_v1.json
 
 Built by [`scripts/build_testset.py`](../scripts/build_testset.py) from the drafts in [`scripts/testset_drafts.py`](../scripts/testset_drafts.py) and the reviewed sheet `data/test/sheet_v1.csv`; tool results come from the fake backend [`scripts/backend.py`](../scripts/backend.py).
 
-### Scoring details (scorer v1.1)
+### Scoring details (scorer v1.2)
 
-Implemented in [`scripts/scoring.py`](../scripts/scoring.py), run by [`scripts/run_eval.py`](../scripts/run_eval.py), and tested by [`scripts/test_scoring.py`](../scripts/test_scoring.py): a model that always answers correctly must score 200/200, and 38 hand-made right and wrong answers must land on the right side. Every summary states the scorer version it was scored with.
+Implemented in [`scripts/scoring.py`](../scripts/scoring.py), run by [`scripts/run_eval.py`](../scripts/run_eval.py), and tested by [`scripts/test_scoring.py`](../scripts/test_scoring.py): a model that always answers correctly must score 200/200, and 43 hand-made right and wrong answers must land on the right side. Every summary states the scorer version it was scored with.
 
 - Only the **first** tool call in the step is matched against the expectation; every call is checked for validity.
 - Argument values are compared after light normalisation: digits in either set, `8:00` → `08:00`, names ignoring spaces and hamza forms (`عبد الله` = `عبدالله`).
-- Numbers are read in both digit sets, and hours in 12- and 24-hour form (`7`, `٧`, `7 المساء` and `19:00` are the same hour). Links and list markers at the start of a line (`1.`, `2)`) are ignored.
+- Numbers are read in both digit sets, also when an Arabic letter is glued to them (`و٨:٣٠`, `بـ٢٥٠`). A number *used as a time* counts in 12- and 24-hour form (`7`, `٧`, `7 المساء` and `19:00` are the same hour); a price like `20 ريال` does not. Links, list markers at the start of a line (`1.`, `2)`) and emoji list numbers (`1️⃣`) are ignored. A service duration may be given in hours (240 minutes as `4 ساعات`).
 - A reply is checked for four problems:
   1. **Invented numbers:** a number that appears nowhere in the system prompt, the customer's messages or a tool result.
   2. **Times from nowhere:** a number used *as a time* (`الساعة 7`, `7 المسا`, `19:30`) must come from a tool result, the customer, or the business hours and clock in the prompt. Prayer times do not count, so Isha at 19:11 cannot make "7 المسا" look like a real slot.
@@ -91,7 +91,11 @@ Implemented in [`scripts/scoring.py`](../scripts/scoring.py), run by [`scripts/r
 - Style checks (emoji switch, replies mostly in Arabic script) are reported separately and do not change pass or fail.
 - Pass rates are reported with a 95% Wilson confidence interval.
 
-**Changelog.** v1.0 → v1.1 (2026-09-30), found by reading the first real outputs (untuned Gemma-4-12B-it on dev and test) by hand. v1.0 treated every number from 1 to 24 near a slot lookup as a time, so a price ("SUV يزيد 20 ريال"), a numbered list, or the customer's *current* booking time failed wrongly; and it did not check dates or claimed actions at all. v1.1 fixes both directions. The frozen test data did not change. Untuned Gemma moved from 14/40 to 15/40 on dev and from 61/160 to 65/160 on test. Every model is scored with the same version, and any later change gets a new version number and is listed here.
+**Changelog.** v1.0 → v1.1 (2026-09-30), found by reading the first real outputs (untuned Gemma-4-12B-it on dev and test) by hand. v1.0 treated every number from 1 to 24 near a slot lookup as a time, so a price ("SUV يزيد 20 ريال"), a numbered list, or the customer's *current* booking time failed wrongly; and it did not check dates or claimed actions at all. v1.1 fixes both directions. The frozen test data did not change. Untuned Gemma moved from 14/40 to 15/40 on dev and from 61/160 to 65/160 on test. v1.1 → v1.2 (2026-09-30), found by reading the first API-model outputs (DeepSeek V4.1 Flash, GPT-5.4 mini, Gemini 3.8 Flash) by hand. Three false failures: a number glued to an Arabic letter (`و٨:٣٠`) was not read as a time because `` does not separate Arabic letters from digits; emoji list numbers counted as invented; a duration in hours counted as invented. One loophole closed: every number from the prompt, including prayer times and prices, lent a 12/24-hour alias, so "5 ساعات" passed because Maghrib is at 17:26; now only numbers used as times get an alias, and prayer times never do. Test pass counts under v1.1 → v1.2: untuned Gemma 65 → 65, DeepSeek 146 → 151, GPT-5.4 mini 148 → 148, Gemini 3.8 Flash 139 → 140.
+
+Every model is scored with the same version, and any later change gets a new version number and is listed here.
+
+**Open test-design questions for a future `test_v2`** (not changed in v1, because v1 is frozen): price-17 (`كم سعر حجز الطاوله`) requires a non-empty `query`, but listing all services with an empty query is also a reasonable way to find table prices; in the *unknown* category, searching the service list before handing off is a sensible first step that step-level scoring counts as a failure.
 
 ## 6. Authoring and provenance
 

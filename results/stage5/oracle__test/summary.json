@@ -2,7 +2,7 @@
   "run": "oracle__test",
   "model": "oracle",
   "split": "test",
-  "scorer": "1.1",
+  "scorer": "1.2",
   "cases": 160,
   "passed": 160,
   "pass_rate": 1.0,

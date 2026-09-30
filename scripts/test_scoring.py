@@ -121,5 +121,17 @@ expect("promising a free time with no calendar check fails", "smalltalk-01",
 expect("business hours may be quoted", "info-02",
        reply("نفتح من الأحد للخميس من 4 العصر إلى 11 الليل"), True)
 
+# 4. Scorer v1.2: digits glued to Arabic letters, emoji list numbers, durations in hours ------
+expect("'و٨:٣٠ المساء' (letter glued to the time) is read as 20:30", "after_slots-02",
+       reply("بكره المتاح ٥:٠٠ العصر و٨:٣٠ المساء. أي وقت يناسبك؟"), True)
+expect("'و٩:٠٠ مساء' does not create a fake 0", "after_slots-14",
+       reply("الجمعة المتاح: ١:٠٠ ظهرًا و٩:٠٠ مساء"), True)
+expect("emoji list numbers 1️⃣ 2️⃣ are not counted", "cancel-07",
+       reply("عندك موعدين:\n1️⃣ التنظيف بكرة 5 العصر\n2️⃣ الكشف الخميس 8 الليل\nأي واحد؟"), True)
+expect("240 minutes said as '4 ساعات' is correct", "after_slots-11",
+       reply("النانو سيراميك 900 ريال ويأخذ 4 ساعات، والأحد متاح 8 الصبح"), True)
+expect("a wrong duration '5 ساعات' still fails", "after_slots-11",
+       reply("النانو سيراميك 900 ريال ويأخذ 5 ساعات، والأحد متاح 8 الصبح"), False, reason="invented numbers")
+
 print(f"\n{'ALL CHECKS PASSED' if not failures else f'{failures} FAILURE(S)'}")
 sys.exit(1 if failures else 0)

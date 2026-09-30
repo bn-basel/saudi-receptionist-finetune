@@ -2,7 +2,7 @@
   "run": "google__gemma-4-12B-it__test",
   "model": "hf:google/gemma-4-12B-it",
   "split": "test",
-  "scorer": "1.1",
+  "scorer": "1.2",
   "cases": 160,
   "passed": 65,
   "pass_rate": 0.40625,
@@ -79,7 +79,7 @@
     155
   ],
   "reply_problems": {
-    "Invented numbers (prices, counts)": 4,
+    "Invented numbers (prices, counts)": 5,
     "Times not from the calendar, customer or business hours": 0,
     "Wrong or invented dates": 5,
     "Claims an action no tool performed": 13

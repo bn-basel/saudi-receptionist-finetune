@@ -1,6 +1,6 @@
 # google__gemma-4-12B-it__dev
 
-Model `hf:google/gemma-4-12B-it` on the **dev** split (40 cases), scorer v1.1.
+Model `hf:google/gemma-4-12B-it` on the **dev** split (40 cases), scorer v1.2.
 
 **Pass rate: 15/40 = 37.5%** (95% CI 24.2%–53.0%)
 
@@ -29,7 +29,7 @@ Answers with text (40 of 40) that contain (a case can have several):
 
 | Problem | Answers |
 |---|---|
-| Invented numbers (prices, counts) | 0 |
+| Invented numbers (prices, counts) | 1 |
 | Times not from the calendar, customer or business hours | 0 |
 | Wrong or invented dates | 1 |
 | Claims an action no tool performed | 4 |

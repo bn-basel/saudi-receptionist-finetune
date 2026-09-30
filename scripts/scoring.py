@@ -14,13 +14,17 @@ import re
 
 from backend import normalize_ar
 
-SCORER_VERSION = "1.1"
+SCORER_VERSION = "1.2"
 
 ARABIC = f"{chr(0x0600)}-{chr(0x06FF)}"
 EMOJI = re.compile(f"[{chr(0x1F300)}-{chr(0x1FAFF)}{chr(0x2600)}-{chr(0x27BF)}]")
 TO_ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
-DATE = re.compile(r"\b(\d{4})-(\d{1,2})-(\d{1,2})\b")
-TIME = re.compile(r"\b(\d{1,2}):(\d{2})\b")
+# Digit boundaries use lookarounds, not \b: an Arabic letter glued to a number ("و8:30",
+# "بـ250") is a word character too, so \b would not match there.
+DATE = re.compile(r"(?<!\d)(\d{4})-(\d{1,2})-(\d{1,2})(?!\d)")
+TIME = re.compile(r"(?<!\d)(\d{1,2}):(\d{2})(?!\d)")
+KEYCAP = re.compile(f"\\d{chr(0xFE0F)}?{chr(0x20E3)}")  # emoji list numbers like 1️⃣
+DURATION = re.compile(r'"duration_min":\s*(\d+)')
 NUMBER = re.compile(r"\d+(?:[,.]\d+)?")
 LIST_MARKER = re.compile(r"^\s*[-•*]?\s*\d{1,2}[.)-](?=\s)", re.M)  # "1. " "2) " at the start of a line only
 URL = re.compile(r"https?://\S+")
@@ -30,11 +34,11 @@ FORMATS = {"date": re.compile(r"\d{4}-\d{2}-\d{2}"), "time": re.compile(r"\d{2}:
 # A number is used *as a time* when it sits next to one of these words.
 TIME_AFTER = r"(?:ونص|وربع|الا ربع|إلا ربع)?\s*(?:الصبح|الصباح|صباحا|صباحاً|الظهر|ظهرا|ظهراً|العصر|عصرا|عصراً" \
              r"|المسا|المساء|مساء|مساءً|مساءا|الليل|بالليل|ليلا|ليلاً|الفجر|am|pm|AM|PM)"
-TIME_MENTION = re.compile(rf"(?:الساعة|الساعه)\s*(\d{{1,2}})|\b(\d{{1,2}})\s*{TIME_AFTER}")
+TIME_MENTION = re.compile(rf"(?:الساعة|الساعه)\s*(\d{{1,2}})|(?<!\d)(\d{{1,2}})\s*{TIME_AFTER}")
 MONTHS = {m: i for i, names in enumerate([
     ["يناير"], ["فبراير"], ["مارس"], ["أبريل", "ابريل"], ["مايو"], ["يونيو"], ["يوليو"],
     ["أغسطس", "اغسطس"], ["سبتمبر"], ["أكتوبر", "اكتوبر"], ["نوفمبر"], ["ديسمبر"]], 1) for m in names}
-DATE_MENTION = re.compile(r"\b(\d{1,2})\s*(" + "|".join(MONTHS) + r")|\b(\d{1,2})/(\d{1,2})\b")
+DATE_MENTION = re.compile(r"(?<!\d)(\d{1,2})\s*(" + "|".join(MONTHS) + r")|(?<!\d)(\d{1,2})/(\d{1,2})(?!\d)")
 # A reply that says an action is done ("تم الحجز", "ألغيت لك") when no tool did it.
 DONE_CLAIM = re.compile(r"(?:تم|تمت)\s+(?:ال)?(?:حجز|إلغاء|الغاء|تأكيد|تثبيت|تعديل|نقل|تغيير)"
                         r"|(?:حجزت|ألغيت|الغيت|كنسلت|ثبتت|نقلت|غيرت)\s+(?:لك|لكم|موعدك|حجزك|الموعد|الحجز)"
@@ -45,7 +49,8 @@ PRAYER_LINE = re.compile(r"Prayer times:[^\n]*")
 
 def clean(text: str) -> str:
     """Digits in one set, links and list markers removed."""
-    return LIST_MARKER.sub(" ", URL.sub(" ", (text or "").translate(TO_ARABIC_DIGITS)))
+    text = KEYCAP.sub(" ", (text or "").translate(TO_ARABIC_DIGITS))
+    return LIST_MARKER.sub(" ", URL.sub(" ", text))
 
 
 def with_clock_aliases(hours: set[int]) -> set[int]:
@@ -54,9 +59,10 @@ def with_clock_aliases(hours: set[int]) -> set[int]:
 
 def numbers_in(text: str, clock_aliases: bool = False) -> set[int]:
     """Every number written in the text. A date gives year, month and day; a time gives hour
-    and minute. With clock_aliases each hour also counts in its other form (19 <-> 7): right
-    for what the model MAY say, not for what it did say."""
-    text = clean(text)
+    and minute. With clock_aliases, each number *used as a time* also counts in its other form
+    (19 <-> 7): right for what the model MAY say, not for what it did say. A price like
+    "20 ريال" gets no alias."""
+    original, text = text, clean(text)
     found: set[int] = set()
     for y, mo, d in DATE.findall(text):
         found |= {int(y), int(mo), int(d)}
@@ -65,7 +71,7 @@ def numbers_in(text: str, clock_aliases: bool = False) -> set[int]:
         found |= {int(h)} | ({int(m)} if int(m) else set())
     text = TIME.sub(" ", text)
     found |= {int(float(n.replace(",", ""))) for n in NUMBER.findall(text)}
-    return with_clock_aliases(found) if clock_aliases else found
+    return found | with_clock_aliases(times_in(original)) if clock_aliases else found
 
 
 def times_in(text: str) -> set[int]:
@@ -97,7 +103,15 @@ class Context:
         tool_text += [json.dumps(tc["function"]["arguments"], ensure_ascii=False)
                       for m in messages for tc in m.get("tool_calls", [])]
         everything = [system_prompt] + customer + tool_text
-        self.numbers = set().union(*(numbers_in(p, clock_aliases=True) for p in everything))
+        # Prayer times may be repeated as written, but never lend a clock alias (Maghrib 17:26
+        # must not make "5 ساعات" look grounded).
+        prayers = " ".join(PRAYER_LINE.findall(system_prompt))
+        aliasable = [PRAYER_LINE.sub(" ", system_prompt)] + customer + tool_text
+        self.numbers = set().union(*(numbers_in(p, clock_aliases=True) for p in aliasable)) | numbers_in(prayers)
+        # A duration may be given in hours: 240 minutes -> "4 ساعات", 150 -> "ساعتين ونص" (2).
+        for t in tool_text:
+            for minutes in map(int, DURATION.findall(t)):
+                self.numbers |= {minutes // 60, -(-minutes // 60)} - {0}
         # Times may come from tools, the customer, or the business hours and clock in the
         # prompt, but not from prayer times (Isha 19:11 must not make "7 المسا" look real).
         time_sources = tool_text + [PRAYER_LINE.sub(" ", system_prompt)]

@@ -11,6 +11,7 @@ Run:
 
 import argparse
 import json
+import re
 import time
 from collections import Counter, defaultdict
 from datetime import datetime
@@ -101,6 +102,7 @@ def main() -> None:
     ap.add_argument("--run", help="run name (default: model + split)")
     ap.add_argument("--limit", type=int, help="only the first N cases (for a quick try)")
     ap.add_argument("--rescore", help="re-score an existing run folder without calling the model")
+    ap.add_argument("--budget", type=float, default=5.0, help="stop an API run once it has cost this many USD")
     args = ap.parse_args()
 
     businesses, styles, tools = load_spec()
@@ -113,7 +115,8 @@ def main() -> None:
         args.model, args.split, run = meta["model"], meta["split"], meta["run"]
         seconds = meta.get("seconds")
     else:
-        run = args.run or f"{args.model.replace('hf:', '').replace('/', '__')}__{args.split}"
+        safe_model = re.sub(r"[^A-Za-z0-9._-]+", "__", args.model.removeprefix("hf:"))
+        run = args.run or f"{safe_model}__{args.split}"
         out = ROOT / "results" / "stage5" / run
         out.mkdir(parents=True, exist_ok=True)
         seconds = None
@@ -128,25 +131,46 @@ def main() -> None:
         todo = [c for c in cases if c["id"] not in preds]
         print(f"{run}: {len(cases)} cases, {len(preds)} already done, {len(todo)} to run")
         if todo:
-            from models import load_model
+            from models import cost_usd, load_model
             model = load_model(args.model)
-            start = time.time()
+            start, spent, errors_in_a_row = time.time(), 0.0, 0
             with pred_path.open("a", encoding="utf-8", newline="\n") as f:
                 for i, case in enumerate(todo, 1):
                     system, case_tools = case_inputs(case, *spec)
                     t = time.time()
                     step = model.step(case, system, case_tools)
+                    if "error" in step:  # not saved: the case runs again next time
+                        errors_in_a_row += 1
+                        print(f"[{i}/{len(todo)}] {case['id']} failed: {step['error']}")
+                        if errors_in_a_row >= 3:
+                            print("3 failures in a row: stopping. Check the key, the spend limit or the network.")
+                            break
+                        continue
+                    errors_in_a_row = 0
+                    spent += cost_usd(step.get("usage", {}), model.price)
                     rec = {"id": case["id"], "step": step, "seconds": round(time.time() - t, 2)}
                     preds[case["id"]] = rec
                     f.write(json.dumps(rec, ensure_ascii=False) + "\n")
                     f.flush()
-                    print(f"[{i}/{len(todo)}] {case['id']} ({rec['seconds']}s)")
+                    print(f"[{i}/{len(todo)}] {case['id']} ({rec['seconds']}s" + (f", ${spent:.3f} so far)" if spent else ")"))
+                    if spent >= args.budget:
+                        print(f"Budget of ${args.budget:.2f} reached: stopping. Re-run to continue with a new budget.")
+                        break
             seconds = time.time() - start
 
     rows = score_all(cases, preds, spec)
     (out / "scores.jsonl").write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows),
                                       encoding="utf-8", newline="\n")
     text, data = summarize(rows, run, args.model, args.split, seconds)
+    usage = [p["step"].get("usage") for p in preds.values() if p["id"] in {r["id"] for r in rows}]
+    if any(usage):
+        from models import COMPETITORS, cost_usd
+        price = COMPETITORS.get(args.model.removeprefix("or:"), {}).get("price", (0.0, 0.0))
+        tokens_in = sum(u["input_tokens"] for u in usage if u)
+        tokens_out = sum(u["output_tokens"] for u in usage if u)
+        cost = sum(cost_usd(u, price) for u in usage if u)
+        data["usage"] = {"input_tokens": tokens_in, "output_tokens": tokens_out, "estimated_usd": round(cost, 4)}
+        text += f"\nTokens: {tokens_in:,} in, {tokens_out:,} out. Estimated cost: ${cost:.3f}.\n"
     (out / "summary.md").write_text(text, encoding="utf-8", newline="\n")
     (out / "summary.json").write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8", newline="\n")
     print("\n" + text)

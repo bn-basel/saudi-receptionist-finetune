@@ -48,13 +48,16 @@ In a blind A/B test on 10 customer messages, judged by a native speaker before a
 
 Check them with `sha256sum data/test/*_v1.jsonl` (Linux, macOS, Git Bash) or `Get-FileHash data/test/*_v1.jsonl -Algorithm SHA256` (PowerShell). Any change to the test set becomes a new version (`test_v2`), never a silent edit.
 
-**Stage 5: baselines (in progress).** Scored automatically on the 160 frozen test cases (scorer v1.1, 95% confidence interval in brackets):
+**Stage 5: baselines (in progress).** Scored automatically on the 160 frozen test cases (scorer v1.2, 95% confidence interval in brackets), all with the same short system prompt from [docs/TASK_SPEC.md](docs/TASK_SPEC.md):
 
-| Model | Setup | Pass rate |
-|---|---|---|
-| Gemma-4-12B-it, untuned | 4-bit, greedy, the short system prompt from [docs/TASK_SPEC.md](docs/TASK_SPEC.md) | **40.6%** (33.3–48.4%) |
+| Model | Setup | Pass rate | Answers with a claimed action / wrong date / invented number | API cost for 160 cases |
+|---|---|---|---|---|
+| DeepSeek V4.1 Flash | via OpenRouter (DeepInfra), thinking on, 2,048-token cap | **94.4%** (90–97%) | 0 / 0 / 0 | $0.03 |
+| GPT-5.4 mini | via OpenRouter (OpenAI, flex tier), thinking on, 2,048-token cap | **92.5%** (87–96%) | 0 / 0 / 0 | $0.08 |
+| Gemini 3.8 Flash | via OpenRouter (Google AI Studio, flex tier), thinking on, 2,048-token cap | **87.5%** (81–92%) | 0 / 0 / 0 | $0.11 |
+| Gemma-4-12B-it, untuned | local, 4-bit, greedy, thinking off | **40.6%** (33–48%) | 13 / 5 / 5 | local |
 
-Untuned Gemma answers in fluent Saudi dialect but almost never uses its tools: 2 tool calls in 160 cases. It asks clarifying questions instead of checking prices or the calendar. In 13 answers it says a booking or cancellation is done when no tool did it, and in 5 it gives a wrong date. More baselines (ALLaM, API models, a longer prompt) will be added here as they run.
+DeepSeek V4.1 Flash is the model Mujawib runs on today, so it is the bar the fine-tuned model has to clear. The API models call tools readily with the same short prompt; their remaining failures are mostly questions nobody can answer (they search the service list instead of handing off to a person), GPT asking for a preferred time instead of checking the calendar, and Gemini asking for a second confirmation after the customer already chose which booking to cancel. Untuned Gemma writes fluent Saudi dialect but almost never uses its tools: 2 tool calls in 160 cases. Still to come in this stage: ALLaM-7B, and every model again with a longer, fully explained prompt.
 
 **Known limitations so far.** The test messages are synthetic drafts reviewed and edited by one native speaker, so their phrasing is less varied than real customers. The dialect verdicts come from one judge.
 
