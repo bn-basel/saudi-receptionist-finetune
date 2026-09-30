@@ -27,6 +27,8 @@ def build_system_prompt(business: dict, styles: dict, style: dict, now: datetime
     policies = "\n".join(f"- {p}" for p in business["policies"])
     if business["customers"] == "women only":
         address_as = "Customers are women: use feminine forms."
+    elif business["customers"] == "men only":
+        address_as = "Customers are men: use masculine forms."
     else:
         address_as = "Use masculine forms unless the name or messages show the customer is a woman."
     return f"""You are {a['name']} ({a['gender']}), WhatsApp receptionist of {business['name']}, a {business['type']} in {business['city']}.

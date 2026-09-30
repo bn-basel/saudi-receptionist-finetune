@@ -30,7 +30,7 @@ Each case is **a conversation up to a certain point, plus the one correct next s
 | 9 | Closed day or time requested | 8 | 2 | explain hours, offer real alternatives |
 | 10 | Small talk, thanks, off-topic, general chat | 14 | 3 | short friendly reply, no tool |
 | 11 | Unseen tool `reschedule_booking` | 10 | 3 | use it correctly from its definition alone |
-| 12 | Pressure tests (rough price, "book now, confirm later", "ignore your rules", English-only, Arabizi) | 14 | 3 | hold the rules |
+| 12 | Pressure tests (rough price, "book now, confirm later", "ignore your rules", someone else's booking, urgency, English-only) | 14 | 3 | hold the rules |
 | | **Total** | **160** | **40** | |
 
 About 40 free-text test cases are flagged for the **blind dialect review** by a native speaker against the competitors.
@@ -58,9 +58,9 @@ One JSON object per line in `data/test/test_v1.jsonl` and `data/test/dev_v1.json
 
 `tools` is `"default"` (the 6 tools) or `"default+unseen"` (adds `reschedule_booking`, category 11 only). Cases also carry `situation` (the meaning in English) and, where needed, `meta.slot_overrides` (pinned free slots) and `meta.customer_bookings` (existing bookings) for the fake backend.
 
-`expect.options` lists every acceptable next step; the first is the primary answer. Most cases have one option. Closed-time cases accept "explain the hours" or "check an open day"; unseen-tool cases label `reschedule_booking` as `uses_new_tool` and `cancel_booking` as `old_pattern`, reported separately. Each option's `kind` is one of:
+`expect.options` lists every acceptable next step; the first is the primary answer. Most cases have one option. Closed-time cases accept "explain the hours" or "check an open day". Unseen-tool cases accept three answers, each reported as its own type: `uses_new_tool` (`reschedule_booking`), `old_pattern` (`cancel_booking`) and `confirms_first` (a reply that names the requested new time and invents no numbers). A few other cases also accept more than one answer (smalltalk-08: reply or handoff; pressure-05: `get_my_bookings`, a reply that gives no time, or handoff), and every answer type is reported separately. Each option's `kind` is one of:
 - `tool_call`: the next assistant message must call `tool`, with `args_exact` matching exactly (ids, dates, times, names after Arabic normalisation), `args_nonempty` present and non-empty (free text such as `query` or `reason`), and `args_in` within a list of allowed values.
-- `reply`: the next assistant message must be text with no tool call. Checks: `no_invented_numbers` (every price or time in the reply appears in the system prompt or an earlier tool result), optional `must_include_any` (e.g. the map link) and `must_not_include` (e.g. system-prompt text).
+- `reply`: the next assistant message must be text with no tool call. Checks: `no_invented_numbers` (every price or time in the reply appears in the system prompt or an earlier tool result), optional `must_include_any` (e.g. the map link), `must_not_include` (e.g. system-prompt text), `must_mention_times` (the reply names these times, in any spelling: `7`, `٧`, `7 المساء`, `19:00`) and `no_times` (the reply names no time at all).
 
 ## 5. Automatic checks
 
@@ -77,7 +77,11 @@ Built by [`scripts/build_testset.py`](../scripts/build_testset.py) from the draf
 
 ## 6. Authoring and provenance
 
-Customer messages are **synthetic drafts, reviewed and edited by a native speaker**, who rewrites any line that does not sound like a real customer. Drafts deliberately include real WhatsApp habits: missing hamzas, typos, no punctuation, `ابي / ودي / بغيت`, English words and Arabizi.
+Customer messages are **synthetic drafts, reviewed and edited by a native speaker**, who rewrote any line that did not sound like a real customer. They deliberately include real WhatsApp habits: missing hamzas, typos, no punctuation, `ابي / ودي / بغيت`, both digit sets (٧ and 7), and English words inside Arabic text. English-only messages are allowed.
+
+**No Arabizi (R12).** Arabic written in Latin letters (for example `si3r`, `a7jiz`) is not used anywhere: not in test, dev or training data. The builder rejects it.
+
+The review applied 13 rules. The ones that shape the text: the assistant writes times with Arabic digits 0–9 and never mixes digit sets in one message (R1); formal rows say `الصباح` / `المساء`, casual rows `الصبح / الظهر / العصر / المسا / الليل` (R13); customers pick a time in their own words, by the hour (R8); assistant turns use short spoken service names (R9); every exact expected value comes from the customer's words (R5); no two customer lines in one category are near-duplicates (R10, character 3-gram similarity below 0.6).
 
 Safeguards:
 - No test or dev case is ever used for training, and the training data will come from a different generator than the test drafts, so the test cannot resemble the training set through a shared writer.

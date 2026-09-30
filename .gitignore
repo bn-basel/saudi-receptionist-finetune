@@ -24,6 +24,8 @@ wandb/
 data/raw/
 data/cache/
 
+# Working review notes (kept local)
+reviews/
 
 # OS
 Thumbs.db

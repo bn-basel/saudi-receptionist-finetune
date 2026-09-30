@@ -19,7 +19,9 @@ Defined in [`spec/businesses.json`](../spec/businesses.json). Map links use `exa
 | `car_wash` | مغسلة البريق | الدمام | فهد (male) | unknown |
 | `restaurant` | مطعم سفرة الديرة | الرياض | سعود (male) | unknown |
 
-**Addressing the customer:** masculine forms by default; feminine when the name or the messages show the customer is a woman; always feminine at the women-only salon.
+**Gender (R11).**
+- *Receptionist → customer:* masculine forms when the gender is unknown; feminine once the name or the messages show a woman; always feminine where the business's `customers` is `"women only"` (and always masculine for `"men only"`).
+- *Customer → receptionist:* customers write in the masculine or the plural, unless they clearly know who is replying (they use the receptionist's name, or it is the women-only salon).
 
 ## 3. Tools
 
@@ -58,6 +60,8 @@ These are the patterns the automatic checks in Stage 5 will score.
 3. `create_booking` / `cancel_booking` only after the customer clearly agreed in their latest message, and a booked time must be one that `get_available_slots` returned.
 4. Never promise to send or do something there is no tool or info for.
 5. Replies are in Saudi dialect, never Modern Standard Arabic, Egyptian or Levantine.
+
+**No Arabizi (R12).** Arabic written in Latin letters (for example `si3r`, `a7jiz`) appears nowhere: not in the test, dev or training data, and not in the model's replies. English-only customer messages and English words inside Arabic text are allowed.
 
 ## 5. Style switches
 

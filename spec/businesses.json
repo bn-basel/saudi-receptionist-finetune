@@ -17,31 +17,36 @@
         "id": "checkup",
         "name": "كشف واستشارة",
         "price_sar": 100,
-        "duration_min": 20
+        "duration_min": 20,
+        "short_name": "الكشف"
       },
       {
         "id": "cleaning",
         "name": "تنظيف أسنان",
         "price_sar": 250,
-        "duration_min": 45
+        "duration_min": 45,
+        "short_name": "التنظيف"
       },
       {
         "id": "filling",
         "name": "حشوة تجميلية",
         "price_sar": 350,
-        "duration_min": 60
+        "duration_min": 60,
+        "short_name": "الحشوة"
       },
       {
         "id": "whitening",
         "name": "تبييض",
         "price_sar": 1200,
-        "duration_min": 90
+        "duration_min": 90,
+        "short_name": "التبييض"
       },
       {
         "id": "braces_consult",
         "name": "استشارة تقويم",
         "price_sar": 150,
-        "duration_min": 30
+        "duration_min": 30,
+        "short_name": "استشارة التقويم"
       }
     ],
     "assistant": {
@@ -76,31 +81,36 @@
         "id": "haircut",
         "name": "قص شعر",
         "price_sar": 120,
-        "duration_min": 45
+        "duration_min": 45,
+        "short_name": "القص"
       },
       {
         "id": "blowdry",
         "name": "سشوار",
         "price_sar": 90,
-        "duration_min": 40
+        "duration_min": 40,
+        "short_name": "السشوار"
       },
       {
         "id": "hair_color",
         "name": "صبغة شعر",
         "price_sar": 350,
-        "duration_min": 120
+        "duration_min": 120,
+        "short_name": "الصبغة"
       },
       {
         "id": "manicure",
         "name": "مناكير",
         "price_sar": 80,
-        "duration_min": 40
+        "duration_min": 40,
+        "short_name": "المناكير"
       },
       {
         "id": "bridal_makeup",
         "name": "مكياج عروس",
         "price_sar": 1500,
-        "duration_min": 150
+        "duration_min": 150,
+        "short_name": "مكياج العروس"
       }
     ],
     "assistant": {
@@ -135,25 +145,29 @@
         "id": "outside_wash",
         "name": "غسيل خارجي",
         "price_sar": 30,
-        "duration_min": 20
+        "duration_min": 20,
+        "short_name": "الغسيل الخارجي"
       },
       {
         "id": "full_wash",
         "name": "غسيل داخلي وخارجي",
         "price_sar": 60,
-        "duration_min": 40
+        "duration_min": 40,
+        "short_name": "الغسيل الكامل"
       },
       {
         "id": "polish",
         "name": "تلميع",
         "price_sar": 250,
-        "duration_min": 120
+        "duration_min": 120,
+        "short_name": "التلميع"
       },
       {
         "id": "nano_ceramic",
         "name": "نانو سيراميك",
         "price_sar": 900,
-        "duration_min": 240
+        "duration_min": 240,
+        "short_name": "النانو سيراميك"
       }
     ],
     "assistant": {
@@ -189,19 +203,22 @@
         "id": "table_2",
         "name": "طاولة لشخصين",
         "price_sar": 0,
-        "duration_min": 90
+        "duration_min": 90,
+        "short_name": "طاولة لشخصين"
       },
       {
         "id": "table_4",
         "name": "طاولة ٤ أشخاص",
         "price_sar": 0,
-        "duration_min": 90
+        "duration_min": 90,
+        "short_name": "طاولة لـ4"
       },
       {
         "id": "family_room",
         "name": "جلسة عائلية خاصة (حتى ١٠ أشخاص)",
         "price_sar": 200,
-        "duration_min": 120
+        "duration_min": 120,
+        "short_name": "الجلسة العائلية"
       }
     ],
     "assistant": {
