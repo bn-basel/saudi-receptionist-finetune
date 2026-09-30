@@ -1,6 +1,6 @@
 # or__gpt-5.4-mini__test
 
-Model `or:gpt-5.4-mini` on the **test** split (160 cases), scorer v1.2.
+Model `or:gpt-5.4-mini` on the **test** split (160 cases), short prompt, scorer v1.3.
 
 **Pass rate: 148/160 = 92.5%** (95% CI 87.3%–95.7%)
 

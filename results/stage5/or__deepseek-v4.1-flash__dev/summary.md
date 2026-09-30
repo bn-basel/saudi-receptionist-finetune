@@ -1,6 +1,6 @@
 # or__deepseek-v4.1-flash__dev
 
-Model `or:deepseek-v4.1-flash` on the **dev** split (40 cases), scorer v1.2.
+Model `or:deepseek-v4.1-flash` on the **dev** split (40 cases), short prompt, scorer v1.3.
 
 **Pass rate: 39/40 = 97.5%** (95% CI 87.1%–99.6%)
 

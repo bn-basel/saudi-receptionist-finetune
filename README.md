@@ -48,16 +48,24 @@ In a blind A/B test on 10 customer messages, judged by a native speaker before a
 
 Check them with `sha256sum data/test/*_v1.jsonl` (Linux, macOS, Git Bash) or `Get-FileHash data/test/*_v1.jsonl -Algorithm SHA256` (PowerShell). Any change to the test set becomes a new version (`test_v2`), never a silent edit.
 
-**Stage 5: baselines (in progress).** Scored automatically on the 160 frozen test cases (scorer v1.2, 95% confidence interval in brackets), all with the same short system prompt from [docs/TASK_SPEC.md](docs/TASK_SPEC.md):
+**Stage 5: baselines.** Scored automatically on the 160 frozen test cases with scorer v1.3 (95% confidence interval in brackets). *Short* is the system prompt from [docs/TASK_SPEC.md](docs/TASK_SPEC.md), the one the fine-tuned model will use. *Long* adds the spec's behaviour rules written out in full (about 450 more tokens), frozen before its first test run.
 
-| Model | Setup | Pass rate | Answers with a claimed action / wrong date / invented number | API cost for 160 cases |
+| Model | How it ran | Short prompt | Long prompt | Hallucinated actions / dates / numbers / times (short prompt) |
 |---|---|---|---|---|
-| DeepSeek V4.1 Flash | via OpenRouter (DeepInfra), thinking on, 2,048-token cap | **94.4%** (90–97%) | 0 / 0 / 0 | $0.03 |
-| GPT-5.4 mini | via OpenRouter (OpenAI, flex tier), thinking on, 2,048-token cap | **92.5%** (87–96%) | 0 / 0 / 0 | $0.08 |
-| Gemini 3.8 Flash | via OpenRouter (Google AI Studio, flex tier), thinking on, 2,048-token cap | **87.5%** (81–92%) | 0 / 0 / 0 | $0.11 |
-| Gemma-4-12B-it, untuned | local, 4-bit, greedy, thinking off | **40.6%** (33–48%) | 13 / 5 / 5 | local |
+| GPT-5.4 mini | OpenRouter (OpenAI, flex tier), thinking on, 2,048-token cap | 92.5% (87–96%) | **98.8%** (96–100%) | 0 / 0 / 0 / 0 |
+| DeepSeek V4.1 Flash | OpenRouter (DeepInfra), thinking on, 2,048-token cap | **94.4%** (90–97%) | 98.1% (95–99%) | 0 / 0 / 0 / 0 |
+| Gemini 3.8 Flash | OpenRouter (Google AI Studio, flex tier), thinking on, 2,048-token cap | 87.5% (81–92%) | 91.2% (86–95%) | 0 / 0 / 0 / 0 |
+| Gemma-4-12B-it, untuned | local, 4-bit, greedy, thinking off | 40.6% (33–48%) | 44.4% (37–52%) | 13 / 5 / 5 / 0 |
+| ALLaM-7B-Instruct-preview | local, 4-bit, greedy; no tool support in its template, so tools are described in text | 38.1% (31–46%) | 41.9% (35–50%) | 9 / 0 / 21 / 4 |
 
-DeepSeek V4.1 Flash is the model Mujawib runs on today, so it is the bar the fine-tuned model has to clear. The API models call tools readily with the same short prompt; their remaining failures are mostly questions nobody can answer (they search the service list instead of handing off to a person), GPT asking for a preferred time instead of checking the calendar, and Gemini asking for a second confirmation after the customer already chose which booking to cancel. Untuned Gemma writes fluent Saudi dialect but almost never uses its tools: 2 tool calls in 160 cases. Still to come in this stage: ALLaM-7B, and every model again with a longer, fully explained prompt.
+All API runs together cost under $0.60. DeepSeek V4.1 Flash is the model Mujawib runs on today, so it is the bar the fine-tuned model has to clear with the short prompt.
+
+What the results show:
+- **The API models use their tools well**, and a fully explained prompt lifts them further. Their main remaining weakness is questions nobody can answer: they search the service list instead of handing off to a person (Gemini on most of them, even with the long prompt).
+- **The two open models almost never call a tool**, with either prompt: untuned Gemma made 5 tool calls in 160 cases with the long prompt, ALLaM 3. They pass on business info, small talk and closed hours, and fail on prices, bookings, cancellations and handoffs. ALLaM also invents prices freely (for example 1,500 riyals for a 900-riyal service) and offers times it never checked.
+- **Better instructions are not enough for the open models:** the long prompt adds only about 4 points for Gemma and ALLaM. That is the gap fine-tuning has to close.
+
+These scores only check tools and facts. Whether the replies sound like natural Saudi dialect is judged separately, in a blind review by a native speaker.
 
 **Known limitations so far.** The test messages are synthetic drafts reviewed and edited by one native speaker, so their phrasing is less varied than real customers. The dialect verdicts come from one judge.
 

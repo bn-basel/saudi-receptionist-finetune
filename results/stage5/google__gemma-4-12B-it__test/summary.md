@@ -1,6 +1,6 @@
 # google__gemma-4-12B-it__test
 
-Model `hf:google/gemma-4-12B-it` on the **test** split (160 cases), scorer v1.2.
+Model `hf:google/gemma-4-12B-it` on the **test** split (160 cases), short prompt, scorer v1.3.
 
 **Pass rate: 65/160 = 40.6%** (95% CI 33.3%–48.4%)
 

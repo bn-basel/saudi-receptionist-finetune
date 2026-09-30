@@ -133,5 +133,11 @@ expect("240 minutes said as '4 ساعات' is correct", "after_slots-11",
 expect("a wrong duration '5 ساعات' still fails", "after_slots-11",
        reply("النانو سيراميك 900 ريال ويأخذ 5 ساعات، والأحد متاح 8 الصبح"), False, reason="invented numbers")
 
+# 5. Scorer v1.3: grounded hours come only from numbers written as times -------------------
+expect("'10:00' with slots at 16:30/18:00/21:00 fails (10 is only the month)", "after_slots-01",
+       reply("بكرة متوفر الساعة 10:00 الصبح، يناسبك؟"), False, reason="times")
+expect("opening hours quoted as times still pass", "info-02",
+       reply("نفتح الساعة 4 العصر ونسكر 11 الليل"), True)
+
 print(f"\n{'ALL CHECKS PASSED' if not failures else f'{failures} FAILURE(S)'}")
 sys.exit(1 if failures else 0)

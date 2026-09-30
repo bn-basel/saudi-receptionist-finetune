@@ -1,6 +1,6 @@
 # or__gemini-3.8-flash__dev
 
-Model `or:gemini-3.8-flash` on the **dev** split (40 cases), scorer v1.2.
+Model `or:gemini-3.8-flash` on the **dev** split (40 cases), short prompt, scorer v1.3.
 
 **Pass rate: 37/40 = 92.5%** (95% CI 80.1%–97.4%)
 

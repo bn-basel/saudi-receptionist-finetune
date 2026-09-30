@@ -75,9 +75,9 @@ One JSON object per line in `data/test/test_v1.jsonl` and `data/test/dev_v1.json
 
 Built by [`scripts/build_testset.py`](../scripts/build_testset.py) from the drafts in [`scripts/testset_drafts.py`](../scripts/testset_drafts.py) and the reviewed sheet `data/test/sheet_v1.csv`; tool results come from the fake backend [`scripts/backend.py`](../scripts/backend.py).
 
-### Scoring details (scorer v1.2)
+### Scoring details (scorer v1.3)
 
-Implemented in [`scripts/scoring.py`](../scripts/scoring.py), run by [`scripts/run_eval.py`](../scripts/run_eval.py), and tested by [`scripts/test_scoring.py`](../scripts/test_scoring.py): a model that always answers correctly must score 200/200, and 43 hand-made right and wrong answers must land on the right side. Every summary states the scorer version it was scored with.
+Implemented in [`scripts/scoring.py`](../scripts/scoring.py), run by [`scripts/run_eval.py`](../scripts/run_eval.py), and tested by [`scripts/test_scoring.py`](../scripts/test_scoring.py): a model that always answers correctly must score 200/200, and 45 hand-made right and wrong answers must land on the right side. Every summary states the scorer version it was scored with.
 
 - Only the **first** tool call in the step is matched against the expectation; every call is checked for validity.
 - Argument values are compared after light normalisation: digits in either set, `8:00` → `08:00`, names ignoring spaces and hamza forms (`عبد الله` = `عبدالله`).
@@ -92,6 +92,8 @@ Implemented in [`scripts/scoring.py`](../scripts/scoring.py), run by [`scripts/r
 - Pass rates are reported with a 95% Wilson confidence interval.
 
 **Changelog.** v1.0 → v1.1 (2026-09-30), found by reading the first real outputs (untuned Gemma-4-12B-it on dev and test) by hand. v1.0 treated every number from 1 to 24 near a slot lookup as a time, so a price ("SUV يزيد 20 ريال"), a numbered list, or the customer's *current* booking time failed wrongly; and it did not check dates or claimed actions at all. v1.1 fixes both directions. The frozen test data did not change. Untuned Gemma moved from 14/40 to 15/40 on dev and from 61/160 to 65/160 on test. v1.1 → v1.2 (2026-09-30), found by reading the first API-model outputs (DeepSeek V4.1 Flash, GPT-5.4 mini, Gemini 3.8 Flash) by hand. Three false failures: a number glued to an Arabic letter (`و٨:٣٠`) was not read as a time because `` does not separate Arabic letters from digits; emoji list numbers counted as invented; a duration in hours counted as invented. One loophole closed: every number from the prompt, including prayer times and prices, lent a 12/24-hour alias, so "5 ساعات" passed because Maghrib is at 17:26; now only numbers used as times get an alias, and prayer times never do. Test pass counts under v1.1 → v1.2: untuned Gemma 65 → 65, DeepSeek 146 → 151, GPT-5.4 mini 148 → 148, Gemini 3.8 Flash 139 → 140.
+
+v1.2 → v1.3 (2026-10-01), found by spot-checking ALLaM's answers flagged for invented times: the hours a reply may name were taken from every number up to 24 in the prompt and tool results, so the month in a date (2026-**10**-07) made "الساعة 10:00" look grounded. Now only numbers written as times (slots, opening hours, the clock, the customer's words) count. Changes: ALLaM short prompt 62 → 61 (test) and 15 → 14 (dev), ALLaM long prompt 15 → 13 (dev); no other run changed.
 
 Every model is scored with the same version, and any later change gets a new version number and is listed here.
 

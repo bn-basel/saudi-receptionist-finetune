@@ -1,6 +1,6 @@
 # or__deepseek-v4.1-flash__test
 
-Model `or:deepseek-v4.1-flash` on the **test** split (160 cases), scorer v1.2.
+Model `or:deepseek-v4.1-flash` on the **test** split (160 cases), short prompt, scorer v1.3.
 
 **Pass rate: 151/160 = 94.4%** (95% CI 89.7%–97.0%)
 

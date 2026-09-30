@@ -1,6 +1,6 @@
 # oracle__test
 
-Model `oracle` on the **test** split (160 cases), scorer v1.2.
+Model `oracle` on the **test** split (160 cases), short prompt, scorer v1.3.
 
 **Pass rate: 160/160 = 100.0%** (95% CI 97.7%–100.0%)
 

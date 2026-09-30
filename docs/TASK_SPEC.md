@@ -107,3 +107,5 @@ Measured by [`scripts/render_example.py`](../scripts/render_example.py) with Gem
 The first draft (7 detailed tools, long rules) was 1,267. Trimming saved 260 tokens. Stage 7 will try memory savings to allow ~1,280–1,536 tokens for longer chats.
 
 **Fairness note for Stage 5:** this short prompt suits a fine-tuned model, which learns behaviour from examples. Prompt-only competitors will be tested with this prompt *and* with a longer, fully explained version, and both results are reported.
+
+**The long prompt** is the short prompt plus `LONG_GUIDE` in [`scripts/prompt.py`](../scripts/prompt.py): §4 of this spec and its hard rules, written out as instructions (about 450 extra tokens). It was written from this spec only, before any test result was used, then run on the dev set, where it needed no changes (DeepSeek V4.1 Flash 39/40, GPT-5.4 mini 40/40, Gemini 3.8 Flash 40/40). It was frozen on 2026-09-30 before its first test run. SHA-256 of `LONG_GUIDE`: `d47989ec52544cb024f34c3b82236f1ed8fda0ff68cc688aebb7333906efea70`.

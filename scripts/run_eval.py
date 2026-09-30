@@ -28,21 +28,22 @@ def load_cases(split: str) -> list[dict]:
     return [json.loads(l) for l in SPLITS[split].read_text(encoding="utf-8").splitlines()]
 
 
-def case_inputs(case: dict, businesses: dict, styles: dict, tools: list, unseen: list) -> tuple[str, list]:
+def case_inputs(case: dict, businesses: dict, styles: dict, tools: list, unseen: list,
+                variant: str = "short") -> tuple[str, list]:
     meta = case["meta"]
     system = build_system_prompt(businesses[meta["business_id"]], styles, meta["style"],
-                                 datetime.fromisoformat(meta["now"]), meta["prayer_times"])
+                                 datetime.fromisoformat(meta["now"]), meta["prayer_times"], variant)
     return system, tools + (unseen if case["tools"] == "default+unseen" else [])
 
 
-def score_all(cases: list[dict], preds: dict, spec) -> list[dict]:
+def score_all(cases: list[dict], preds: dict, spec, variant: str = "short") -> list[dict]:
     businesses, styles, tools, unseen = spec
     rows = []
     for case in cases:
         if case["id"] not in preds:
             continue
         step = preds[case["id"]]["step"]
-        system, case_tools = case_inputs(case, businesses, styles, tools, unseen)
+        system, case_tools = case_inputs(case, businesses, styles, tools, unseen, variant)
         schemas = {t["function"]["name"]: t["function"]["parameters"] for t in case_tools}
         s = score_case(case, step, system, schemas)
         if step.get("tool_calls"):
@@ -53,7 +54,8 @@ def score_all(cases: list[dict], preds: dict, spec) -> list[dict]:
     return rows
 
 
-def summarize(rows: list[dict], run: str, model: str, split: str, seconds: float | None) -> tuple[str, dict]:
+def summarize(rows: list[dict], run: str, model: str, split: str, seconds: float | None,
+              prompt: str = "short") -> tuple[str, dict]:
     n, k = len(rows), sum(r["passed"] for r in rows)
     lo, hi = wilson(k, n)
     by_cat = defaultdict(lambda: [0, 0])
@@ -69,13 +71,13 @@ def summarize(rows: list[dict], run: str, model: str, split: str, seconds: float
     problems = {label: sum(1 for r in rows if any(key in x for x in r.get("text_problems", [])))
                 for key, label in problem_kinds.items()}
     with_text = sum(1 for r in rows if r["emoji_ok"] is not None)
-    data = {"run": run, "model": model, "split": split, "scorer": SCORER_VERSION, "cases": n, "passed": k,
+    data = {"run": run, "model": model, "split": split, "prompt": prompt, "scorer": SCORER_VERSION, "cases": n, "passed": k,
             "pass_rate": k / n if n else 0, "ci95": [lo, hi],
             "by_category": {c: {"passed": a, "total": b} for c, (a, b) in by_cat.items()},
             "answer_types": dict(labels), "tool_call_valid": rate("tool_call_valid"),
             "emoji_ok": rate("emoji_ok"), "mostly_arabic": rate("mostly_arabic"),
             "reply_problems": problems, "seconds": seconds}
-    lines = [f"# {run}", "", f"Model `{model}` on the **{split}** split ({n} cases), scorer v{SCORER_VERSION}.", "",
+    lines = [f"# {run}", "", f"Model `{model}` on the **{split}** split ({n} cases), {prompt} prompt, scorer v{SCORER_VERSION}.", "",
              f"**Pass rate: {k}/{n} = {data['pass_rate']:.1%}** (95% CI {lo:.1%}–{hi:.1%})", "",
              "| Category | Passed | Rate |", "|---|---|---|"]
     lines += [f"| {c} | {a}/{b} | {a / b:.0%} |" for c, (a, b) in by_cat.items()]
@@ -103,6 +105,7 @@ def main() -> None:
     ap.add_argument("--limit", type=int, help="only the first N cases (for a quick try)")
     ap.add_argument("--rescore", help="re-score an existing run folder without calling the model")
     ap.add_argument("--budget", type=float, default=5.0, help="stop an API run once it has cost this many USD")
+    ap.add_argument("--prompt", choices=["short", "long"], default="short", help="system prompt variant")
     args = ap.parse_args()
 
     businesses, styles, tools = load_spec()
@@ -113,10 +116,11 @@ def main() -> None:
         out = Path(args.rescore)
         meta = json.loads((out / "summary.json").read_text(encoding="utf-8"))
         args.model, args.split, run = meta["model"], meta["split"], meta["run"]
+        args.prompt = meta.get("prompt", "short")
         seconds = meta.get("seconds")
     else:
         safe_model = re.sub(r"[^A-Za-z0-9._-]+", "__", args.model.removeprefix("hf:"))
-        run = args.run or f"{safe_model}__{args.split}"
+        run = args.run or f"{safe_model}__{args.split}" + ("__long" if args.prompt == "long" else "")
         out = ROOT / "results" / "stage5" / run
         out.mkdir(parents=True, exist_ok=True)
         seconds = None
@@ -136,7 +140,7 @@ def main() -> None:
             start, spent, errors_in_a_row = time.time(), 0.0, 0
             with pred_path.open("a", encoding="utf-8", newline="\n") as f:
                 for i, case in enumerate(todo, 1):
-                    system, case_tools = case_inputs(case, *spec)
+                    system, case_tools = case_inputs(case, *spec, args.prompt)
                     t = time.time()
                     step = model.step(case, system, case_tools)
                     if "error" in step:  # not saved: the case runs again next time
@@ -158,10 +162,10 @@ def main() -> None:
                         break
             seconds = time.time() - start
 
-    rows = score_all(cases, preds, spec)
+    rows = score_all(cases, preds, spec, args.prompt)
     (out / "scores.jsonl").write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows),
                                       encoding="utf-8", newline="\n")
-    text, data = summarize(rows, run, args.model, args.split, seconds)
+    text, data = summarize(rows, run, args.model, args.split, seconds, args.prompt)
     usage = [p["step"].get("usage") for p in preds.values() if p["id"] in {r["id"] for r in rows}]
     if any(usage):
         from models import COMPETITORS, cost_usd

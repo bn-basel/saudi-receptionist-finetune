@@ -16,6 +16,7 @@ Keys, request headers and error text are never printed or stored: a failed call 
 
 import json
 import os
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -74,8 +75,51 @@ class OracleModel:
         return {"text": " ".join(parts), "tool_calls": [], "raw": ""}
 
 
+TEXT_TOOL_GUIDE = """You can use these tools. To call one, reply with only this line and nothing else:
+<tool_call>{"name": "<tool name>", "arguments": {<arguments as JSON>}}</tool_call>
+Tool results come back as <tool_result>...</tool_result>. Otherwise, reply to the customer normally.
+Tools:
+"""
+TEXT_TOOL_CALL = re.compile(r"<tool_call>\s*(.*?)\s*</tool_call>", re.S)
+
+
+def text_tool_messages(system_prompt: str, messages: list[dict], tools: list[dict]) -> list[dict]:
+    """For models whose chat template has no tool support (e.g. ALLaM): tools are described
+    in the system prompt, calls and results become plain text, and turns strictly alternate."""
+    specs = "\n".join(json.dumps({"name": t["function"]["name"], "description": t["function"]["description"],
+                                  "parameters": t["function"]["parameters"]}, ensure_ascii=False) for t in tools)
+    out = [{"role": "system", "content": f"{system_prompt}\n\n{TEXT_TOOL_GUIDE}{specs}"}]
+    for m in messages:
+        if m.get("tool_calls"):
+            role, text = "assistant", "\n".join(
+                "<tool_call>" + json.dumps({"name": tc["function"]["name"], "arguments": tc["function"]["arguments"]},
+                                           ensure_ascii=False) + "</tool_call>" for tc in m["tool_calls"])
+        elif m["role"] == "tool":
+            role, text = "user", f"<tool_result>{m['content']}</tool_result>"
+        else:
+            role, text = m["role"], m["content"]
+        if out[-1]["role"] == role:  # merge, so user and assistant turns alternate
+            out[-1]["content"] += "\n" + text
+        else:
+            out.append({"role": role, "content": text})
+    return out
+
+
+def parse_text_tool_calls(text: str) -> tuple[str | None, list[dict]]:
+    calls = []
+    for body in TEXT_TOOL_CALL.findall(text):
+        try:
+            obj = json.loads(body)
+            calls.append({"name": obj.get("name"), "arguments": obj.get("arguments", {})})
+        except (json.JSONDecodeError, AttributeError):
+            calls.append({"name": None, "arguments": body})  # malformed: the scorer marks it invalid
+    rest = TEXT_TOOL_CALL.sub("", text).strip()
+    return rest or None, calls
+
+
 class HFModel:
-    """Local model in 4-bit NF4, greedy decoding, thinking switched off."""
+    """Local model in 4-bit NF4, greedy decoding, thinking switched off. Uses the model's own
+    tool format when its chat template has one, otherwise describes the tools in text."""
 
     price = (0.0, 0.0)
 
@@ -96,8 +140,18 @@ class HFModel:
             device_map={"": 0},
         )
         self.model.eval()
+        probe_tool = [{"type": "function", "function": {"name": "t", "description": "d",
+                                                         "parameters": {"type": "object", "properties": {}}}}]
+        try:
+            rendered = self.tok.apply_chat_template([{"role": "user", "content": "x"}], tools=probe_tool,
+                                                    tokenize=False, add_generation_prompt=True)
+            self.text_tools = '"t"' not in rendered and "t{" not in rendered  # template silently dropped the tools
+        except Exception:
+            self.text_tools = True
 
     def step(self, case: dict, system_prompt: str, tools: list[dict]) -> dict:
+        if self.text_tools:
+            return self.text_tool_step(case, system_prompt, tools)
         messages = [{"role": "system", "content": system_prompt}] + case["messages"]
         prompt = self.tok.apply_chat_template(messages, tools=tools, add_generation_prompt=True,
                                               enable_thinking=False, tokenize=False)
@@ -119,6 +173,16 @@ class HFModel:
                     pass
         return {"text": parsed.get("content"), "tool_calls": calls, "raw": raw,
                 **({"parse_error": parsed["parse_error"]} if "parse_error" in parsed else {})}
+
+    def text_tool_step(self, case: dict, system_prompt: str, tools: list[dict]) -> dict:
+        messages = text_tool_messages(system_prompt, case["messages"], tools)
+        prompt = self.tok.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
+        inputs = self.tok(prompt, return_tensors="pt", add_special_tokens=False).to(self.model.device)
+        with self.torch.no_grad():
+            out = self.model.generate(**inputs, max_new_tokens=self.max_new_tokens, do_sample=False)
+        raw = self.tok.decode(out[0, inputs["input_ids"].shape[1]:], skip_special_tokens=True)
+        text, calls = parse_text_tool_calls(raw)
+        return {"text": text, "tool_calls": calls, "raw": raw, "tool_format": "text"}
 
 
 class OpenRouterModel:

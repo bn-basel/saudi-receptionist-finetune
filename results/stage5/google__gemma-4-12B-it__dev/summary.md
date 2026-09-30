@@ -1,6 +1,6 @@
 # google__gemma-4-12B-it__dev
 
-Model `hf:google/gemma-4-12B-it` on the **dev** split (40 cases), scorer v1.2.
+Model `hf:google/gemma-4-12B-it` on the **dev** split (40 cases), short prompt, scorer v1.3.
 
 **Pass rate: 15/40 = 37.5%** (95% CI 24.2%–53.0%)
 

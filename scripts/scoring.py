@@ -14,7 +14,7 @@ import re
 
 from backend import normalize_ar
 
-SCORER_VERSION = "1.2"
+SCORER_VERSION = "1.3"
 
 ARABIC = f"{chr(0x0600)}-{chr(0x06FF)}"
 EMOJI = re.compile(f"[{chr(0x1F300)}-{chr(0x1FAFF)}{chr(0x2600)}-{chr(0x27BF)}]")
@@ -115,7 +115,9 @@ class Context:
         # Times may come from tools, the customer, or the business hours and clock in the
         # prompt, but not from prayer times (Isha 19:11 must not make "7 المسا" look real).
         time_sources = tool_text + [PRAYER_LINE.sub(" ", system_prompt)]
-        self.hours = with_clock_aliases(set().union(*(numbers_in(p) & set(range(25)) for p in time_sources)))
+        # Only numbers written *as times* count (slots, opening hours, the clock): the month in
+        # "2026-10-07" must not make "10:00" look grounded.
+        self.hours = with_clock_aliases(set().union(*(times_in(p) for p in time_sources)))
         self.hours |= set().union(*(numbers_in(c, clock_aliases=True) for c in customer)) if customer else set()
         self.dates = {(int(d), int(mo)) for p in everything for _, mo, d in DATE.findall(clean(p))}
         self.action_done = any(f'"status": "{s}"' in t for t in tool_text for s in DONE_STATUS)
