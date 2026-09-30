@@ -79,8 +79,8 @@ This is a comparison study as much as a fine-tune. The question is not only "did
 | 6 | Training data: licence audit, synthetic generation only where terms allow, native-speaker review, leakage check against the test set |
 | 7 | QLoRA training on the RTX 5080 |
 | 8 | Evaluation: automatic tool-call checks, blind A/B dialect review, confidence intervals, cost and speed per reply |
-| 9 | Publish: results table, raw outputs per model, side-by-side conversation gallery, dataset card, model card with honest limitations |
-| Later | The same data on a larger model in the cloud; other regional dialects, each with its own test set |
+| 9 | Publish: results table and charts (model vs model, short vs long prompt, before vs after fine-tuning), raw outputs per model, side-by-side conversation gallery, dataset card, model card with honest limitations |
+| Later | The same data on a larger model trained on rented cloud GPUs, to compare what model size buys; other regional dialects, each with its own test set |
 
 Fairness rules for the comparison: every model sees the same test cases, tools and system-prompt format. Prompt-only competitors are tested with the short prompt the fine-tuned model uses **and** with a longer, fully explained version, and both results are reported. Prompts are tuned only on the dev set and frozen before any test result exists. Each API's terms are checked before its outputs are published.
 

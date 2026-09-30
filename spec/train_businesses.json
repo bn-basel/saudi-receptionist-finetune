@@ -1,0 +1,2116 @@
+[
+  {
+    "id": "train_ac_1",
+    "name": "الماسة لصيانة المكيفات",
+    "type": "air conditioner maintenance (home visits)",
+    "city": "الرياض",
+    "address": "حي السويدي، الرياض",
+    "map_link": "https://maps.example.com/train-ac-1",
+    "hours": "Sun-Thu, Sat 09:00-18:00; Fri closed",
+    "policies": [
+      "cancel or reschedule free up to 6 hours before",
+      "payment: cash, mada",
+      "spare parts priced separately"
+    ],
+    "services": [
+      {
+        "id": "ac_clean",
+        "name": "تنظيف مكيف سبليت",
+        "short_name": "تنظيف المكيف",
+        "price_sar": 85,
+        "duration_min": 60
+      },
+      {
+        "id": "ac_fix",
+        "name": "فحص وإصلاح",
+        "short_name": "الفحص",
+        "price_sar": 160,
+        "duration_min": 60
+      },
+      {
+        "id": "gas",
+        "name": "تعبئة فريون",
+        "short_name": "تعبئة الفريون",
+        "price_sar": 290,
+        "duration_min": 45
+      }
+    ],
+    "assistant": {
+      "name": "يزيد",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "09:00-18:00",
+      "Tue": "09:00-18:00",
+      "Wed": "09:00-18:00",
+      "Thu": "09:00-18:00",
+      "Fri": null,
+      "Sat": "09:00-18:00",
+      "Sun": "09:00-18:00"
+    }
+  },
+  {
+    "id": "train_barber_1",
+    "name": "حلاق الرونق",
+    "type": "men's barber shop",
+    "city": "جدة",
+    "address": "حي النعيم، جدة",
+    "map_link": "https://maps.example.com/train-barber-1",
+    "hours": "Sun-Thu, Sat 10:00-00:00; Fri 15:00-00:00",
+    "policies": [
+      "cancel or reschedule free up to 12 hours before",
+      "payment: mada, Apple Pay, STC Pay"
+    ],
+    "services": [
+      {
+        "id": "haircut",
+        "name": "حلاقة شعر",
+        "short_name": "الحلاقة",
+        "price_sar": 70,
+        "duration_min": 30
+      },
+      {
+        "id": "beard",
+        "name": "تحديد لحية",
+        "short_name": "اللحية",
+        "price_sar": 45,
+        "duration_min": 20
+      },
+      {
+        "id": "full",
+        "name": "حلاقة شعر ولحية",
+        "short_name": "الحلاقة الكاملة",
+        "price_sar": 80,
+        "duration_min": 45
+      },
+      {
+        "id": "beard_dye",
+        "name": "صبغة لحية",
+        "short_name": "الصبغة",
+        "price_sar": 70,
+        "duration_min": 30
+      }
+    ],
+    "assistant": {
+      "name": "يزيد",
+      "gender": "male"
+    },
+    "customers": "men only",
+    "schedule": {
+      "Mon": "10:00-24:00",
+      "Tue": "10:00-24:00",
+      "Wed": "10:00-24:00",
+      "Thu": "10:00-24:00",
+      "Fri": "15:00-24:00",
+      "Sat": "10:00-24:00",
+      "Sun": "10:00-24:00"
+    }
+  },
+  {
+    "id": "train_cafe_1",
+    "name": "مقهى المرجان",
+    "type": "specialty coffee cafe (table reservations)",
+    "city": "الدمام",
+    "address": "حي الشاطئ الغربي، الدمام",
+    "map_link": "https://maps.example.com/train-cafe-1",
+    "hours": "daily 07:00-01:00",
+    "policies": [
+      "cancel or reschedule free up to 3 hours before",
+      "payment: cash, mada, Apple Pay",
+      "reservations hold 20 minutes"
+    ],
+    "services": [
+      {
+        "id": "table",
+        "name": "طاولة",
+        "short_name": "الطاولة",
+        "price_sar": 0,
+        "duration_min": 90
+      },
+      {
+        "id": "outdoor",
+        "name": "جلسة خارجية",
+        "short_name": "الجلسة الخارجية",
+        "price_sar": 0,
+        "duration_min": 90
+      },
+      {
+        "id": "group",
+        "name": "حجز مجموعة (حتى 8)",
+        "short_name": "حجز المجموعة",
+        "price_sar": 150,
+        "duration_min": 120
+      }
+    ],
+    "assistant": {
+      "name": "ريما",
+      "gender": "female"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "07:00-25:00",
+      "Tue": "07:00-25:00",
+      "Wed": "07:00-25:00",
+      "Thu": "07:00-25:00",
+      "Fri": "07:00-25:00",
+      "Sat": "07:00-25:00",
+      "Sun": "07:00-25:00"
+    }
+  },
+  {
+    "id": "train_car_service_1",
+    "name": "مركز الضياء لصيانة السيارات",
+    "type": "car maintenance center",
+    "city": "الخبر",
+    "address": "حي الحزام الذهبي، الخبر",
+    "map_link": "https://maps.example.com/train-car-service-1",
+    "hours": "Sun-Thu, Sat 08:00-20:00; Fri closed",
+    "policies": [
+      "cancel or reschedule free up to 12 hours before",
+      "payment: mada, Apple Pay, Tabby",
+      "parts priced separately"
+    ],
+    "services": [
+      {
+        "id": "oil",
+        "name": "تغيير زيت",
+        "short_name": "تغيير الزيت",
+        "price_sar": 230,
+        "duration_min": 30
+      },
+      {
+        "id": "diagnosis",
+        "name": "فحص كمبيوتر",
+        "short_name": "الفحص",
+        "price_sar": 170,
+        "duration_min": 30
+      },
+      {
+        "id": "alignment",
+        "name": "ترصيص وميزان",
+        "short_name": "الترصيص",
+        "price_sar": 130,
+        "duration_min": 45
+      },
+      {
+        "id": "brakes",
+        "name": "تغيير فحمات فرامل",
+        "short_name": "الفرامل",
+        "price_sar": 350,
+        "duration_min": 60
+      }
+    ],
+    "assistant": {
+      "name": "نايف",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "08:00-20:00",
+      "Tue": "08:00-20:00",
+      "Wed": "08:00-20:00",
+      "Thu": "08:00-20:00",
+      "Fri": null,
+      "Sat": "08:00-20:00",
+      "Sun": "08:00-20:00"
+    }
+  },
+  {
+    "id": "train_car_wash_1",
+    "name": "مغسلة الندى",
+    "type": "car wash",
+    "city": "مكة",
+    "address": "حي الشوقية، مكة",
+    "map_link": "https://maps.example.com/train-car-wash-1",
+    "hours": "daily 07:00-23:00",
+    "policies": [
+      "cancel or reschedule free up to 24 hours before",
+      "payment: mada, Apple Pay, STC Pay",
+      "prices for sedans; SUVs add 15 SAR"
+    ],
+    "services": [
+      {
+        "id": "outside",
+        "name": "غسيل خارجي",
+        "short_name": "الغسيل الخارجي",
+        "price_sar": 30,
+        "duration_min": 20
+      },
+      {
+        "id": "full",
+        "name": "غسيل داخلي وخارجي",
+        "short_name": "الغسيل الكامل",
+        "price_sar": 60,
+        "duration_min": 40
+      },
+      {
+        "id": "polish",
+        "name": "تلميع",
+        "short_name": "التلميع",
+        "price_sar": 330,
+        "duration_min": 120
+      },
+      {
+        "id": "engine",
+        "name": "تنظيف مكينة",
+        "short_name": "تنظيف المكينة",
+        "price_sar": 80,
+        "duration_min": 40
+      }
+    ],
+    "assistant": {
+      "name": "عبدالعزيز",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "07:00-23:00",
+      "Tue": "07:00-23:00",
+      "Wed": "07:00-23:00",
+      "Thu": "07:00-23:00",
+      "Fri": "07:00-23:00",
+      "Sat": "07:00-23:00",
+      "Sun": "07:00-23:00"
+    }
+  },
+  {
+    "id": "train_cleaning_1",
+    "name": "شركة الريادة لتنظيف المنازل",
+    "type": "home cleaning company (home visits)",
+    "city": "المدينة",
+    "address": "حي قباء، المدينة",
+    "map_link": "https://maps.example.com/train-cleaning-1",
+    "hours": "Sun-Thu, Sat 09:00-18:00; Fri closed",
+    "policies": [
+      "cancel or reschedule free up to 24 hours before",
+      "payment: mada, Apple Pay, STC Pay",
+      "visits need the full address"
+    ],
+    "services": [
+      {
+        "id": "apartment",
+        "name": "تنظيف شقة",
+        "short_name": "تنظيف الشقة",
+        "price_sar": 330,
+        "duration_min": 240
+      },
+      {
+        "id": "villa",
+        "name": "تنظيف فيلا",
+        "short_name": "تنظيف الفيلا",
+        "price_sar": 1040,
+        "duration_min": 480
+      },
+      {
+        "id": "sofa",
+        "name": "تنظيف كنب",
+        "short_name": "تنظيف الكنب",
+        "price_sar": 225,
+        "duration_min": 120
+      }
+    ],
+    "assistant": {
+      "name": "دانة",
+      "gender": "female"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "09:00-18:00",
+      "Tue": "09:00-18:00",
+      "Wed": "09:00-18:00",
+      "Thu": "09:00-18:00",
+      "Fri": null,
+      "Sat": "09:00-18:00",
+      "Sun": "09:00-18:00"
+    }
+  },
+  {
+    "id": "train_dental_1",
+    "name": "عيادة الفجر لطب الأسنان",
+    "type": "dental clinic",
+    "city": "أبها",
+    "address": "حي المنسك، أبها",
+    "map_link": "https://maps.example.com/train-dental-1",
+    "hours": "Sun-Thu 16:00-23:00; Fri, Sat closed",
+    "policies": [
+      "cancel or reschedule free up to 6 hours before",
+      "payment: cash, mada",
+      "insurance: accepted (Bupa, Tawuniya)"
+    ],
+    "services": [
+      {
+        "id": "checkup",
+        "name": "كشف واستشارة",
+        "short_name": "الكشف",
+        "price_sar": 150,
+        "duration_min": 20
+      },
+      {
+        "id": "cleaning",
+        "name": "تنظيف أسنان",
+        "short_name": "التنظيف",
+        "price_sar": 195,
+        "duration_min": 45
+      },
+      {
+        "id": "filling",
+        "name": "حشوة تجميلية",
+        "short_name": "الحشوة",
+        "price_sar": 390,
+        "duration_min": 60
+      },
+      {
+        "id": "extraction",
+        "name": "خلع ضرس",
+        "short_name": "الخلع",
+        "price_sar": 310,
+        "duration_min": 30
+      },
+      {
+        "id": "whitening",
+        "name": "تبييض",
+        "short_name": "التبييض",
+        "price_sar": 1230,
+        "duration_min": 90
+      }
+    ],
+    "assistant": {
+      "name": "بدر",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "16:00-23:00",
+      "Tue": "16:00-23:00",
+      "Wed": "16:00-23:00",
+      "Thu": "16:00-23:00",
+      "Fri": null,
+      "Sat": null,
+      "Sun": "16:00-23:00"
+    }
+  },
+  {
+    "id": "train_derma_1",
+    "name": "عيادة السحاب للجلدية",
+    "type": "dermatology and skin care clinic",
+    "city": "الطائف",
+    "address": "حي الشهداء، الطائف",
+    "map_link": "https://maps.example.com/train-derma-1",
+    "hours": "Sun-Thu, Sat 09:00-21:00; Fri closed",
+    "policies": [
+      "cancel or reschedule free up to 2 hours before",
+      "payment: cash, mada",
+      "insurance: accepted (Bupa, Tawuniya)"
+    ],
+    "services": [
+      {
+        "id": "consult",
+        "name": "استشارة جلدية",
+        "short_name": "الاستشارة",
+        "price_sar": 205,
+        "duration_min": 20
+      },
+      {
+        "id": "facial",
+        "name": "تنظيف بشرة عميق",
+        "short_name": "تنظيف البشرة",
+        "price_sar": 280,
+        "duration_min": 60
+      },
+      {
+        "id": "laser",
+        "name": "جلسة ليزر إزالة شعر",
+        "short_name": "الليزر",
+        "price_sar": 420,
+        "duration_min": 45
+      },
+      {
+        "id": "peel",
+        "name": "تقشير كيميائي",
+        "short_name": "التقشير",
+        "price_sar": 585,
+        "duration_min": 40
+      }
+    ],
+    "assistant": {
+      "name": "راكان",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "09:00-21:00",
+      "Tue": "09:00-21:00",
+      "Wed": "09:00-21:00",
+      "Thu": "09:00-21:00",
+      "Fri": null,
+      "Sat": "09:00-21:00",
+      "Sun": "09:00-21:00"
+    }
+  },
+  {
+    "id": "train_escape_1",
+    "name": "الرمال لغرف الهروب",
+    "type": "escape room",
+    "city": "بريدة",
+    "address": "حي الصفراء، بريدة",
+    "map_link": "https://maps.example.com/train-escape-1",
+    "hours": "Sun-Wed, Sat 16:00-00:00; Thu, Fri 14:00-01:00",
+    "policies": [
+      "cancel or reschedule free up to 2 hours before",
+      "payment: cash, mada, Apple Pay"
+    ],
+    "services": [
+      {
+        "id": "room4",
+        "name": "غرفة لـ 4 أشخاص",
+        "short_name": "غرفة الأربعة",
+        "price_sar": 270,
+        "duration_min": 60
+      },
+      {
+        "id": "room6",
+        "name": "غرفة لـ 6 أشخاص",
+        "short_name": "غرفة الستة",
+        "price_sar": 370,
+        "duration_min": 60
+      }
+    ],
+    "assistant": {
+      "name": "نايف",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "16:00-24:00",
+      "Tue": "16:00-24:00",
+      "Wed": "16:00-24:00",
+      "Thu": "14:00-25:00",
+      "Fri": "14:00-25:00",
+      "Sat": "16:00-24:00",
+      "Sun": "16:00-24:00"
+    }
+  },
+  {
+    "id": "train_eye_1",
+    "name": "عيادة السلام للعيون",
+    "type": "eye clinic",
+    "city": "حائل",
+    "address": "حي النقرة، حائل",
+    "map_link": "https://maps.example.com/train-eye-1",
+    "hours": "Sun-Thu 16:00-23:00; Fri, Sat closed",
+    "policies": [
+      "cancel or reschedule free up to 2 hours before",
+      "payment: cash, mada, Apple Pay",
+      "insurance: accepted (Bupa, Tawuniya)"
+    ],
+    "services": [
+      {
+        "id": "vision",
+        "name": "فحص نظر",
+        "short_name": "فحص النظر",
+        "price_sar": 130,
+        "duration_min": 20
+      },
+      {
+        "id": "full_exam",
+        "name": "فحص عيون شامل",
+        "short_name": "الفحص الشامل",
+        "price_sar": 370,
+        "duration_min": 45
+      },
+      {
+        "id": "lenses",
+        "name": "فحص وتركيب عدسات",
+        "short_name": "العدسات",
+        "price_sar": 300,
+        "duration_min": 40
+      }
+    ],
+    "assistant": {
+      "name": "منى",
+      "gender": "female"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "16:00-23:00",
+      "Tue": "16:00-23:00",
+      "Wed": "16:00-23:00",
+      "Thu": "16:00-23:00",
+      "Fri": null,
+      "Sat": null,
+      "Sun": "16:00-23:00"
+    }
+  },
+  {
+    "id": "train_gym_1",
+    "name": "نادي النخبة الرياضي",
+    "type": "gym",
+    "city": "تبوك",
+    "address": "حي المروج، تبوك",
+    "map_link": "https://maps.example.com/train-gym-1",
+    "hours": "Sun-Thu, Sat 06:00-00:00; Fri 14:00-00:00",
+    "policies": [
+      "cancel or reschedule free up to 24 hours before",
+      "payment: mada, Apple Pay, STC Pay",
+      "separate hours for women: see front desk"
+    ],
+    "services": [
+      {
+        "id": "trial",
+        "name": "زيارة تجريبية يوم",
+        "short_name": "الزيارة التجريبية",
+        "price_sar": 40,
+        "duration_min": 90
+      },
+      {
+        "id": "pt",
+        "name": "حصة مدرب شخصي",
+        "short_name": "حصة المدرب",
+        "price_sar": 205,
+        "duration_min": 60
+      },
+      {
+        "id": "yoga",
+        "name": "حصة يوغا",
+        "short_name": "اليوغا",
+        "price_sar": 75,
+        "duration_min": 60
+      }
+    ],
+    "assistant": {
+      "name": "دانة",
+      "gender": "female"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "06:00-24:00",
+      "Tue": "06:00-24:00",
+      "Wed": "06:00-24:00",
+      "Thu": "06:00-24:00",
+      "Fri": "14:00-24:00",
+      "Sat": "06:00-24:00",
+      "Sun": "06:00-24:00"
+    }
+  },
+  {
+    "id": "train_hall_1",
+    "name": "قاعة العليا للمناسبات",
+    "type": "event hall (daily bookings)",
+    "city": "جازان",
+    "address": "حي الروضة، جازان",
+    "map_link": "https://maps.example.com/train-hall-1",
+    "hours": "Sun-Thu, Sat 09:00-18:00; Fri closed",
+    "policies": [
+      "cancel or reschedule free up to 12 hours before",
+      "payment: mada, Apple Pay, Tabby",
+      "30% deposit to confirm"
+    ],
+    "services": [
+      {
+        "id": "small_hall",
+        "name": "قاعة صغيرة (حتى 50)",
+        "short_name": "القاعة الصغيرة",
+        "price_sar": 3280,
+        "duration_min": 300
+      },
+      {
+        "id": "big_hall",
+        "name": "قاعة كبيرة (حتى 200)",
+        "short_name": "القاعة الكبيرة",
+        "price_sar": 13195,
+        "duration_min": 300
+      }
+    ],
+    "assistant": {
+      "name": "راكان",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "09:00-18:00",
+      "Tue": "09:00-18:00",
+      "Wed": "09:00-18:00",
+      "Thu": "09:00-18:00",
+      "Fri": null,
+      "Sat": "09:00-18:00",
+      "Sun": "09:00-18:00"
+    }
+  },
+  {
+    "id": "train_physio_1",
+    "name": "مركز الواحة للعلاج الطبيعي",
+    "type": "physiotherapy center",
+    "city": "نجران",
+    "address": "حي الفيصلية، نجران",
+    "map_link": "https://maps.example.com/train-physio-1",
+    "hours": "Sun-Thu, Sat 09:00-21:00; Fri closed",
+    "policies": [
+      "cancel or reschedule free up to 12 hours before",
+      "payment: cash, mada, Apple Pay",
+      "insurance: not accepted"
+    ],
+    "services": [
+      {
+        "id": "assessment",
+        "name": "تقييم أولي",
+        "short_name": "التقييم",
+        "price_sar": 210,
+        "duration_min": 45
+      },
+      {
+        "id": "session",
+        "name": "جلسة علاج طبيعي",
+        "short_name": "الجلسة",
+        "price_sar": 340,
+        "duration_min": 60
+      },
+      {
+        "id": "massage",
+        "name": "مساج علاجي",
+        "short_name": "المساج",
+        "price_sar": 190,
+        "duration_min": 45
+      }
+    ],
+    "assistant": {
+      "name": "سارة",
+      "gender": "female"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "09:00-21:00",
+      "Tue": "09:00-21:00",
+      "Wed": "09:00-21:00",
+      "Thu": "09:00-21:00",
+      "Fri": null,
+      "Sat": "09:00-21:00",
+      "Sun": "09:00-21:00"
+    }
+  },
+  {
+    "id": "train_restaurant_1",
+    "name": "مطعم السنا",
+    "type": "Saudi restaurant (table reservations)",
+    "city": "الأحساء",
+    "address": "حي المزروعية، الأحساء",
+    "map_link": "https://maps.example.com/train-restaurant-1",
+    "hours": "daily 13:00-01:00",
+    "policies": [
+      "cancel or reschedule free up to 2 hours before",
+      "payment: mada, Apple Pay, STC Pay",
+      "family section and singles section",
+      "reservations hold 15 minutes"
+    ],
+    "services": [
+      {
+        "id": "t2",
+        "name": "طاولة لشخصين",
+        "short_name": "طاولة لشخصين",
+        "price_sar": 0,
+        "duration_min": 90
+      },
+      {
+        "id": "t4",
+        "name": "طاولة 4 أشخاص",
+        "short_name": "طاولة لـ4",
+        "price_sar": 0,
+        "duration_min": 90
+      },
+      {
+        "id": "family",
+        "name": "جلسة عائلية خاصة (حتى 10 أشخاص)",
+        "short_name": "الجلسة العائلية",
+        "price_sar": 200,
+        "duration_min": 120
+      }
+    ],
+    "assistant": {
+      "name": "فيصل",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "13:00-25:00",
+      "Tue": "13:00-25:00",
+      "Wed": "13:00-25:00",
+      "Thu": "13:00-25:00",
+      "Fri": "13:00-25:00",
+      "Sat": "13:00-25:00",
+      "Sun": "13:00-25:00"
+    }
+  },
+  {
+    "id": "train_salon_1",
+    "name": "صالون الجود",
+    "type": "women's beauty salon",
+    "city": "الرياض",
+    "address": "حي الملز، الرياض",
+    "map_link": "https://maps.example.com/train-salon-1",
+    "hours": "Sun-Thu, Sat 12:00-22:00; Fri 16:00-23:00",
+    "policies": [
+      "cancel or reschedule free up to 24 hours before",
+      "payment: mada, Apple Pay, Tabby"
+    ],
+    "services": [
+      {
+        "id": "cut",
+        "name": "قص شعر",
+        "short_name": "القص",
+        "price_sar": 120,
+        "duration_min": 45
+      },
+      {
+        "id": "blowdry",
+        "name": "سشوار",
+        "short_name": "السشوار",
+        "price_sar": 150,
+        "duration_min": 40
+      },
+      {
+        "id": "color",
+        "name": "صبغة شعر",
+        "short_name": "الصبغة",
+        "price_sar": 365,
+        "duration_min": 120
+      },
+      {
+        "id": "mani",
+        "name": "مناكير",
+        "short_name": "المناكير",
+        "price_sar": 90,
+        "duration_min": 40
+      },
+      {
+        "id": "pedi",
+        "name": "بدكير",
+        "short_name": "البدكير",
+        "price_sar": 125,
+        "duration_min": 45
+      },
+      {
+        "id": "evening_makeup",
+        "name": "مكياج سهرة",
+        "short_name": "المكياج",
+        "price_sar": 565,
+        "duration_min": 90
+      }
+    ],
+    "assistant": {
+      "name": "دانة",
+      "gender": "female"
+    },
+    "customers": "women only",
+    "schedule": {
+      "Mon": "12:00-22:00",
+      "Tue": "12:00-22:00",
+      "Wed": "12:00-22:00",
+      "Thu": "12:00-22:00",
+      "Fri": "16:00-23:00",
+      "Sat": "12:00-22:00",
+      "Sun": "12:00-22:00"
+    }
+  },
+  {
+    "id": "train_spa_1",
+    "name": "سبا الفيروز",
+    "type": "women's spa",
+    "city": "جدة",
+    "address": "حي السلامة، جدة",
+    "map_link": "https://maps.example.com/train-spa-1",
+    "hours": "Sun-Thu, Sat 12:00-22:00; Fri 16:00-23:00",
+    "policies": [
+      "cancel or reschedule free up to 24 hours before",
+      "payment: mada, Apple Pay, STC Pay"
+    ],
+    "services": [
+      {
+        "id": "relax",
+        "name": "مساج استرخاء",
+        "short_name": "المساج",
+        "price_sar": 260,
+        "duration_min": 60
+      },
+      {
+        "id": "hammam",
+        "name": "حمام مغربي",
+        "short_name": "الحمام المغربي",
+        "price_sar": 260,
+        "duration_min": 75
+      },
+      {
+        "id": "face",
+        "name": "تنظيف بشرة",
+        "short_name": "تنظيف البشرة",
+        "price_sar": 235,
+        "duration_min": 60
+      }
+    ],
+    "assistant": {
+      "name": "سارة",
+      "gender": "female"
+    },
+    "customers": "women only",
+    "schedule": {
+      "Mon": "12:00-22:00",
+      "Tue": "12:00-22:00",
+      "Wed": "12:00-22:00",
+      "Thu": "12:00-22:00",
+      "Fri": "16:00-23:00",
+      "Sat": "12:00-22:00",
+      "Sun": "12:00-22:00"
+    }
+  },
+  {
+    "id": "train_studio_1",
+    "name": "استوديو الديوان للتصوير",
+    "type": "photography studio",
+    "city": "الدمام",
+    "address": "حي الفيصلية، الدمام",
+    "map_link": "https://maps.example.com/train-studio-1",
+    "hours": "Sun-Thu, Sat 08:00-20:00; Fri closed",
+    "policies": [
+      "cancel or reschedule free up to 12 hours before",
+      "payment: cash, mada, Apple Pay"
+    ],
+    "services": [
+      {
+        "id": "portrait",
+        "name": "جلسة تصوير شخصي",
+        "short_name": "التصوير الشخصي",
+        "price_sar": 290,
+        "duration_min": 60
+      },
+      {
+        "id": "family_shoot",
+        "name": "تصوير عائلي",
+        "short_name": "التصوير العائلي",
+        "price_sar": 735,
+        "duration_min": 90
+      },
+      {
+        "id": "passport",
+        "name": "صور جواز",
+        "short_name": "صور الجواز",
+        "price_sar": 35,
+        "duration_min": 15
+      }
+    ],
+    "assistant": {
+      "name": "نايف",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "08:00-20:00",
+      "Tue": "08:00-20:00",
+      "Wed": "08:00-20:00",
+      "Thu": "08:00-20:00",
+      "Fri": null,
+      "Sat": "08:00-20:00",
+      "Sun": "08:00-20:00"
+    }
+  },
+  {
+    "id": "train_tailor_1",
+    "name": "خياط النخيل للثياب",
+    "type": "men's tailor",
+    "city": "الخبر",
+    "address": "حي العقربية، الخبر",
+    "map_link": "https://maps.example.com/train-tailor-1",
+    "hours": "Sun-Thu, Sat 08:00-20:00; Fri closed",
+    "policies": [
+      "cancel or reschedule free up to 3 hours before",
+      "payment: mada, Apple Pay, STC Pay",
+      "delivery of new thobes in 10 days"
+    ],
+    "services": [
+      {
+        "id": "thobe",
+        "name": "تفصيل ثوب (موعد مقاسات)",
+        "short_name": "التفصيل",
+        "price_sar": 370,
+        "duration_min": 30
+      },
+      {
+        "id": "alter",
+        "name": "تعديل ثوب",
+        "short_name": "التعديل",
+        "price_sar": 60,
+        "duration_min": 20
+      }
+    ],
+    "assistant": {
+      "name": "فيصل",
+      "gender": "male"
+    },
+    "customers": "men only",
+    "schedule": {
+      "Mon": "08:00-20:00",
+      "Tue": "08:00-20:00",
+      "Wed": "08:00-20:00",
+      "Thu": "08:00-20:00",
+      "Fri": null,
+      "Sat": "08:00-20:00",
+      "Sun": "08:00-20:00"
+    }
+  },
+  {
+    "id": "train_tutoring_1",
+    "name": "مركز الغيمة التعليمي",
+    "type": "tutoring center",
+    "city": "مكة",
+    "address": "حي الشوقية، مكة",
+    "map_link": "https://maps.example.com/train-tutoring-1",
+    "hours": "Sun-Thu 14:00-21:00; Fri, Sat closed",
+    "policies": [
+      "cancel or reschedule free up to 6 hours before",
+      "payment: mada, Apple Pay, Tabby"
+    ],
+    "services": [
+      {
+        "id": "math",
+        "name": "حصة رياضيات",
+        "short_name": "حصة الرياضيات",
+        "price_sar": 140,
+        "duration_min": 60
+      },
+      {
+        "id": "english",
+        "name": "حصة إنجليزي",
+        "short_name": "حصة الإنجليزي",
+        "price_sar": 170,
+        "duration_min": 60
+      },
+      {
+        "id": "level",
+        "name": "اختبار تحديد مستوى",
+        "short_name": "تحديد المستوى",
+        "price_sar": 35,
+        "duration_min": 30
+      }
+    ],
+    "assistant": {
+      "name": "راكان",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "14:00-21:00",
+      "Tue": "14:00-21:00",
+      "Wed": "14:00-21:00",
+      "Thu": "14:00-21:00",
+      "Fri": null,
+      "Sat": null,
+      "Sun": "14:00-21:00"
+    }
+  },
+  {
+    "id": "train_vet_1",
+    "name": "عيادة المسك البيطرية",
+    "type": "veterinary clinic",
+    "city": "المدينة",
+    "address": "حي العزيزية، المدينة",
+    "map_link": "https://maps.example.com/train-vet-1",
+    "hours": "Sun-Thu, Sat 09:00-21:00; Fri closed",
+    "policies": [
+      "cancel or reschedule free up to 6 hours before",
+      "payment: mada, Apple Pay, STC Pay",
+      "pets: cats and dogs only"
+    ],
+    "services": [
+      {
+        "id": "vet_checkup",
+        "name": "كشف بيطري",
+        "short_name": "الكشف",
+        "price_sar": 180,
+        "duration_min": 30
+      },
+      {
+        "id": "vaccine",
+        "name": "تطعيم",
+        "short_name": "التطعيم",
+        "price_sar": 245,
+        "duration_min": 20
+      },
+      {
+        "id": "grooming",
+        "name": "قص أظافر وتنظيف",
+        "short_name": "التنظيف",
+        "price_sar": 120,
+        "duration_min": 30
+      }
+    ],
+    "assistant": {
+      "name": "خالد",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "09:00-21:00",
+      "Tue": "09:00-21:00",
+      "Wed": "09:00-21:00",
+      "Thu": "09:00-21:00",
+      "Fri": null,
+      "Sat": "09:00-21:00",
+      "Sun": "09:00-21:00"
+    }
+  },
+  {
+    "id": "train_ac_2",
+    "name": "البيان لصيانة المكيفات",
+    "type": "air conditioner maintenance (home visits)",
+    "city": "أبها",
+    "address": "حي المنسك، أبها",
+    "map_link": "https://maps.example.com/train-ac-2",
+    "hours": "Sun-Thu, Sat 09:00-18:00; Fri closed",
+    "policies": [
+      "cancel or reschedule free up to 2 hours before",
+      "payment: cash, mada, Apple Pay",
+      "spare parts priced separately"
+    ],
+    "services": [
+      {
+        "id": "ac_clean",
+        "name": "تنظيف مكيف سبليت",
+        "short_name": "تنظيف المكيف",
+        "price_sar": 105,
+        "duration_min": 60
+      },
+      {
+        "id": "ac_fix",
+        "name": "فحص وإصلاح",
+        "short_name": "الفحص",
+        "price_sar": 165,
+        "duration_min": 60
+      },
+      {
+        "id": "gas",
+        "name": "تعبئة فريون",
+        "short_name": "تعبئة الفريون",
+        "price_sar": 235,
+        "duration_min": 45
+      }
+    ],
+    "assistant": {
+      "name": "لمى",
+      "gender": "female"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "09:00-18:00",
+      "Tue": "09:00-18:00",
+      "Wed": "09:00-18:00",
+      "Thu": "09:00-18:00",
+      "Fri": null,
+      "Sat": "09:00-18:00",
+      "Sun": "09:00-18:00"
+    }
+  },
+  {
+    "id": "train_barber_2",
+    "name": "حلاق الكرم",
+    "type": "men's barber shop",
+    "city": "الطائف",
+    "address": "حي الشهداء، الطائف",
+    "map_link": "https://maps.example.com/train-barber-2",
+    "hours": "Sun-Thu, Sat 10:00-00:00; Fri 15:00-00:00",
+    "policies": [
+      "cancel or reschedule free up to 3 hours before",
+      "payment: cash, mada"
+    ],
+    "services": [
+      {
+        "id": "haircut",
+        "name": "حلاقة شعر",
+        "short_name": "الحلاقة",
+        "price_sar": 80,
+        "duration_min": 30
+      },
+      {
+        "id": "beard",
+        "name": "تحديد لحية",
+        "short_name": "اللحية",
+        "price_sar": 50,
+        "duration_min": 20
+      },
+      {
+        "id": "full",
+        "name": "حلاقة شعر ولحية",
+        "short_name": "الحلاقة الكاملة",
+        "price_sar": 105,
+        "duration_min": 45
+      },
+      {
+        "id": "beard_dye",
+        "name": "صبغة لحية",
+        "short_name": "الصبغة",
+        "price_sar": 80,
+        "duration_min": 30
+      }
+    ],
+    "assistant": {
+      "name": "تركي",
+      "gender": "male"
+    },
+    "customers": "men only",
+    "schedule": {
+      "Mon": "10:00-24:00",
+      "Tue": "10:00-24:00",
+      "Wed": "10:00-24:00",
+      "Thu": "10:00-24:00",
+      "Fri": "15:00-24:00",
+      "Sat": "10:00-24:00",
+      "Sun": "10:00-24:00"
+    }
+  },
+  {
+    "id": "train_cafe_2",
+    "name": "مقهى الإتقان",
+    "type": "specialty coffee cafe (table reservations)",
+    "city": "بريدة",
+    "address": "حي الصفراء، بريدة",
+    "map_link": "https://maps.example.com/train-cafe-2",
+    "hours": "daily 07:00-01:00",
+    "policies": [
+      "cancel or reschedule free up to 24 hours before",
+      "payment: cash, mada",
+      "reservations hold 15 minutes"
+    ],
+    "services": [
+      {
+        "id": "table",
+        "name": "طاولة",
+        "short_name": "الطاولة",
+        "price_sar": 0,
+        "duration_min": 90
+      },
+      {
+        "id": "outdoor",
+        "name": "جلسة خارجية",
+        "short_name": "الجلسة الخارجية",
+        "price_sar": 0,
+        "duration_min": 90
+      },
+      {
+        "id": "group",
+        "name": "حجز مجموعة (حتى 8)",
+        "short_name": "حجز المجموعة",
+        "price_sar": 130,
+        "duration_min": 120
+      }
+    ],
+    "assistant": {
+      "name": "نايف",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "07:00-25:00",
+      "Tue": "07:00-25:00",
+      "Wed": "07:00-25:00",
+      "Thu": "07:00-25:00",
+      "Fri": "07:00-25:00",
+      "Sat": "07:00-25:00",
+      "Sun": "07:00-25:00"
+    }
+  },
+  {
+    "id": "train_car_service_2",
+    "name": "مركز الصفوة لصيانة السيارات",
+    "type": "car maintenance center",
+    "city": "حائل",
+    "address": "حي النقرة، حائل",
+    "map_link": "https://maps.example.com/train-car-service-2",
+    "hours": "Sun-Thu, Sat 08:00-20:00; Fri closed",
+    "policies": [
+      "cancel or reschedule free up to 2 hours before",
+      "payment: mada, Apple Pay, STC Pay",
+      "parts priced separately"
+    ],
+    "services": [
+      {
+        "id": "oil",
+        "name": "تغيير زيت",
+        "short_name": "تغيير الزيت",
+        "price_sar": 225,
+        "duration_min": 30
+      },
+      {
+        "id": "diagnosis",
+        "name": "فحص كمبيوتر",
+        "short_name": "الفحص",
+        "price_sar": 105,
+        "duration_min": 30
+      },
+      {
+        "id": "alignment",
+        "name": "ترصيص وميزان",
+        "short_name": "الترصيص",
+        "price_sar": 140,
+        "duration_min": 45
+      },
+      {
+        "id": "brakes",
+        "name": "تغيير فحمات فرامل",
+        "short_name": "الفرامل",
+        "price_sar": 310,
+        "duration_min": 60
+      }
+    ],
+    "assistant": {
+      "name": "لمى",
+      "gender": "female"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "08:00-20:00",
+      "Tue": "08:00-20:00",
+      "Wed": "08:00-20:00",
+      "Thu": "08:00-20:00",
+      "Fri": null,
+      "Sat": "08:00-20:00",
+      "Sun": "08:00-20:00"
+    }
+  },
+  {
+    "id": "train_car_wash_2",
+    "name": "مغسلة الوفاء",
+    "type": "car wash",
+    "city": "تبوك",
+    "address": "حي المروج، تبوك",
+    "map_link": "https://maps.example.com/train-car-wash-2",
+    "hours": "daily 07:00-23:00",
+    "policies": [
+      "cancel or reschedule free up to 24 hours before",
+      "payment: cash, mada, Apple Pay",
+      "prices for sedans; SUVs add 15 SAR"
+    ],
+    "services": [
+      {
+        "id": "outside",
+        "name": "غسيل خارجي",
+        "short_name": "الغسيل الخارجي",
+        "price_sar": 30,
+        "duration_min": 20
+      },
+      {
+        "id": "full",
+        "name": "غسيل داخلي وخارجي",
+        "short_name": "الغسيل الكامل",
+        "price_sar": 60,
+        "duration_min": 40
+      },
+      {
+        "id": "polish",
+        "name": "تلميع",
+        "short_name": "التلميع",
+        "price_sar": 240,
+        "duration_min": 120
+      },
+      {
+        "id": "engine",
+        "name": "تنظيف مكينة",
+        "short_name": "تنظيف المكينة",
+        "price_sar": 65,
+        "duration_min": 40
+      }
+    ],
+    "assistant": {
+      "name": "عبدالعزيز",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "07:00-23:00",
+      "Tue": "07:00-23:00",
+      "Wed": "07:00-23:00",
+      "Thu": "07:00-23:00",
+      "Fri": "07:00-23:00",
+      "Sat": "07:00-23:00",
+      "Sun": "07:00-23:00"
+    }
+  },
+  {
+    "id": "train_cleaning_2",
+    "name": "شركة الياسمين لتنظيف المنازل",
+    "type": "home cleaning company (home visits)",
+    "city": "جازان",
+    "address": "حي الروضة، جازان",
+    "map_link": "https://maps.example.com/train-cleaning-2",
+    "hours": "Sun-Thu, Sat 09:00-18:00; Fri closed",
+    "policies": [
+      "cancel or reschedule free up to 2 hours before",
+      "payment: cash, mada, Apple Pay",
+      "visits need the full address"
+    ],
+    "services": [
+      {
+        "id": "apartment",
+        "name": "تنظيف شقة",
+        "short_name": "تنظيف الشقة",
+        "price_sar": 255,
+        "duration_min": 240
+      },
+      {
+        "id": "villa",
+        "name": "تنظيف فيلا",
+        "short_name": "تنظيف الفيلا",
+        "price_sar": 795,
+        "duration_min": 480
+      },
+      {
+        "id": "sofa",
+        "name": "تنظيف كنب",
+        "short_name": "تنظيف الكنب",
+        "price_sar": 165,
+        "duration_min": 120
+      }
+    ],
+    "assistant": {
+      "name": "فيصل",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "09:00-18:00",
+      "Tue": "09:00-18:00",
+      "Wed": "09:00-18:00",
+      "Thu": "09:00-18:00",
+      "Fri": null,
+      "Sat": "09:00-18:00",
+      "Sun": "09:00-18:00"
+    }
+  },
+  {
+    "id": "train_dental_2",
+    "name": "عيادة الأفق لطب الأسنان",
+    "type": "dental clinic",
+    "city": "نجران",
+    "address": "حي الفيصلية، نجران",
+    "map_link": "https://maps.example.com/train-dental-2",
+    "hours": "Sun-Thu, Sat 09:00-21:00; Fri closed",
+    "policies": [
+      "cancel or reschedule free up to 24 hours before",
+      "payment: cash, mada, Apple Pay",
+      "insurance: accepted (Bupa, Tawuniya)"
+    ],
+    "services": [
+      {
+        "id": "checkup",
+        "name": "كشف واستشارة",
+        "short_name": "الكشف",
+        "price_sar": 105,
+        "duration_min": 20
+      },
+      {
+        "id": "cleaning",
+        "name": "تنظيف أسنان",
+        "short_name": "التنظيف",
+        "price_sar": 275,
+        "duration_min": 45
+      },
+      {
+        "id": "filling",
+        "name": "حشوة تجميلية",
+        "short_name": "الحشوة",
+        "price_sar": 315,
+        "duration_min": 60
+      },
+      {
+        "id": "extraction",
+        "name": "خلع ضرس",
+        "short_name": "الخلع",
+        "price_sar": 340,
+        "duration_min": 30
+      },
+      {
+        "id": "whitening",
+        "name": "تبييض",
+        "short_name": "التبييض",
+        "price_sar": 1490,
+        "duration_min": 90
+      }
+    ],
+    "assistant": {
+      "name": "راكان",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "09:00-21:00",
+      "Tue": "09:00-21:00",
+      "Wed": "09:00-21:00",
+      "Thu": "09:00-21:00",
+      "Fri": null,
+      "Sat": "09:00-21:00",
+      "Sun": "09:00-21:00"
+    }
+  },
+  {
+    "id": "train_derma_2",
+    "name": "عيادة الشروق للجلدية",
+    "type": "dermatology and skin care clinic",
+    "city": "الأحساء",
+    "address": "حي المزروعية، الأحساء",
+    "map_link": "https://maps.example.com/train-derma-2",
+    "hours": "Sun-Thu, Sat 09:00-21:00; Fri closed",
+    "policies": [
+      "cancel or reschedule free up to 12 hours before",
+      "payment: cash, mada",
+      "insurance: accepted (Bupa, Tawuniya)"
+    ],
+    "services": [
+      {
+        "id": "consult",
+        "name": "استشارة جلدية",
+        "short_name": "الاستشارة",
+        "price_sar": 155,
+        "duration_min": 20
+      },
+      {
+        "id": "facial",
+        "name": "تنظيف بشرة عميق",
+        "short_name": "تنظيف البشرة",
+        "price_sar": 385,
+        "duration_min": 60
+      },
+      {
+        "id": "laser",
+        "name": "جلسة ليزر إزالة شعر",
+        "short_name": "الليزر",
+        "price_sar": 315,
+        "duration_min": 45
+      },
+      {
+        "id": "peel",
+        "name": "تقشير كيميائي",
+        "short_name": "التقشير",
+        "price_sar": 440,
+        "duration_min": 40
+      }
+    ],
+    "assistant": {
+      "name": "سلطان",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "09:00-21:00",
+      "Tue": "09:00-21:00",
+      "Wed": "09:00-21:00",
+      "Thu": "09:00-21:00",
+      "Fri": null,
+      "Sat": "09:00-21:00",
+      "Sun": "09:00-21:00"
+    }
+  },
+  {
+    "id": "train_escape_2",
+    "name": "الخزامى لغرف الهروب",
+    "type": "escape room",
+    "city": "الرياض",
+    "address": "حي العليا، الرياض",
+    "map_link": "https://maps.example.com/train-escape-2",
+    "hours": "Sun-Wed, Sat 16:00-00:00; Thu, Fri 14:00-01:00",
+    "policies": [
+      "cancel or reschedule free up to 12 hours before",
+      "payment: cash, mada"
+    ],
+    "services": [
+      {
+        "id": "room4",
+        "name": "غرفة لـ 4 أشخاص",
+        "short_name": "غرفة الأربعة",
+        "price_sar": 290,
+        "duration_min": 60
+      },
+      {
+        "id": "room6",
+        "name": "غرفة لـ 6 أشخاص",
+        "short_name": "غرفة الستة",
+        "price_sar": 420,
+        "duration_min": 60
+      }
+    ],
+    "assistant": {
+      "name": "سارة",
+      "gender": "female"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "16:00-24:00",
+      "Tue": "16:00-24:00",
+      "Wed": "16:00-24:00",
+      "Thu": "14:00-25:00",
+      "Fri": "14:00-25:00",
+      "Sat": "16:00-24:00",
+      "Sun": "16:00-24:00"
+    }
+  },
+  {
+    "id": "train_eye_2",
+    "name": "عيادة النسيم للعيون",
+    "type": "eye clinic",
+    "city": "جدة",
+    "address": "حي الحمراء، جدة",
+    "map_link": "https://maps.example.com/train-eye-2",
+    "hours": "Sun-Thu 16:00-23:00; Fri, Sat closed",
+    "policies": [
+      "cancel or reschedule free up to 2 hours before",
+      "payment: mada, Apple Pay, Tabby",
+      "insurance: not accepted"
+    ],
+    "services": [
+      {
+        "id": "vision",
+        "name": "فحص نظر",
+        "short_name": "فحص النظر",
+        "price_sar": 85,
+        "duration_min": 20
+      },
+      {
+        "id": "full_exam",
+        "name": "فحص عيون شامل",
+        "short_name": "الفحص الشامل",
+        "price_sar": 255,
+        "duration_min": 45
+      },
+      {
+        "id": "lenses",
+        "name": "فحص وتركيب عدسات",
+        "short_name": "العدسات",
+        "price_sar": 220,
+        "duration_min": 40
+      }
+    ],
+    "assistant": {
+      "name": "شهد",
+      "gender": "female"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "16:00-23:00",
+      "Tue": "16:00-23:00",
+      "Wed": "16:00-23:00",
+      "Thu": "16:00-23:00",
+      "Fri": null,
+      "Sat": null,
+      "Sun": "16:00-23:00"
+    }
+  },
+  {
+    "id": "train_gym_2",
+    "name": "نادي الريم الرياضي",
+    "type": "gym",
+    "city": "الدمام",
+    "address": "حي الشاطئ الغربي، الدمام",
+    "map_link": "https://maps.example.com/train-gym-2",
+    "hours": "Sun-Thu, Sat 06:00-00:00; Fri 14:00-00:00",
+    "policies": [
+      "cancel or reschedule free up to 12 hours before",
+      "payment: mada, Apple Pay, Tabby",
+      "separate hours for women: see front desk"
+    ],
+    "services": [
+      {
+        "id": "trial",
+        "name": "زيارة تجريبية يوم",
+        "short_name": "الزيارة التجريبية",
+        "price_sar": 60,
+        "duration_min": 90
+      },
+      {
+        "id": "pt",
+        "name": "حصة مدرب شخصي",
+        "short_name": "حصة المدرب",
+        "price_sar": 180,
+        "duration_min": 60
+      },
+      {
+        "id": "yoga",
+        "name": "حصة يوغا",
+        "short_name": "اليوغا",
+        "price_sar": 75,
+        "duration_min": 60
+      }
+    ],
+    "assistant": {
+      "name": "راكان",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "06:00-24:00",
+      "Tue": "06:00-24:00",
+      "Wed": "06:00-24:00",
+      "Thu": "06:00-24:00",
+      "Fri": "14:00-24:00",
+      "Sat": "06:00-24:00",
+      "Sun": "06:00-24:00"
+    }
+  },
+  {
+    "id": "train_hall_2",
+    "name": "قاعة الأصالة للمناسبات",
+    "type": "event hall (daily bookings)",
+    "city": "الخبر",
+    "address": "حي العقربية، الخبر",
+    "map_link": "https://maps.example.com/train-hall-2",
+    "hours": "Sun-Thu, Sat 09:00-18:00; Fri closed",
+    "policies": [
+      "cancel or reschedule free up to 24 hours before",
+      "payment: cash, mada, Apple Pay",
+      "30% deposit to confirm"
+    ],
+    "services": [
+      {
+        "id": "small_hall",
+        "name": "قاعة صغيرة (حتى 50)",
+        "short_name": "القاعة الصغيرة",
+        "price_sar": 4890,
+        "duration_min": 300
+      },
+      {
+        "id": "big_hall",
+        "name": "قاعة كبيرة (حتى 200)",
+        "short_name": "القاعة الكبيرة",
+        "price_sar": 13540,
+        "duration_min": 300
+      }
+    ],
+    "assistant": {
+      "name": "شهد",
+      "gender": "female"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "09:00-18:00",
+      "Tue": "09:00-18:00",
+      "Wed": "09:00-18:00",
+      "Thu": "09:00-18:00",
+      "Fri": null,
+      "Sat": "09:00-18:00",
+      "Sun": "09:00-18:00"
+    }
+  },
+  {
+    "id": "train_physio_2",
+    "name": "مركز المدى للعلاج الطبيعي",
+    "type": "physiotherapy center",
+    "city": "مكة",
+    "address": "حي الشوقية، مكة",
+    "map_link": "https://maps.example.com/train-physio-2",
+    "hours": "Sun-Thu, Sat 09:00-21:00; Fri closed",
+    "policies": [
+      "cancel or reschedule free up to 3 hours before",
+      "payment: cash, mada, Apple Pay",
+      "insurance: not accepted"
+    ],
+    "services": [
+      {
+        "id": "assessment",
+        "name": "تقييم أولي",
+        "short_name": "التقييم",
+        "price_sar": 190,
+        "duration_min": 45
+      },
+      {
+        "id": "session",
+        "name": "جلسة علاج طبيعي",
+        "short_name": "الجلسة",
+        "price_sar": 285,
+        "duration_min": 60
+      },
+      {
+        "id": "massage",
+        "name": "مساج علاجي",
+        "short_name": "المساج",
+        "price_sar": 255,
+        "duration_min": 45
+      }
+    ],
+    "assistant": {
+      "name": "راكان",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "09:00-21:00",
+      "Tue": "09:00-21:00",
+      "Wed": "09:00-21:00",
+      "Thu": "09:00-21:00",
+      "Fri": null,
+      "Sat": "09:00-21:00",
+      "Sun": "09:00-21:00"
+    }
+  },
+  {
+    "id": "train_restaurant_2",
+    "name": "مطعم اللؤلؤة",
+    "type": "Saudi restaurant (table reservations)",
+    "city": "المدينة",
+    "address": "حي العزيزية، المدينة",
+    "map_link": "https://maps.example.com/train-restaurant-2",
+    "hours": "daily 13:00-01:00",
+    "policies": [
+      "cancel or reschedule free up to 24 hours before",
+      "payment: cash, mada, Apple Pay",
+      "family section and singles section",
+      "reservations hold 20 minutes"
+    ],
+    "services": [
+      {
+        "id": "t2",
+        "name": "طاولة لشخصين",
+        "short_name": "طاولة لشخصين",
+        "price_sar": 0,
+        "duration_min": 90
+      },
+      {
+        "id": "t4",
+        "name": "طاولة 4 أشخاص",
+        "short_name": "طاولة لـ4",
+        "price_sar": 0,
+        "duration_min": 90
+      },
+      {
+        "id": "family",
+        "name": "جلسة عائلية خاصة (حتى 10 أشخاص)",
+        "short_name": "الجلسة العائلية",
+        "price_sar": 285,
+        "duration_min": 120
+      }
+    ],
+    "assistant": {
+      "name": "نايف",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "13:00-25:00",
+      "Tue": "13:00-25:00",
+      "Wed": "13:00-25:00",
+      "Thu": "13:00-25:00",
+      "Fri": "13:00-25:00",
+      "Sat": "13:00-25:00",
+      "Sun": "13:00-25:00"
+    }
+  },
+  {
+    "id": "train_salon_2",
+    "name": "صالون الأمل",
+    "type": "women's beauty salon",
+    "city": "أبها",
+    "address": "حي المنسك، أبها",
+    "map_link": "https://maps.example.com/train-salon-2",
+    "hours": "Sun-Thu, Sat 12:00-22:00; Fri 16:00-23:00",
+    "policies": [
+      "cancel or reschedule free up to 24 hours before",
+      "payment: cash, mada"
+    ],
+    "services": [
+      {
+        "id": "cut",
+        "name": "قص شعر",
+        "short_name": "القص",
+        "price_sar": 105,
+        "duration_min": 45
+      },
+      {
+        "id": "blowdry",
+        "name": "سشوار",
+        "short_name": "السشوار",
+        "price_sar": 70,
+        "duration_min": 40
+      },
+      {
+        "id": "color",
+        "name": "صبغة شعر",
+        "short_name": "الصبغة",
+        "price_sar": 500,
+        "duration_min": 120
+      },
+      {
+        "id": "mani",
+        "name": "مناكير",
+        "short_name": "المناكير",
+        "price_sar": 75,
+        "duration_min": 40
+      },
+      {
+        "id": "pedi",
+        "name": "بدكير",
+        "short_name": "البدكير",
+        "price_sar": 115,
+        "duration_min": 45
+      },
+      {
+        "id": "evening_makeup",
+        "name": "مكياج سهرة",
+        "short_name": "المكياج",
+        "price_sar": 385,
+        "duration_min": 90
+      }
+    ],
+    "assistant": {
+      "name": "هيا",
+      "gender": "female"
+    },
+    "customers": "women only",
+    "schedule": {
+      "Mon": "12:00-22:00",
+      "Tue": "12:00-22:00",
+      "Wed": "12:00-22:00",
+      "Thu": "12:00-22:00",
+      "Fri": "16:00-23:00",
+      "Sat": "12:00-22:00",
+      "Sun": "12:00-22:00"
+    }
+  },
+  {
+    "id": "train_spa_2",
+    "name": "سبا النور",
+    "type": "women's spa",
+    "city": "الطائف",
+    "address": "حي الشهداء، الطائف",
+    "map_link": "https://maps.example.com/train-spa-2",
+    "hours": "Sun-Thu, Sat 12:00-22:00; Fri 16:00-23:00",
+    "policies": [
+      "cancel or reschedule free up to 6 hours before",
+      "payment: mada, Apple Pay, Tabby"
+    ],
+    "services": [
+      {
+        "id": "relax",
+        "name": "مساج استرخاء",
+        "short_name": "المساج",
+        "price_sar": 425,
+        "duration_min": 60
+      },
+      {
+        "id": "hammam",
+        "name": "حمام مغربي",
+        "short_name": "الحمام المغربي",
+        "price_sar": 285,
+        "duration_min": 75
+      },
+      {
+        "id": "face",
+        "name": "تنظيف بشرة",
+        "short_name": "تنظيف البشرة",
+        "price_sar": 285,
+        "duration_min": 60
+      }
+    ],
+    "assistant": {
+      "name": "هيا",
+      "gender": "female"
+    },
+    "customers": "women only",
+    "schedule": {
+      "Mon": "12:00-22:00",
+      "Tue": "12:00-22:00",
+      "Wed": "12:00-22:00",
+      "Thu": "12:00-22:00",
+      "Fri": "16:00-23:00",
+      "Sat": "12:00-22:00",
+      "Sun": "12:00-22:00"
+    }
+  },
+  {
+    "id": "train_studio_2",
+    "name": "استوديو الروابي للتصوير",
+    "type": "photography studio",
+    "city": "بريدة",
+    "address": "حي الصفراء، بريدة",
+    "map_link": "https://maps.example.com/train-studio-2",
+    "hours": "Sun-Thu, Sat 08:00-20:00; Fri closed",
+    "policies": [
+      "cancel or reschedule free up to 12 hours before",
+      "payment: mada, Apple Pay, STC Pay"
+    ],
+    "services": [
+      {
+        "id": "portrait",
+        "name": "جلسة تصوير شخصي",
+        "short_name": "التصوير الشخصي",
+        "price_sar": 500,
+        "duration_min": 60
+      },
+      {
+        "id": "family_shoot",
+        "name": "تصوير عائلي",
+        "short_name": "التصوير العائلي",
+        "price_sar": 770,
+        "duration_min": 90
+      },
+      {
+        "id": "passport",
+        "name": "صور جواز",
+        "short_name": "صور الجواز",
+        "price_sar": 40,
+        "duration_min": 15
+      }
+    ],
+    "assistant": {
+      "name": "تركي",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "08:00-20:00",
+      "Tue": "08:00-20:00",
+      "Wed": "08:00-20:00",
+      "Thu": "08:00-20:00",
+      "Fri": null,
+      "Sat": "08:00-20:00",
+      "Sun": "08:00-20:00"
+    }
+  },
+  {
+    "id": "train_tailor_2",
+    "name": "خياط الزهور للثياب",
+    "type": "men's tailor",
+    "city": "حائل",
+    "address": "حي النقرة، حائل",
+    "map_link": "https://maps.example.com/train-tailor-2",
+    "hours": "Sun-Thu, Sat 08:00-20:00; Fri closed",
+    "policies": [
+      "cancel or reschedule free up to 3 hours before",
+      "payment: mada, Apple Pay, STC Pay",
+      "delivery of new thobes in 10 days"
+    ],
+    "services": [
+      {
+        "id": "thobe",
+        "name": "تفصيل ثوب (موعد مقاسات)",
+        "short_name": "التفصيل",
+        "price_sar": 365,
+        "duration_min": 30
+      },
+      {
+        "id": "alter",
+        "name": "تعديل ثوب",
+        "short_name": "التعديل",
+        "price_sar": 60,
+        "duration_min": 20
+      }
+    ],
+    "assistant": {
+      "name": "عبدالعزيز",
+      "gender": "male"
+    },
+    "customers": "men only",
+    "schedule": {
+      "Mon": "08:00-20:00",
+      "Tue": "08:00-20:00",
+      "Wed": "08:00-20:00",
+      "Thu": "08:00-20:00",
+      "Fri": null,
+      "Sat": "08:00-20:00",
+      "Sun": "08:00-20:00"
+    }
+  },
+  {
+    "id": "train_tutoring_2",
+    "name": "مركز القمة التعليمي",
+    "type": "tutoring center",
+    "city": "تبوك",
+    "address": "حي المروج، تبوك",
+    "map_link": "https://maps.example.com/train-tutoring-2",
+    "hours": "Sun-Thu 14:00-21:00; Fri, Sat closed",
+    "policies": [
+      "cancel or reschedule free up to 6 hours before",
+      "payment: cash, mada"
+    ],
+    "services": [
+      {
+        "id": "math",
+        "name": "حصة رياضيات",
+        "short_name": "حصة الرياضيات",
+        "price_sar": 120,
+        "duration_min": 60
+      },
+      {
+        "id": "english",
+        "name": "حصة إنجليزي",
+        "short_name": "حصة الإنجليزي",
+        "price_sar": 115,
+        "duration_min": 60
+      },
+      {
+        "id": "level",
+        "name": "اختبار تحديد مستوى",
+        "short_name": "تحديد المستوى",
+        "price_sar": 0,
+        "duration_min": 30
+      }
+    ],
+    "assistant": {
+      "name": "شهد",
+      "gender": "female"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "14:00-21:00",
+      "Tue": "14:00-21:00",
+      "Wed": "14:00-21:00",
+      "Thu": "14:00-21:00",
+      "Fri": null,
+      "Sat": null,
+      "Sun": "14:00-21:00"
+    }
+  },
+  {
+    "id": "train_vet_2",
+    "name": "عيادة الهدى البيطرية",
+    "type": "veterinary clinic",
+    "city": "جازان",
+    "address": "حي الروضة، جازان",
+    "map_link": "https://maps.example.com/train-vet-2",
+    "hours": "Sun-Thu, Sat 09:00-21:00; Fri closed",
+    "policies": [
+      "cancel or reschedule free up to 12 hours before",
+      "payment: mada, Apple Pay, STC Pay",
+      "pets: cats and dogs only"
+    ],
+    "services": [
+      {
+        "id": "vet_checkup",
+        "name": "كشف بيطري",
+        "short_name": "الكشف",
+        "price_sar": 200,
+        "duration_min": 30
+      },
+      {
+        "id": "vaccine",
+        "name": "تطعيم",
+        "short_name": "التطعيم",
+        "price_sar": 225,
+        "duration_min": 20
+      },
+      {
+        "id": "grooming",
+        "name": "قص أظافر وتنظيف",
+        "short_name": "التنظيف",
+        "price_sar": 90,
+        "duration_min": 30
+      }
+    ],
+    "assistant": {
+      "name": "نايف",
+      "gender": "male"
+    },
+    "customers": "unknown",
+    "schedule": {
+      "Mon": "09:00-21:00",
+      "Tue": "09:00-21:00",
+      "Wed": "09:00-21:00",
+      "Thu": "09:00-21:00",
+      "Fri": null,
+      "Sat": "09:00-21:00",
+      "Sun": "09:00-21:00"
+    }
+  }
+]
