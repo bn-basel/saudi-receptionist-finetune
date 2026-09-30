@@ -353,7 +353,7 @@ def cmd_build() -> None:
         sys.exit(f"{len(problems)} problem(s): nothing written.")
     for split, path in FILES.items():
         path.write_text("".join(json.dumps(c, ensure_ascii=False) + "\n" for c in cases if c["split"] == split),
-                        encoding="utf-8")
+                        encoding="utf-8", newline="\n")  # LF on every OS, so the fingerprint matches git
     print(f"wrote {FILES['test'].name} and {FILES['dev'].name}\n")
     table = {}
     for c in cases:
@@ -482,9 +482,14 @@ def cmd_freeze() -> None:
     text = doc.read_text(encoding="utf-8")
     today = date.today().isoformat()
     for split, path in FILES.items():
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()
-        text = re.sub(rf"\| `data/test/{path.name}` \| [^|]+ \| [^|]* \|",
-                      f"| `data/test/{path.name}` | `{digest}` | {today} |", text)
+        data = path.read_bytes()
+        if b"\r" in data:
+            sys.exit(f"{path.name} has Windows line endings; rebuild it before freezing.")
+        digest = hashlib.sha256(data).hexdigest()
+        row = f"| `data/test/{path.name}` | `{digest}` | {today} |"
+        text, n = re.subn(rf"^\| `data/test/{re.escape(path.name)}` \|.*$", row, text, flags=re.M)
+        if n != 1:
+            sys.exit(f"could not find the {path.name} row in {doc.name}")
         print(f"{path.name}: {digest}")
     doc.write_text(text, encoding="utf-8")
     print(f"recorded in {doc}")

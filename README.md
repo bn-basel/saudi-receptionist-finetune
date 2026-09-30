@@ -15,6 +15,7 @@ The goal is to beat both the untuned base model and a strong API baseline on a h
 | 1 | Training environment on the RTX 5080 | Done (smoke test passes) |
 | 2 | Base model choice | Done: [`google/gemma-4-12B-it`](https://huggingface.co/google/gemma-4-12B-it) (Apache-2.0) |
 | 3 | Task spec: businesses, tools, style switches, data format | Done: [docs/TASK_SPEC.md](docs/TASK_SPEC.md) |
+| 4 | Test set: 160 test + 40 dev cases, native-speaker reviewed, frozen | Done: [docs/TEST_SET.md](docs/TEST_SET.md) |
 
 Nothing below this line is claimed until it is done and verified. Results, dataset card and model card will be added when they exist.
 
@@ -31,6 +32,17 @@ Nothing below this line is claimed until it is done and verified. Results, datas
 | Granite-4.2-8B | 4.21 | yes | - | - |
 
 In a blind A/B test on 10 customer messages, judged by a native speaker before any fine-tuning, Gemma-4-12B-it won 9 and Qwen3.5-9B won 0 (1 tie). This is a small sample from one judge, used only to choose the base model. Details: [LEARNING.md](LEARNING.md#step-2--choosing-the-base-model), raw outputs in [`results/stage2/`](results/stage2/).
+
+**Stage 4: the test set.** 160 test and 40 dev cases across 12 categories (prices, bookings with date phrases, cancellations, handoffs, closed hours, small talk, pressure tests, and a tool the model never sees in training). Each case is a conversation up to one decision plus the correct next step, scored automatically, with 42 cases for a blind native-speaker dialect review. Frozen on 2026-09-30:
+
+| File | SHA-256 |
+|---|---|
+| `data/test/test_v1.jsonl` | `6fc684b157e5719567ba347525a26bc62a6646755a089c3f7393341b1d41935f` |
+| `data/test/dev_v1.jsonl` | `6d1a148fe416b8d167ec0f50374ef86f4c78971ebd4e970f6b00a8aa5b095f8b` |
+
+Check them with `sha256sum data/test/*_v1.jsonl`. Any change to the test set becomes a new version (`test_v2`), never a silent edit.
+
+**Known limitations so far.** The test messages are synthetic drafts reviewed and edited by one native speaker, so their phrasing is less varied than real customers. The dialect verdicts come from one judge.
 
 ## Roadmap (plan, not results)
 

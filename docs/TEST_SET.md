@@ -95,5 +95,5 @@ When the test set is complete and validated, its SHA-256 fingerprint is recorded
 
 | File | SHA-256 | Frozen on |
 |---|---|---|
-| `data/test/test_v1.jsonl` | _not frozen yet_ | |
-| `data/test/dev_v1.jsonl` | _not frozen yet_ | |
+| `data/test/test_v1.jsonl` | `6fc684b157e5719567ba347525a26bc62a6646755a089c3f7393341b1d41935f` | 2026-09-30 |
+| `data/test/dev_v1.jsonl` | `6d1a148fe416b8d167ec0f50374ef86f4c78971ebd4e970f6b00a8aa5b095f8b` | 2026-09-30 |
