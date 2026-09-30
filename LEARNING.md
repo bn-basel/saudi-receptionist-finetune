@@ -92,3 +92,22 @@ One entry per step: the concept in one paragraph, what we did, and what I learne
 **What I learned.**
 - Stopping each case at one decision shows exactly *which* decision the model gets wrong (right tool, wrong date), and it stops one early mistake from spoiling every step after it.
 - A frozen test set is never edited, even for a typo found later. Like a published exam, it gets a new version (`test_v2`) with its own fingerprint and a note of what changed, and every model is re-run on the new version; scores from v1 and v2 are never mixed. Otherwise "fixes" made after seeing results could quietly favour my own model.
+
+---
+
+## Step 5 — Benchmark harness and baselines
+
+**Concept.** A benchmark harness turns "is model X good?" into a number anyone can reproduce. For each frozen test case it rebuilds the system prompt, gives the model the conversation so far and the tools, takes its one next step (a tool call or a reply), and scores that step against the expectation. Local models run with greedy decoding (always the most likely token), so the same model gives the same answers every time. Before trusting any score, the scorer itself is tested: a model that always answers correctly must score 100%, and hand-made right and wrong answers must land on the right side. Every score comes with a 95% confidence interval, because 160 cases still leave a few points of uncertainty.
+
+**What we did.**
+- Built the scorer ([scripts/scoring.py](scripts/scoring.py)), the model adapters ([scripts/models.py](scripts/models.py)), the runner ([scripts/run_eval.py](scripts/run_eval.py)) and the scorer tests ([scripts/test_scoring.py](scripts/test_scoring.py): the oracle scores 200/200 and 45 hand-made checks pass).
+- Read every failure of every model by hand. That found scorer bugs in both directions, fixed in versions 1.1–1.3 and written up in [docs/TEST_SET.md](docs/TEST_SET.md) §5: prices read as times, list numbers counted as invented, digits glued to Arabic letters (`و٨:٣٠`) not read as times, prayer times and the month in a date making invented times look grounded, wrong dates and "تم الحجز" claims not checked at all. The frozen test data never changed, and every model is scored with the same version.
+- API competitors run through one OpenRouter key with fixed providers, thinking on and a 2,048-token cap: DeepSeek V4.1 Flash (what Mujawib runs on), GPT-5.4 mini and Gemini 3.8 Flash. Claude was left out on purpose, because the test drafts came from the same model family. Checked each provider's terms first: outputs are ours and benchmarking is allowed.
+- A second, long prompt spells out the spec's rules. It was written from the spec only, needed no changes on dev, and was frozen before its test run.
+- Results on the test set (short / long prompt): GPT-5.4 mini 92.5 / 98.8%, DeepSeek V4.1 Flash 94.4 / 98.1%, Gemini 3.8 Flash 87.5 / 91.2%, untuned Gemma-4-12B 40.6 / 44.4%, ALLaM-7B 38.1 / 41.9%. All API runs together cost under $0.60.
+
+**What I learned.**
+- DeepSeek (151/160) and GPT-5.4 mini (148/160) cannot be called better or worse than each other: 3 cases apart, with overlapping confidence intervals, is within the noise. A real claim needs a gap larger than the uncertainty, or a paired test on the same cases (McNemar's test).
+- The long prompt lifted GPT by 6 points but Gemma by only 4, and Gemma still almost never calls a tool. Instructions steer a habit a model already has; they cannot create one it lacks. That is what fine-tuning is for.
+- Reading failures by hand is part of measuring. Each round found scorer mistakes that would have made the numbers wrong, sometimes in a model's favour and sometimes against it.
+
