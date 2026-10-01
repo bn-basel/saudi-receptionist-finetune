@@ -123,7 +123,7 @@ for name, ok in [("training tools add an optional address", "address" in booking
 # customer lines
 expect("customer half-English «…and book» fails", record([{"role": "user", "content": "بستنى الموعد يناسبني and book"}, reply("تمام")]), False, reason="English")
 expect("customer single English word passes", record([{"role": "user", "content": "ابي booking بكرة"}, reply("تمام")]), True)
-expect("English scenario allows English sentences", record([{"role": "user", "content": "book a table please"}, reply("تمام")], scenario="english"), True)
+expect("an English customer line fails (no English in the data)", record([{"role": "user", "content": "book a table please"}, reply("تمام")]), False, reason="English phrase")
 # leakage: greetings are exempt, real copied lines are not
 TEST_GRAMS = [trigrams("السلام عليكم ورحمة الله"), trigrams("ابي احجز قص شعر للولد بكرة بعد العصر")]
 for name, ok in [("greeting identical to a test line is not leakage", leak_score("السلام عليكم ورحمة الله", TEST_GRAMS) == 0),
@@ -257,10 +257,9 @@ expect("English self-talk in a reply fails", record([USER, reply("Hmm, risk of c
 expect("Arabic self-talk «ما أبدأ بوعليكم السلام» fails", record([USER, reply("لا، ما أبدأ بوعليكم السلام مرة ثانية. وش الخدمة؟")]),
        False, reason="self-talk")
 expect("brand names and a map link pass", record([USER, reply("الدفع مدى أو Apple Pay أو STC Pay، والموقع https://maps.example.com/train-spa-2")]), True)
-expect("an English reply to an English customer passes", record([{"role": "user", "content": "Hi, how much is cleaning?"},
-                                                                  reply("Cleaning is 200 riyals, it takes one hour.")], scenario="english"), True)
-expect("self-talk fails even in an English conversation", record([{"role": "user", "content": "Hi"}, reply("Let me check the rules first. Hello!")],
-                                                                  scenario="english"), False, reason="self-talk")
+expect("an English reply fails (no English in the data)", record([USER, reply("Cleaning is 200 riyals, it takes one hour.")]),
+       False, reason="English sentence")
+expect("self-talk fails", record([USER, reply("وش الخدمة؟ Let me check")]), False, reason="self-talk")
 # teacher prompt: the clock rule and the hall deposit line
 from datagen import EXAMPLES, teacher_rules  # noqa: E402
 EXAMPLES.update({"formal": [], "casual": []})
@@ -269,6 +268,26 @@ for name, ok in [("formal teacher rule says «المساء» from 12:00", "«ا�
                  ("teacher rule no longer names prayer times", "Asr" not in teacher_rules("casual", GYM, "هلا")),
                  ("hall teacher prompt has the deposit line", "deposit" in teacher_rules("formal", HALL, "x")),
                  ("gym teacher prompt has no deposit line", "deposit to confirm" not in teacher_rules("formal", GYM, "x"))]:
+    failures += not ok
+    print(f"{'ok  ' if ok else 'FAIL'} {name}")
+# train_v1 batch 1 false rejections (NOW = Thursday 5 Nov 17:00)
+expect("«لبعد بكرة السبت» is read as «بعد بكرة» (batch 1 gen-00011, gen-00099)", record([USER, reply("ننقله لبعد بكرة السبت؟")]), True)
+expect("«لبعد بكرة الخميس» still fails", record([USER, reply("ننقله لبعد بكرة الخميس؟")]), False, reason="بعد بكرة")
+OPEN9 = tool("get_available_slots", {"service_id": "x", "date": "2026-11-07"}, {"date": "2026-11-07", "slots": ["09:00"]})
+VET = BUSINESSES["train_vet_1"]  # 09:00-21:00
+expect("«العيادة تفتح من 9 الصباح إلى 9 المساء» passes (batch 1 gen-00009)",
+       record([USER] + OPEN9 + [reply("العيادة تفتح من 9 الصباح إلى 9 المساء. السبت فيه 9 الصباح")], "formal"), True, VET)
+HANDOFF_EARLIER = tool("handoff_to_human", {"reason": "x"}, {"status": "queued", "expected_wait_min": 10})
+expect("«رفعت» after a handoff in an earlier turn passes (batch 1 gen-00036)",
+       record([USER] + HANDOFF_EARLIER + [reply("الفريق بيتواصلون معك"), {"role": "user", "content": "طيب"},
+                                          reply("سؤالك رفعته للفريق وبيتواصلون معك خلال 10 دقايق")]), True)
+expect("«رفعت» with no handoff still fails", record([USER, reply("سؤالك رفعته للفريق")]), False, reason="رفعت")
+expect("«حابه أسأل» is evidence (batch 1 gen-00006)", record([{"role": "user", "content": "حابه أسأل عن المقهى"}, reply("تسلمين")]), True)
+expect("«ماني متاكده» is evidence (batch 1 gen-00061)", record([{"role": "user", "content": "لا ماني متاكده"}, reply("تبغين نلغيه؟")]), True)
+expect("«حابه» meaning 'I like it' (a man) is not evidence", record([{"role": "user", "content": "المكان حلو وانا حابه"}, reply("تسلمين")]),
+       False, reason="feminine")
+for name, ok in [("women-only teacher prompt has the feminine line", "«عطيني اسمك الكريم»" in teacher_rules("casual", SALON, "هلا")),
+                 ("mixed business teacher prompt has no feminine line", "Every customer of this business is a woman" not in teacher_rules("casual", GYM, "هلا"))]:
     failures += not ok
     print(f"{'ok  ' if ok else 'FAIL'} {name}")
 # 1g: opener classification

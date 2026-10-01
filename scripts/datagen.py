@@ -76,6 +76,9 @@ REGISTER_RULES = {
     "casual": """- Casual register: your FIRST reply starts with «وعليكم السلام، {opener}» if the customer greeted with salaam, otherwise «{opener}». Time words: «الصبح / المسا», and «الليل» late at night.
 """,
 }
+# the rule-14 examples above are masculine, and the teacher copied «عطني» at women-only businesses (train_v1 batch 1)
+WOMEN_ONLY_RULE = ("- Every customer of this business is a woman: always feminine forms, e.g. «عطيني اسمك الكريم», «تبين؟», "
+                   "«أبشري», «تفضلي». Never «عطني», «تبي», «أبشر».\n")
 DEPOSIT_RULE = ("- This business takes a deposit to confirm a booking ({policy}): after create_booking, say the booking is "
                 "confirmed once the deposit is paid. Never call it confirmed before that.\n")
 HOME_VISIT_RULE = ("- This business visits the customer at home: ask for their address (district and street) before booking, "
@@ -149,6 +152,8 @@ def teacher_rules(register: str, business: dict, opener_word: str) -> str:
         night="" if formal else f", and «الليل» from {NIGHT_START // 60}:00 («10 الليل»)")
     if "home visit" in business["type"]:
         rules += HOME_VISIT_RULE
+    if business["customers"] == "women only":
+        rules += WOMEN_ONLY_RULE
     deposit = next((p for p in business.get("policies", []) if "deposit" in p), None)
     if deposit:
         rules += DEPOSIT_RULE.format(policy=deposit)
@@ -166,6 +171,10 @@ def sample_scenario(rng: random.Random, businesses: list[dict]) -> dict:
     business = rng.choice(businesses)
     kind = rng.choices(["price", "booking", "cancel", "reschedule", "info", "unknown", "complaint", "closed",
                         "smalltalk", "english", "pressure"], weights=[12, 30, 10, 8, 10, 7, 6, 5, 6, 3, 3])[0]
+    # No English in the training data (founder decision): an "english" draw becomes a normal booking. It is still
+    # drawn, so the random sequence, and with it every batch of a run, stays the same.
+    if kind == "english":
+        kind = "booking"
     start = date(2026, 11, 1)
     while True:  # skip Ramadan 2027 (different opening hours)
         today = start + timedelta(days=rng.randrange(0, 180))
@@ -197,14 +206,12 @@ def sample_scenario(rng: random.Random, businesses: list[dict]) -> dict:
     s = service["name"]
     if kind == "price":
         goal = f"Ask how much '{s}' costs, or how long it takes. When answered you may thank them, then end."
-    elif kind in ("booking", "english"):
+    elif kind == "booking":
         d = rng.choice(open_days)
         pref = rng.choice(["", " after Asr", " in the evening", " in the morning", " around a specific hour you choose"])
         name = rng.choice(CUSTOMER_NAMES[gender])
         goal = (f"Book '{s}' {day_phrase(d)}{pref}. Pick one of the times the receptionist offers (or ask for another "
                 f"day if none suit). Give your name '{name}' when asked. End once the booking is confirmed.")
-        if kind == "english":
-            goal += " Write every message in English."
     elif kind == "cancel":
         meta_extra["customer_bookings"] = [future_booking(k) for k in range(rng.choice([1, 1, 2]))]
         goal = "Cancel one of your bookings (you may not remember the details). Say which one if asked, then end."
@@ -263,8 +270,8 @@ def customer_turn(teacher: OpenRouterModel, sc: dict, transcript: list[str]) -> 
     system = (f"You play a customer texting '{b['name']}' ({b['type']}, {b['city']}) on WhatsApp. "
               f"Your goal: {sc['goal']} {'; '.join(style)}. Write ONLY your next WhatsApp message, usually 2-15 words, "
               "in natural Saudi dialect. Saudi words only: not Kuwaiti, Emirati, Bahraini, Egyptian, Levantine or Modern "
-              "Standard Arabic (say صديقاتي not ربيعاتي, ابي not ابا, وش not شنو). Never Arabic in Latin letters unless "
-              "told to write English. Say plainly what you want, like a real customer, and react to what the receptionist "
+              "Standard Arabic (say صديقاتي not ربيعاتي, ابي not ابا, وش not شنو). Never Arabic in Latin letters. "
+              "Say plainly what you want, like a real customer, and react to what the receptionist "
               "said. Only your FIRST message may greet: never start a later message with «وعليكم السلام» or return the "
               "receptionist's greeting, just answer. If your goal is done or cannot be done, reply exactly [END].")
     convo = "\n".join(transcript) or "(no messages yet: write your first message)"
@@ -360,7 +367,7 @@ def _date(n: int) -> str:
 DATE_RE = re.compile(_date(0))
 # a day name and a date or relative day may be joined by «يوم» or a linking word («بعد بكرة يوافق الخميس»)
 _LINK = r"\s*[(،,]?\s*(?:(?:يوافق|يصادف|الموافق|اللي هو|يكون|هو)\s+)?(?:يوم\s+)?"
-REL_THEN_DAY = re.compile(rf"(?<!\S)و?({_REL}){_LINK}[وبل]?({_DAY})(?![{AR}])")
+REL_THEN_DAY = re.compile(rf"(?<!\S)[وبل]{{0,2}}({_REL}){_LINK}[وبل]?({_DAY})(?![{AR}])")
 DAY_THEN_DATE = re.compile(rf"(?<![{AR}])[وبل]?(?P<day>{_DAY}){_LINK}" + _date(1))
 DATE_THEN_DAY = re.compile(_date(2) + rf"\s*[(،,]?\s*(?:يوم\s+)?[وبل]?(?P<day>{_DAY})(?![{AR}])")
 ISO_DATE = re.compile(r"\d{4}-\d{1,2}-\d{1,2}")
@@ -409,12 +416,18 @@ FEMININE_SHAPE = re.compile(rf"(?<![{AR}])و?(ت[{AR}]{{2,5}}ين)(?![{AR}])")
 NOT_FEMININE = {"تمرين", "تحسين", "تعيين", "تزيين", "تخزين", "تدوين", "تأمين", "تكوين", "تلوين", "تسخين", "تموين",
                 "تبيين", "تنظيفين", "تمارين"}
 # a clause that states opening hours («نقفل 6 المسا») may use them even while slots are offered
-HOURS_WORDS = re.compile(r"نفتح|نقفل|نسكر|يفتح|يقفل|يسكر|دوام|يوقف|نبدأ|يبدأ|نخلص")
+HOURS_WORDS = re.compile(r"نفتح|نقفل|نسكر|يفتح|يقفل|يسكر|تفتح|تقفل|تسكر|مفتوح|دوام|يوقف|نبدأ|يبدأ|نخلص")
 # Evidence that the customer is a woman comes only from what she says about herself: her name or a
 # feminine word about herself, as whole words (in pilot_v2 «وعد» matched inside «موعد»). Words she
 # addresses to the receptionist («تكفين») say nothing about her.
 FEMALE_NAME = re.compile(rf"(?<![{AR}])(?:{'|'.join(n.replace('ة', '[ةه]') for n in CUSTOMER_NAMES['female'])})(?![{AR}])")
-FEMALE_SELF = re.compile(rf"(?:انا|أنا)\s+(?:(?!ب|ال|في)[{AR}]+ة(?![{AR}])|حامل)"
+# feminine adjectives a customer uses about herself («ماني متاكده», «حابه أسأل»). With ه some read as a man
+# plus «it» («حابه» = "I like it", «محتاجه» = "I need it"), so those count only with ة or before a verb.
+FEMALE_SELF_WORDS = ["متأكد", "متاكد", "مستعجل", "فاضي", "مشغول", "تعبان", "جاي"]
+FEMALE_SELF_TA = ["حاب", "محتاج", "ناوي", "حاجز", "مرتبط"]
+FEMALE_SELF = re.compile(rf"(?:انا|أنا|ماني|مانيب)\s+(?:(?!ب|ال|في)[{AR}]+ة(?![{AR}])|حامل)"
+                         rf"|(?<![{AR}])(?:{'|'.join(w + '[ةه]' for w in FEMALE_SELF_WORDS)})(?![{AR}])"
+                         rf"|(?<![{AR}])(?:{'|'.join(FEMALE_SELF_TA)})(?:ة(?![{AR}])|ه\s+[أا])"
                          rf"|(?<![{AR}])و?(?:زوجي|صديقاتي|ربيعاتي)(?![{AR}])")
 # «وأتابع لك» if the wait runs long is accepted (decisions_v2: «إن تأخر عليك الوضع»), so it is not here.
 AFTER_HANDOFF_PROMISE = ["ثواني", "بأرد", "برد عليك", "أرد لك", "ارد لك", "بجيك", "برجع لك", "أعلمك", "اعلمك",
@@ -424,6 +437,7 @@ CLAIM_VERBS = ["سجلت", "سجّلت", "واصلت", "بلغتهم", "أكدت
 # «محجوز لك» claims a booking; «كله محجوز» (fully booked) does not
 BOOKED_CLAIM = re.compile(r"محجوز(?:ة)?\s+(?:لك|باسمك|لكم)|حجزت لك|حجزتلك")
 HANDOFF_VERBS = ["حولت", "حوّلت"]
+HANDOFF_CLAIMS = {"رفعت", "بلغتهم", "واصلت"}  # «سؤالك رفعته للفريق» after handoff_to_human
 PLACEHOLDER_NAMES = {"غير معروف", "غير محدد", "عميل", "العميل", "unknown", "customer", "n/a", "-", "؟", "?", ""}
 ENGLISH_PHRASE = re.compile(r"[A-Za-z]+[\s,]+[A-Za-z]+")
 
@@ -517,7 +531,7 @@ def day_slot_problems(text: str, today: date, dated: dict, extra: set) -> list[s
     never looked at are not checked here."""
     t = text.translate(AR_DIGITS)
     refs = []  # (start, end, candidate dates)
-    for m in re.finditer(rf"(?<!\S)و?({_REL})(?![{AR}])", t):
+    for m in re.finditer(rf"(?<!\S)[وبل]{{0,2}}({_REL})(?![{AR}])", t):
         refs.append((m.start(), m.end(), {today + timedelta(days=RELATIVE[m.group(1)])}))
     for m in re.finditer(rf"(?<![{AR}])[وبل]?({_DAY})(?![{AR}])", t):
         refs.append((m.start(), m.end(), {d for d in dated if d.weekday() == WEEKDAY[m.group(1)]}))
@@ -637,7 +651,7 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
                                  if 1 <= int(n) <= 24}
             if FEMALE_NAME.search(text) or FEMALE_SELF.search(text):
                 women = True
-            if rec.get("scenario") != "english" and ENGLISH_PHRASE.search(text):
+            if ENGLISH_PHRASE.search(text):
                 problems.append(f"English phrase in a customer line: «{text[:40]}»")
             # rule 12: only the customer's first message may greet
             if first_user is not None and RETURNED_SALAAM.search(text):
@@ -715,7 +729,7 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
             problems.append(f"Modern Standard Arabic dual «{dual.group(1)}» (Saudi: «حجزين», «موعدين»)")
         # the teacher's reasoning leaking into the reply
         plain = URL.sub(" ", text)
-        if rec.get("scenario") != "english" and ENGLISH_SENTENCE.search(plain):
+        if ENGLISH_SENTENCE.search(plain):
             problems.append(f"English sentence in a reply: «{ENGLISH_SENTENCE.search(plain).group(0)[:40]}»")
         if SELF_TALK.search(plain):
             problems.append(f"self-talk in a reply: «{SELF_TALK.search(plain).group(0)}»")
@@ -739,7 +753,8 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
             problems.append(f"after a handoff, promises to reply itself («{next(w for w in AFTER_HANDOFF_PROMISE if w in text)}»)")
         # rule 10: claims an action no tool did in this turn, or a booking before any booking tool
         claim = next((w for w in CLAIM_VERBS if w in text), None)
-        if claim and not acted_now:
+        # passing something to the team is true once a handoff happened, even in an earlier turn
+        if claim and not acted_now and not (claim in HANDOFF_CLAIMS and handoff_done):
             problems.append(f"claims «{claim}» with no tool call")
         if BOOKED_CLAIM.search(text) and not booked:
             problems.append(f"says «{BOOKED_CLAIM.search(text).group(0)}» before any booking tool")
