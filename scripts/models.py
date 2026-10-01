@@ -33,6 +33,8 @@ COMPETITORS = {
     "gpt-5.4-mini": {"model": "openai/gpt-5.4-mini", "providers": ["openai/flex", "openai"], "price": (0.75, 4.50)},
     "gemini-3.8-flash": {"model": "google/gemini-3.8-flash", "providers": ["google-ai-studio/flex", "google-ai-studio"],
                          "price": (0.75, 3.75)},
+    # Teacher option for training data (Stage 6): a larger DeepSeek, MIT-licensed like V4.1 Flash.
+    "deepseek-v4-pro": {"model": "deepseek/deepseek-v4-pro", "providers": ["deepinfra", "novita"], "price": (1.60, 3.20)},
 }
 
 
