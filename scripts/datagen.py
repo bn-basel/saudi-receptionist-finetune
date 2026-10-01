@@ -64,6 +64,7 @@ TEACHER_RULES = """Writing rules for every reply (decided by a native Saudi revi
 - After handoff_to_human, a person from the team contacts the customer within the tool's expected_wait_min. Never say you will come back or answer yourself, and never say "seconds". Never name the manager («المدير بيتواصل معك», «وصلتها للمدير»): the team contacts the customer.
 - Thanks («شكراً») → «العفو», «هذا واجبنا», «الله يعافيك» or «حياك الله، بالخدمة بأي وقت». «الله يحييك» only answers «حياك». Keep a reply to thanks to one or two parts, not three.
 - Never state a policy or fact that is not in the business facts above (for example whether children are welcome); hand off instead.
+- When the customer gives a group size («لمجموعة 8 أشخاص»), call search_services for a group service and use it if there is one, before booking a plain table or room.
 - When the customer names a day for an existing booking, compare it with the booking's date from get_my_bookings. If it differs, say so first («حجزك أصلاً يوم …») before changing anything.
 - When you offer 3 or more options (times, services, anything), put each on its own line after a short lead-in («المتاح:»). Two options can stay in one sentence («4 المسا أو 7 المسا»).
 - No health or care tips (drink water, stay out of the sun, rest); practical tips about the service itself are fine («جيب معك لبس رياضي»). For pain or a medical worry, at most suggest seeing a doctor.
@@ -76,7 +77,7 @@ TEACHER_RULES = """Writing rules for every reply (decided by a native Saudi revi
 # city and the season, and a model cannot get that reliably right)
 TIME_WORD_RULE = ("- Time-of-day words: {morning} before 12:00, {evening} from 12:00 («12 {evening_bare}», «3 {evening_bare}», "
                   "«8 {evening_bare}»){night}. Never «الظهر» or «العصر» after a time; «بعد العصر» for a period the customer "
-                  "asked about is fine.\n")
+                  "asked about is fine. Midnight is «12 الليل» in both registers, never «12 {evening_bare}» (that is noon).\n")
 REGISTER_RULES = {
     "formal": """- Formal register: your FIRST reply starts with «وعليكم السلام، حياك الله» if the customer greeted with salaam, otherwise «حياك الله». Never use «هلا», «يا قلبي» or «حبيبتي». Time words: «الصباح / المساء» (not الصبح / المسا / الليل). Polite forms like «اسمك الكريم».
 """,
@@ -178,7 +179,8 @@ def teacher_rules(register: str, business: dict, opener_word: str, emoji: str = 
     # so a conversation with the switch off is told only that.
     rules += EMOJI_RULE_ON if emoji == "on" else EMOJI_RULE_OFF
     if closing:
-        rules += CLOSING_RULE.format(closing=closing)
+        # rule 37: «حنا تحت الخدمة» does not stand alone as the whole closing
+        rules += CLOSING_RULE.format(closing="بأي وقت تحتاجنا حنا تحت الخدمة" if closing == "حنا تحت الخدمة" else closing)
     rules += IDENTITY_RULE.format(name=business["name"])
     if "home visit" in business["type"]:
         rules += HOME_VISIT_RULE
@@ -421,7 +423,8 @@ SPOKEN = re.compile(rf"(?:الساعة|الساعه)\s*(\d{{1,2}})(?!\d|:)(?:\s*
                     rf"|(?<!\d|:)(\d{{1,2}})\s*{_PART}?\s*{TIME_WORDS}")
 TIME_WITH_WORD = re.compile(rf"(?<![\d:])(\d{{1,2}})(?::(\d{{2}}))?\s*{_PART}?\s*({TIME_WORDS})")
 # formal time words are الصباح / الظهر / العصر / المساء (decisions_v3 rule 11)
-FORMAL_CASUAL_TIME = re.compile(r"\d\s*(?:ونص\s*|وربع\s*)?(?:الصبح|المسا(?!ء)|الليل|بالليل)")
+# (midnight is «12 الليل» in both registers, rule 35)
+FORMAL_CASUAL_TIME = re.compile(r"\d\s*(?:ونص\s*|وربع\s*)?(?:الصبح|المسا(?!ء))|(?<!\d)(?!12\s)\d{1,2}\s*(?:ونص\s*|وربع\s*)?(?:الليل|بالليل)")
 FORMAL_BANNED = ["يا قلبي", "حبيبتي"]
 BANNED_PHRASES = ["ننطرك", "عال العال", "تأكد لي", "بيواصلونك", "يواصلونك",  # rules 5, 16, 17
                   "طال عمرك", "طويل العمر", "تبقين على راسنا"]  # rules 19, 22
@@ -436,7 +439,7 @@ THANKS_REPLY_OLW = re.compile(rf"^\W*ولو(?![{AR}])")
 COURTESY_ANSWER = re.compile(r"^\W*(?:وعليكم السلام\W*)?(الله يعافيك)")
 # rule 29: «الله يحييك» answers «حياك» only, never thanks or a plain request, anywhere in the reply (batch 03)
 YAHYIK = re.compile(r"الله يحييك|الله يحيك")
-HAYYAK = re.compile(r"حياك|حيّاك|يحييك|يحيك")
+HAYYAK = re.compile(r"حياك|حيّاك|يحييك|يحيك|سلام|أسلم|اسلم|هلا|مرحبا|صباح الخير|مساء الخير")  # rule 36: a greeting counts
 # a handoff goes to the team; naming the manager promises what nobody can guarantee (batch 03 gen-00250, 00260)
 # Only the manager as the one acting, within one clause: «والمدير بيتواصل معك», «وصلتها للمدير». Mentioning the manager
 # in a refusal («ما عندي رقم المدير، لكن… الفريق بيتواصل») is right (batch 04 gen-00304, 00352, 00392).
@@ -444,6 +447,12 @@ MANAGER_PROMISE = re.compile(r"المدير(?:\s+بنفسه)?\s+(?:بيتواص�
                              r"|(?:وصلت|وصّلت|وصلتها|رفعتها|رفعت|حولتها|حوّلتها)[^،,.!؟\n]{0,25}للمدير")
 # rule 30: the assistant never presents itself as a human employee (batch 03 gen-00212)
 HUMAN_IDENTITY = re.compile(r"[أا]نا (?:رجل|رجال|حرمة|حرمه)|موظف(?:ة)? الاستقبال")
+# batch 04: a customer line holding a whole fake turn («Receptionist: … Customer: …», gen-00394)
+ROLE_LABEL = re.compile(r"\b(?:receptionist|customer|assistant|user|agent)\s*:|(?:^|\n)\s*(?:الموظف|موظف|العميل|عميل|المساعد)\s*:",
+                        re.IGNORECASE)
+EASTERN_DIGIT = re.compile("[٠-٩]")  # replies write numbers with 0-9 only (batch 04 gen-00367)
+# rule 35: a business closing at midnight says «لين 12 الليل», not «12 المساء» (noon) (batch 04 gen-00344)
+NOON_FOR_MIDNIGHT = re.compile(r"(?:إلى|الى|لين|لـ|حتى|ل)\s*12\s*(?:المساء|المسا)(?![ء-ي])")
 COURTESY_CALL = re.compile(r"العافي|يعافيك|حياك|حيّاك|يحييك|شكر|مشكور|تسلم|يسلمو|جزاك|ما قصرت|كفيت ووفيت|الله يسعدك|الله يخليك")
 # the customer's «ابشر» is answered «الله يبشرك بالخير», not «أبشر» (rule 21; batch 02 gen-00188)
 CUSTOMER_ABSHIR = re.compile(rf"(?<![{AR}])[أا]بشر(?![{AR}])")
@@ -480,7 +489,7 @@ FEMININE_SHAPE = re.compile(rf"(?<![{AR}])و?(ت[{AR}]{{2,5}}ين)(?![{AR}])")
 NOT_FEMININE = {"تمرين", "تحسين", "تعيين", "تزيين", "تخزين", "تدوين", "تأمين", "تكوين", "تلوين", "تسخين", "تموين",
                 "تبيين", "تنظيفين", "تمارين"}
 # a clause that states opening hours («نقفل 6 المسا») may use them even while slots are offered
-HOURS_WORDS = re.compile(r"نفتح|نقفل|نسكر|يفتح|يقفل|يسكر|تفتح|تقفل|تسكر|مفتوح|فاتح|دوام|يوقف|نبدأ|يبدأ|نخلص")
+HOURS_WORDS = re.compile(r"فتحنا|نفتح|نقفل|نسكر|يفتح|يقفل|يسكر|تفتح|تقفل|تسكر|مفتوح|فاتح|دوام|يوقف|نبدأ|يبدأ|نخلص")
 # Evidence that the customer is a woman comes only from what she says about herself: her name or a
 # feminine word about herself, as whole words (in pilot_v2 «وعد» matched inside «موعد»). Words she
 # addresses to the receptionist («تكفين») say nothing about her.
@@ -755,6 +764,7 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
     handoff_done, booked, first_reply, first_user, last_user = False, False, True, None, ""
     named_woman = False  # the customer gave a woman's name
     customer_said = set()  # (time, word kind) the customer wrote, e.g. «8 المساء»
+    closes_midnight = any(spec and spec.split("-")[1] in ("24:00", "00:00") for spec in business["schedule"].values())
     # slots the tools listed for today that have already passed (the backend lists the whole day)
     now = datetime.fromisoformat(meta["now"])
     now_min = now.hour * 60 + now.minute
@@ -782,6 +792,10 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
                 named_woman = True
             for h, mm, part, word in TIME_WITH_WORD.findall(text.translate(AR_DIGITS)):
                 customer_said.add((clock12(*spoken_time(int(h), int(mm or 0), part)), TIME_KIND[word]))
+            if ROLE_LABEL.search(text):
+                problems.append(f"role label in a customer line: «{ROLE_LABEL.search(text).group(0).strip()}»")
+            if any(int(h) == 0 for h, *_ in TIME_WITH_WORD.findall(text.translate(AR_DIGITS))):
+                problems.append("impossible time «0 …» in a customer line")
             if ENGLISH_PHRASE.search(text):
                 problems.append(f"English phrase in a customer line: «{text[:40]}»")
             problems += [f"formal word in a customer line «{w.strip()}»" for w in MSA_WORDS + CUSTOMER_FORMAL if w in text]
@@ -889,6 +903,10 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
             problems.append(f"promises the manager: «{MANAGER_PROMISE.search(text).group(0)[:30]}»")
         if HUMAN_IDENTITY.search(text):
             problems.append(f"presents itself as a person: «{HUMAN_IDENTITY.search(text).group(0)}» (rule 30)")
+        if EASTERN_DIGIT.search(text):
+            problems.append("digits ٠-٩ in a reply (replies use 0-9)")
+        if closes_midnight and NOON_FOR_MIDNIGHT.search(text):
+            problems.append("«12 المساء» for a midnight closing (say «12 الليل», rule 35)")
         if CUSTOMER_ABSHIR.search(last_user) and REPLY_ABSHIR.search(text):
             problems.append("the customer's «ابشر» answered «أبشر» (say «الله يبشرك بالخير»)")
         # «الملغي» for «الإلغاء», «ألغى» for «ألغي» (batch 01)
@@ -998,8 +1016,9 @@ def run_report(kept: list[dict], rejected: list[dict]) -> str:
 
 def leak_score(line: str, test_grams: list) -> float:
     """Highest 3-gram overlap with any test/dev customer line. Lines under 5 words («السلام عليكم ورحمة الله»)
-    are greetings and small talk that every conversation shares, not leaked test content, so they score 0."""
-    if len(line.split()) < 5:
+    are greetings and small talk that every conversation shares, not leaked test content, so they score 0;
+    so does the full salaam «السلام عليكم ورحمة الله وبركاته» (5 words, batch 05 gen-00447, gen-00486)."""
+    if len(line.split()) < 5 or re.fullmatch(r"\W*(?:ال)?سلام عليكم(?:\s+ورحم[ةه] الله(?:\s+وبركات[هة])?)?\W*", line):
         return 0.0
     g = trigrams(line)
     return max((jaccard(g, t) for t in test_grams), default=0.0)

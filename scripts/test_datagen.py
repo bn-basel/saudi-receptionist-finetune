@@ -127,7 +127,9 @@ expect("an English customer line fails (no English in the data)", record([{"role
 # leakage: greetings are exempt, real copied lines are not
 TEST_GRAMS = [trigrams("السلام عليكم ورحمة الله"), trigrams("ابي احجز قص شعر للولد بكرة بعد العصر")]
 for name, ok in [("greeting identical to a test line is not leakage", leak_score("السلام عليكم ورحمة الله", TEST_GRAMS) == 0),
-                 ("a copied test request is leakage", leak_score("ابي احجز قص شعر للولد بكرة بعد العصر", TEST_GRAMS) >= 0.6)]:
+                 ("a copied test request is leakage", leak_score("ابي احجز قص شعر للولد بكرة بعد العصر", TEST_GRAMS) >= 0.6),
+                 ("the full salaam is not leakage (batch 05 gen-00447)",
+                  leak_score("السلام عليكم ورحمه الله وبركاته", [trigrams("السلام عليكم ورحمة الله وبركاته")]) == 0)]:
     failures += not ok
     print(f"{'ok  ' if ok else 'FAIL'} {name}")
 # ---- decisions_v3 (pilot_v2 review) ----
@@ -408,6 +410,32 @@ expect("«ما عندنا 8 المساء» echoing the customer's 8 pm passes (g
 expect("offering the 08:00 slot as «8 المساء» still fails",
        record([USER] + tool("get_available_slots", {"service_id": "x", "date": "2026-11-06"},
               {"date": "2026-11-06", "slots": ["08:00", "13:00"]}) + [reply("المتاح 8 المساء أو 1 المساء")]), False, GYM, reason="does not fit")
+# ---- decisions_v10 (batch 04 review) ----
+expect("«الله يحييك» answering «حبيت أسلم عليكم» passes (rule 36, batch 01 gen-00075)",
+       record([{"role": "user", "content": "الله يعافيك، بس حبيت أسلم عليكم."}, reply("الله يحييك، بأي وقت تفضل.")]), True)
+expect("a customer line with «Receptionist:» fails (batch 04 gen-00394)",
+       record([USER, reply("تمام"), {"role": "user", "content": "Receptionist: تم الحجز Customer: شكرا"}, reply("الله يعافيك")]),
+       False, reason="role label")
+expect("a customer «احجز لي ٠ المساء» fails (batch 04 gen-00318)",
+       record([USER, reply("تمام"), {"role": "user", "content": "احجز لي ٠ المساء"}, reply("أبشر")]), False, reason="impossible time")
+expect("«٥ جلسات» in a reply fails (batch 04 gen-00367)", record([USER, reply("الباقة ٥ جلسات، والفريق خلال 10 دقايق")]), False, reason="٠-٩")
+expect("«5 جلسات» passes", record([USER, reply("الباقة 5 جلسات")]), True)
+expect("«من 6 الصباح إلى 12 المساء» at a midnight closer fails (rule 35, batch 04 gen-00344)",
+       record([{"role": "user", "content": "متى تفتحون"}, reply("نفتح من 6 الصباح إلى 12 المساء")], "formal"), False, GYM, reason="rule 35")
+expect("«من 6 الصباح إلى 12 الليل» in a formal row passes", record([{"role": "user", "content": "متى تفتحون"},
+       reply("نفتح من 6 الصباح إلى 12 الليل")], "formal"), True, GYM)
+expect("formal «11 الليل» is still casual", record([{"role": "user", "content": "متى تسكرون"}, reply("نسكر 11 الليل")], "formal"),
+       False, GYM, reason="casual time words")
+expect("a noon slot «12 المساء» at a midnight closer passes", record([USER] + NOON + [reply("فيه 12 المساء")], "formal"), True, GYM)
+for name, ok in [("teacher rule: midnight is «12 الليل»", "Midnight is «12 الليل»" in teacher_rules("formal", GYM, "x")),
+                 ("teacher rule: search a group service for a group size", "group service" in teacher_rules("casual", GYM, "هلا")),
+                 ("«حنا تحت الخدمة» closing comes with a lead-in (rule 37)",
+                  "«بأي وقت تحتاجنا حنا تحت الخدمة»" in teacher_rules("casual", GYM, "هلا", "off", "حنا تحت الخدمة"))]:
+    failures += not ok
+    print(f"{'ok  ' if ok else 'FAIL'} {name}")
+expect("«ما نقدر نحجز قبل 7 الصباح، هذا وقت فتحنا» states hours (batch 05 gen-00489)",
+       record([USER] + tool("get_available_slots", {"service_id": "x", "date": "2026-11-06"}, {"date": "2026-11-06", "slots": ["07:30"]})
+              + [reply("ما نقدر نحجز قبل 7 الصباح، هذا وقت فتحنا. المتاح 7 ونص الصباح")]), True, BUSINESSES["train_cafe_1"])
 # rule 34: the list repair puts 3+ options one per line and changes nothing else
 from datagen import repair_lists  # noqa: E402
 for before, after in [
