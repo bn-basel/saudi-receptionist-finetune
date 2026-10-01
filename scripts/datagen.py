@@ -56,7 +56,7 @@ TEACHER_RULES = """Writing rules for every reply (decided by a native Saudi revi
 - Call the service by a short spoken form of THIS business's own service name (drop sizes and brackets). Never use a service word this business does not have.
 - To ask for a name or address: «عطني اسمك الكريم», «وش اسمك الكريم؟», «عطني عنوانك (الحي والشارع)». Never «ابشر باسمك» or «ابشر بعنوانك»: «أبشر» means "consider it done", not "give me".
 - Warm: add a kind phrase. Plain: nothing extra.
-- Courtesy pairs: «يعطيك العافية» (with or without «شكراً») → «الله يعافيك», optionally «ما سوينا شي» or «هذا واجبنا»; never add «العفو», and never answer thanks with «ولو». «ابشر» → «الله يبشرك بالخير». Never «طال عمرك» or «طويل العمر». Never «تبقين على راسنا», never «طمني عليك». «لا تتأخرون علي» → «أبشر، ما راح نتأخر عليك بإذن الله، الفريق بيتواصل معك خلال 10 دقايق», never «الله يعينك».
+- Courtesy pairs: «يعطيك العافية» (with or without «شكراً») → «الله يعافيك», optionally «ما سوينا شي» or «هذا واجبنا»; never add «العفو», and never answer thanks with «ولو». The customer's «ابشر» → «الله يبشرك بالخير», never «أبشر» back. Say «الله يعافيك» / «الله يحييك» only when the customer just said «يعطيك العافية» / «حياك» or thanked you. Never «طال عمرك» or «طويل العمر». Never «تبقين على راسنا», never «طمني عليك». «لا تتأخرون علي» → «أبشر، ما راح نتأخر عليك بإذن الله، الفريق بيتواصل معك خلال 10 دقايق», never «الله يعينك».
 - After a handoff, if the customer adds a new detail, either call handoff_to_human again with it, or tell the customer «قلها لهم لما يتواصلون معك». Never say it reached the team otherwise.
 - Masculine forms until the customer says something about HERSELF that shows she is a woman (her name, «أنا متأكدة», «زوجي»); words she addresses to you («تكفين») are not evidence. Always feminine at a women-only business.
 - Never say something was done, saved, sent, passed on or booked («محجوز لك») unless a tool did it. Call create_booking only with the customer's real name: ask for it first, never a placeholder like «غير معروف».
@@ -423,6 +423,12 @@ DONE_WORD = re.compile(rf"(?<![{AR}])تم(?![{AR}])")  # «تم», not «تما�
 THANKS = re.compile(r"شكر|مشكور|العافي|تسلم|يسلمو|جزاك|ما قصرت|كفيت ووفيت|الله يسعدك|الله يخليك")
 # rule 24: «الله يعافيك، العفو» repeats the reply; «ولو» does not answer thanks
 THANKS_REPLY_OLW = re.compile(rf"^\W*ولو(?![{AR}])")
+# a courtesy answer with nothing to answer: «الله يعافيك» / «الله يحييك» opening a reply to a plain request (batch 02)
+COURTESY_ANSWER = re.compile(r"^\W*(?:وعليكم السلام\W*)?(الله يعافيك|الله يحييك|الله يحيك)")
+COURTESY_CALL = re.compile(r"العافي|يعافيك|حياك|حيّاك|يحييك|شكر|مشكور|تسلم|يسلمو|جزاك|ما قصرت|كفيت ووفيت|الله يسعدك|الله يخليك")
+# the customer's «ابشر» is answered «الله يبشرك بالخير», not «أبشر» (rule 21; batch 02 gen-00188)
+CUSTOMER_ABSHIR = re.compile(rf"(?<![{AR}])[أا]بشر(?![{AR}])")
+REPLY_ABSHIR = re.compile(rf"^\W*و?[أا]بشر(?![{AR}])")
 # «الملغي» for «الإلغاء» and «ألغى» for the first-person «ألغي» (batch 01); «الحجز الملغي» is fine
 CANCEL_WORDING = re.compile(rf"(?<![{AR}])و?(ألغى|الغى)(?![{AR}])|(?<!الحجز )(?<!الموعد )(?<![{AR}])(الملغي)(?![{AR}])")
 CUSTOMER_FORMAL = ["في انتظار"]  # with MSA_WORDS, on customer lines (batch 01 gen-00045)
@@ -654,8 +660,12 @@ def repair_emojis(text: str, last_user: str, switch_on: bool) -> str:
         nxt = text[i] if i < len(text) else "\n"
         if EMOJI.match(nxt):  # the rest of the same emoji, or another one: handled next
             continue
-        if out and out[-1] == " " and nxt in " \n":
-            out.pop()  # «حياك الله 🌿» -> «حياك الله»
+        if out and out[-1] == " " and nxt in " \n،,.!؟؛:":
+            out.pop()  # «حياك الله 🌿» -> «حياك الله», «حياك الله 🌿، وش» -> «حياك الله، وش»
+            # between two clauses on one line the emoji was the separator: «حياك 🌸 عندك» -> «حياك، عندك»
+            after = text[i + 1] if nxt == " " and i + 1 < len(text) else ""
+            if out and out[-1].isalnum() and after.isalnum():
+                out.append("،")
         elif (not out or out[-1] == "\n") and nxt == " ":
             i += 1  # «🌿 حياك الله» at the start of a line
     return "".join(out)
@@ -845,6 +855,11 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
             problems.append("«الله يعافيك» and «العفو» in one reply")
         if THANKS.search(last_user) and THANKS_REPLY_OLW.search(text):
             problems.append("«ولو» as a reply to thanks")
+        courtesy = COURTESY_ANSWER.search(text)
+        if courtesy and not COURTESY_CALL.search(last_user):
+            problems.append(f"«{courtesy.group(1)}» but the customer said no «يعطيك العافية», «حياك» or thanks")
+        if CUSTOMER_ABSHIR.search(last_user) and REPLY_ABSHIR.search(text):
+            problems.append("the customer's «ابشر» answered «أبشر» (say «الله يبشرك بالخير»)")
         # «الملغي» for «الإلغاء», «ألغى» for «ألغي» (batch 01)
         cancel = CANCEL_WORDING.search(text)
         if cancel:
@@ -1126,10 +1141,11 @@ def repair_record(rec: dict) -> bool:
 
 def cmd_repair_emojis(args) -> None:
     """Rule 23 repair on kept conversations: remove every emoji the rule does not allow from the replies,
-    mechanically. Checks that the text without emojis is unchanged, and marks each changed conversation."""
+    mechanically. Checks that the text without emojis (and without the «،» put in a removed separator's
+    place) is unchanged, and marks each changed conversation."""
     path = OUT_DIR / f"{args.name}.jsonl"
     recs = [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines()]
-    plain = lambda t: re.sub(r"\s+", " ", EMOJI.sub("", t)).strip()
+    plain = lambda t: re.sub(r"\s+", " ", EMOJI.sub("", t).replace("،", "")).strip()
     changed = 0
     for r in recs:
         last_user, before = "", json.dumps(r["messages"], ensure_ascii=False)

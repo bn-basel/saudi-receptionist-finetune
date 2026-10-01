@@ -362,11 +362,27 @@ complaint = [g["goal"] for g in goals if g["kind"] == "complaint" and "went wron
 ok = bool(complaint) and all(TUTOR["type"] in g for g in complaint)
 failures += not ok
 print(f"{'ok  ' if ok else 'FAIL'} a health-style complaint names the business type ({TUTOR['type']})")
+# batch 02 summary v2: courtesy answers need a courtesy to answer; the customer's «ابشر»
+expect("«الله يحييك» answering a booking request fails (batch 02 gen-00198)", record([USER, reply("الله يحييك، وش الخدمة؟")]),
+       False, reason="الله يحييك")
+expect("«الله يعافيك» with no «يعطيك العافية» fails (batch 02 gen-00134)", record([USER, reply("تم"), {"role": "user", "content": "طيب"},
+                                                                                 reply("الله يعافيك، تبي شي ثاني؟")]), False, reason="الله يعافيك")
+expect("«الله يعافيك» answering «يعطيك العافية» passes", record([USER, reply("تم"), THANKS_USER, reply("الله يعافيك")]), True)
+expect("«الله يحييك» answering «حياك الله» passes", record([{"role": "user", "content": "حياك الله، ابي احجز"}, reply("الله يحييك، وش الخدمة؟")]), True)
+expect("the customer's own «الله يعافيك» is a courtesy to return (pilot_v3 gen-00005)",
+       record([{"role": "user", "content": "ايه هذا، ألغيه الله يعافيك"}, reply("الله يعافيك، تم إلغاء الحجز")]), True)
+expect("«الله يعافيك» later in a reply is not an opening", record([USER, reply("تم الحجز. الله يعافيك ويسعدك")]), True)
+ABSHIR_USER = {"role": "user", "content": "ابشر، اسمي فهد"}
+expect("the customer's «ابشر» answered «أبشر» fails (batch 02 gen-00188)", record([USER, reply("عطني اسمك"), ABSHIR_USER, reply("أبشر، تم")]),
+       False, reason="الله يبشرك")
+expect("the customer's «ابشر» answered «الله يبشرك بالخير» passes", record([USER, reply("عطني اسمك"), ABSHIR_USER, reply("الله يبشرك بالخير، تم")]), True)
 # the emoji repair removes only disallowed emojis and the space they leave
 from datagen import repair_emojis  # noqa: E402
 for before, last, on, after in [("حياك الله 🌿\nتفضل", "", True, "حياك الله\nتفضل"),
                                  ("🙏 أبشر", "", True, "أبشر"),
-                                 ("أهلين 🙋‍♀️ وش تبي؟", "", True, "أهلين وش تبي؟"),
+                                 ("أهلين 🙋‍♀️ وش تبي؟", "", True, "أهلين، وش تبي؟"),
+                                 ("حياك 🌸 عندك حجزين", "", True, "حياك، عندك حجزين"),
+                                 ("حياك الله 🌿، وش تبي؟", "", True, "حياك الله، وش تبي؟"),
                                  ("تم الحجز ✅🌟", "", True, "تم الحجز ✅"),
                                  ("الله يعافيك 🌸🌸", "شكرا", True, "الله يعافيك 🌸"),
                                  ("حياك الله 🌸", "", True, "حياك الله"),
