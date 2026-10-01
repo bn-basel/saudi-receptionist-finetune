@@ -376,6 +376,54 @@ ABSHIR_USER = {"role": "user", "content": "ابشر، اسمي فهد"}
 expect("the customer's «ابشر» answered «أبشر» fails (batch 02 gen-00188)", record([USER, reply("عطني اسمك"), ABSHIR_USER, reply("أبشر، تم")]),
        False, reason="الله يبشرك")
 expect("the customer's «ابشر» answered «الله يبشرك بالخير» passes", record([USER, reply("عطني اسمك"), ABSHIR_USER, reply("الله يبشرك بالخير، تم")]), True)
+# ---- decisions_v9 (batch 03 review) ----
+THANKS_ONLY = {"role": "user", "content": "تم، شكراً لكم"}
+expect("«الله يحييك» answering «شكراً» fails (rule 29, batch 03 gen-00269)", record([USER, reply("تم"), THANKS_ONLY, reply("الله يحييك")]),
+       False, reason="rule 29")
+expect("«الله يحييك» closing a booking reply fails (batch 03 gen-00284)", record([USER, reply("تم الحجز. ننتظرك، والله يحييك")]),
+       False, reason="rule 29")
+expect("«العفو، هذا واجبنا» answering «شكراً» passes", record([USER, reply("تم"), THANKS_ONLY, reply("العفو، هذا واجبنا")]), True)
+expect("«والمدير بيتواصل معك» fails (batch 03 gen-00260)", record([USER] + H + [reply("رفعت طلبك للفريق والمدير بيتواصل معك")]),
+       False, reason="manager")
+expect("«ووصلتها للمدير» fails (batch 03 gen-00250)", record([USER] + H + [reply("شكواك ووصلتها للمدير")]), False, reason="manager")
+expect("«المدير» in a question passes", record([USER, reply("تبي تكلم المدير؟ أقدر أحول طلبك للفريق")]), True)
+expect("«أنا نايف موظف الاستقبال، وأنا رجل» fails (rule 30, batch 03 gen-00212)",
+       record([USER, reply("أنا نايف موظف الاستقبال، وأنا رجل")]), False, reason="rule 30")
+expect("«أنا مساعد … وهنا عشان أخدمك» passes", record([USER, reply("أنا مساعد عيادة الابتسامة وهنا عشان أخدمك")]), True)
+for name, ok in [("teacher prompt has the identity line with the business name",
+                  f"«أنا مساعد {GYM['name']} وهنا عشان أخدمك»" in teacher_rules("casual", GYM, "هلا")),
+                 ("teacher prompt has rule 34 (one option per line)", "each on its own line" in teacher_rules("casual", GYM, "هلا"))]:
+    failures += not ok
+    print(f"{'ok  ' if ok else 'FAIL'} {name}")
+# batch 04 false rejections
+expect("«ما عندي رقم المدير… لكن رفعت طلبك للفريق» passes (batch 04 gen-00304)",
+       record([USER] + H + [reply("ما عندي رقم المدير أعطيك إياه، لكن رفعت طلبك للفريق وبيتواصلون معك خلال 10 دقايق")]), True)
+expect("«ما أقدر أوصلك بالمدير مباشرة، لكن… الفريق بيتواصل» passes (gen-00352)",
+       record([USER] + H + [reply("ما أقدر أوصلك بالمدير مباشرة، لكن الفريق بيتواصل معك خلال 10 دقايق")]), True)
+expect("«سجلت طلبك إنك تبغى تكلم المدير بنفسك… والفريق بيتواصل» passes (gen-00392)",
+       record([USER] + H + [reply("سجلت طلبك إنك تبغى تكلم المدير بنفسك، والفريق بيتواصل معك خلال 10 دقايق")]), True)
+expect("«ما عندنا 8 المساء» echoing the customer's 8 pm passes (gen-00326)",
+       record([{"role": "user", "content": "احجز لي ٨ المساء"}] + tool("get_available_slots", {"service_id": "x", "date": "2026-11-06"},
+              {"date": "2026-11-06", "slots": ["08:00", "13:00"]}) + [reply("ما عندنا 8 المساء، المتاح 8 الصباح أو 1 المساء")]), True, GYM)
+expect("offering the 08:00 slot as «8 المساء» still fails",
+       record([USER] + tool("get_available_slots", {"service_id": "x", "date": "2026-11-06"},
+              {"date": "2026-11-06", "slots": ["08:00", "13:00"]}) + [reply("المتاح 8 المساء أو 1 المساء")]), False, GYM, reason="does not fit")
+# rule 34: the list repair puts 3+ options one per line and changes nothing else
+from datagen import repair_lists  # noqa: E402
+for before, after in [
+        ("المتاح: 4 المسا، 6 المسا، و7 المسا. أي وقت يناسبك؟", "المتاح:\n4 المسا\n6 المسا\n7 المسا.\nأي وقت يناسبك؟"),
+        ("تبغى أي خدمة؟ عندنا تنظيف مكيف، فحص وإصلاح، وتعبئة فريون.", "تبغى أي خدمة؟\nعندنا\nتنظيف مكيف\nفحص وإصلاح\nتعبئة فريون."),
+        ("1 ونص، 3 ونص، 6 ونص، 7.", "1 ونص\n3 ونص\n6 ونص\n7."),
+        ("فيه 4 المسا أو 7 المسا", "فيه 4 المسا أو 7 المسا"),                        # two options stay in one sentence
+        ("المتاح: 9، 10، أو 11", "المتاح: 9، 10، أو 11"),                             # «أو» is not a separator we drop
+        ("كشف بيطري، الثلاثاء 26 يناير، 11 الصباح.", "كشف بيطري، الثلاثاء 26 يناير، 11 الصباح."),  # a summary, not options
+        ("عندك حجز واحد: كشف بيطري، الثلاثاء 26 يناير، 11 الصباح.", "عندك حجز واحد: كشف بيطري، الثلاثاء 26 يناير، 11 الصباح."),
+        ("ما عندنا خدمة زيارة للبيت، الحجز عندنا داخل المطعم بس، وفيه جلسة عائلية خاصة إذا تبي.",
+         "ما عندنا خدمة زيارة للبيت، الحجز عندنا داخل المطعم بس، وفيه جلسة عائلية خاصة إذا تبي."),
+        ("- بكرة الثلاثاء، الساعة 1 ونص، قاعة صغيرة", "- بكرة الثلاثاء، الساعة 1 ونص، قاعة صغيرة")]:
+    got = repair_lists(before)
+    failures += got != after
+    print(f"{'ok  ' if got == after else 'FAIL'} list repair «{before[:45]}»" + ("" if got == after else f" -> {got!r}"))
 # the emoji repair removes only disallowed emojis and the space they leave
 from datagen import repair_emojis  # noqa: E402
 for before, last, on, after in [("حياك الله 🌿\nتفضل", "", True, "حياك الله\nتفضل"),
