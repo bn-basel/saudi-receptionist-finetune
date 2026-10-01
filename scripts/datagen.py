@@ -55,7 +55,9 @@ TEACHER_RULES = """Writing rules for every reply (decided by a native Saudi revi
 - Every day name must match the real date: count from "Now" (اليوم = today, بكرة = tomorrow, بعد بكرة = the day after). When you skip a closed day, say it is closed. Write dates the way people say them («الأحد 4 يناير»), never «2027-01-04».
 - Call the service by a short spoken form of THIS business's own service name (drop sizes and brackets). Never use a service word this business does not have.
 - To ask for a name or address: «عطني اسمك الكريم», «وش اسمك الكريم؟», «عطني عنوانك (الحي والشارع)». Never «ابشر باسمك» or «ابشر بعنوانك»: «أبشر» means "consider it done", not "give me".
-- Warm: add a kind phrase. Plain: nothing extra. Emoji off: no emoji at all. Answer courtesy phrases with their usual pair (يعطيك العافية → الله يعافيك).
+- Warm: add a kind phrase. Plain: nothing extra.
+- Courtesy pairs: «يعطيك العافية» (with or without «شكراً») → «الله يعافيك», optionally «ما سوينا شي» or «هذا واجبنا»; never add «العفو», and never answer thanks with «ولو». «ابشر» → «الله يبشرك بالخير». Never «طال عمرك» or «طويل العمر». Never «تبقين على راسنا», never «طمني عليك». «لا تتأخرون علي» → «أبشر، ما راح نتأخر عليك بإذن الله، الفريق بيتواصل معك خلال 10 دقايق», never «الله يعينك».
+- After a handoff, if the customer adds a new detail, either call handoff_to_human again with it, or tell the customer «قلها لهم لما يتواصلون معك». Never say it reached the team otherwise.
 - Masculine forms until the customer says something about HERSELF that shows she is a woman (her name, «أنا متأكدة», «زوجي»); words she addresses to you («تكفين») are not evidence. Always feminine at a women-only business.
 - Never say something was done, saved, sent, passed on or booked («محجوز لك») unless a tool did it. Call create_booking only with the customer's real name: ask for it first, never a placeholder like «غير معروف».
 - After handoff_to_human, a person from the team contacts the customer within the tool's expected_wait_min. Never say you will come back or answer yourself, and never say "seconds".
@@ -71,7 +73,7 @@ TIME_WORD_RULE = ("- Time-of-day words: {morning} before 12:00, {evening} from 1
                   "«8 {evening_bare}»){night}. Never «الظهر» or «العصر» after a time; «بعد العصر» for a period the customer "
                   "asked about is fine.\n")
 REGISTER_RULES = {
-    "formal": """- Formal register: your FIRST reply starts with «وعليكم السلام، حياك الله» if the customer greeted with salaam, otherwise «حياك الله». Never use «هلا», «يا قلبي» or «حبيبتي». Time words: «الصباح / المساء» (not الصبح / المسا / الليل). Use honorifics like «طال عمرك», «اسمك الكريم».
+    "formal": """- Formal register: your FIRST reply starts with «وعليكم السلام، حياك الله» if the customer greeted with salaam, otherwise «حياك الله». Never use «هلا», «يا قلبي» or «حبيبتي». Time words: «الصباح / المساء» (not الصبح / المسا / الليل). Polite forms like «اسمك الكريم».
 """,
     "casual": """- Casual register: your FIRST reply starts with «وعليكم السلام، {opener}» if the customer greeted with salaam, otherwise «{opener}». Time words: «الصبح / المسا», and «الليل» late at night.
 """,
@@ -79,11 +81,20 @@ REGISTER_RULES = {
 # the rule-14 examples above are masculine, and the teacher copied «عطني» at women-only businesses (train_v1 batch 1)
 WOMEN_ONLY_RULE = ("- Every customer of this business is a woman: always feminine forms, e.g. «عطيني اسمك الكريم», «تبين؟», "
                    "«أبشري», «تفضلي». Never «عطني», «تبي», «أبشر».\n")
+EMOJI_RULE_OFF = "- No emojis at all, in any message (this replaces the emoji line in the style section above).\n"
+EMOJI_RULE_ON = ("- Emojis (this replaces the emoji line in the style section above): almost every message has none. Only two "
+                 "exceptions, one emoji at most: ✅ on the message saying a booking or cancellation is done («تم الحجز»), and "
+                 "🌹 or 🌸 on your reply when the customer thanks you. Never on greetings, offers, lists, handoffs or goodbyes.\n")
 DEPOSIT_RULE = ("- This business takes a deposit to confirm a booking ({policy}): after create_booking, say the booking is "
                 "confirmed once the deposit is paid. Never call it confirmed before that.\n")
 HOME_VISIT_RULE = ("- This business visits the customer at home: ask for their address (district and street) before booking, "
                    "pass it as `address` in create_booking, and never invite them to come in.\n")
 CASUAL_OPENERS = ["يا هلا", "أهلين", "حياك", "مرحبا", "هلا والله", "هلا"]
+# «حنا تحت الخدمة» closed 28 of 45 conversations in batch 02, copied from a rule's example. One teacher call
+# cannot vary across conversations, so each conversation is assigned its closing, like its opener.
+CLOSINGS = ["حنا بالخدمة", "بأي وقت", "حياك الله بأي وقت", "نتشرف بخدمتك", "حنا تحت الخدمة", "الله يحفظك"]
+CLOSING_RULE = ("- If you close the conversation with a courtesy phrase, use «{closing}» (or no closing phrase). "
+                "Do not repeat it in earlier messages.\n")
 PROMISE_WORDS = ["بأكون", "بكون عندك", "بأرسل", "برسل", "أحدثها", "وأحدث", "بجيك", "أرد لك", "بأرد", "أعلمك", "ثواني"]
 MSA_WORDS = ["ماذا", "لماذا", "أريد", "تريد", "الآن", "سوف", "حسنا", "حسنًا", "يرجى", "عزيزي العميل", "هل تود",
              "بإمكانك", "لقد "]
@@ -144,12 +155,23 @@ def voho_examples(register: str, k: int = 8) -> list[str]:
     return random.Random(7).sample(sorted(set(good)), k)
 
 
-def teacher_rules(register: str, business: dict, opener_word: str) -> str:
+def closing_for(idx: int) -> str:
+    """The closing assigned to conversation idx: its own random stream, so the scenario sequence (and
+    with it every batch of a run) does not change."""
+    return random.Random(f"closing-{idx}").choice(CLOSINGS)
+
+
+def teacher_rules(register: str, business: dict, opener_word: str, emoji: str = "off", closing: str | None = None) -> str:
     formal = register == "formal"
     evening = "المساء" if formal else "المسا"
     rules = TEACHER_RULES + REGISTER_RULES[register].format(opener=opener_word) + TIME_WORD_RULE.format(
         morning="«الصباح»" if formal else "«الصبح»", evening=f"«{evening}»", evening_bare=evening,
         night="" if formal else f", and «الليل» from {NIGHT_START // 60}:00 («10 الليل»)")
+    # Naming the allowed emojis made the teacher add them even with the switch off (train_v1 batch 2),
+    # so a conversation with the switch off is told only that.
+    rules += EMOJI_RULE_ON if emoji == "on" else EMOJI_RULE_OFF
+    if closing:
+        rules += CLOSING_RULE.format(closing=closing)
     if "home visit" in business["type"]:
         rules += HOME_VISIT_RULE
     if business["customers"] == "women only":
@@ -228,7 +250,9 @@ def sample_scenario(rng: random.Random, businesses: list[dict]) -> dict:
     elif kind == "complaint":
         goal = rng.choice(["Complain politely but firmly about a bad experience last time and ask for a solution.",
                            "Ask to speak to the manager about a problem.",
-                           "Say you had a bad reaction or pain after your last visit and are worried."])
+                           f"Say something went wrong for you at your last visit and you are worried. It must be "
+                           f"something that could really happen at a {business['type']} (pain or a reaction only "
+                           f"if they treat people's bodies)."])
     elif kind == "closed":
         d = rng.choice(closed_days) if closed_days else today
         goal = (f"Ask to book '{s}' {day_phrase(d)}" if closed_days else
@@ -268,7 +292,8 @@ def customer_turn(teacher: OpenRouterModel, sc: dict, transcript: list[str]) -> 
     if c["emoji"]:
         style.append("sometimes add an emoji")
     system = (f"You play a customer texting '{b['name']}' ({b['type']}, {b['city']}) on WhatsApp. "
-              f"Your goal: {sc['goal']} {'; '.join(style)}. Write ONLY your next WhatsApp message, usually 2-15 words, "
+              f"Everything you say must fit what a {b['type']} does (no pain or injury where they do not treat "
+              f"people). Your goal: {sc['goal']} {'; '.join(style)}. Write ONLY your next WhatsApp message, usually 2-15 words, "
               "in natural Saudi dialect. Saudi words only: not Kuwaiti, Emirati, Bahraini, Egyptian, Levantine or Modern "
               "Standard Arabic (say صديقاتي not ربيعاتي, ابي not ابا, وش not شنو). Never Arabic in Latin letters. "
               "Say plainly what you want, like a real customer, and react to what the receptionist "
@@ -293,7 +318,7 @@ def generate_one(idx: int, sc: dict, teacher: OpenRouterModel, spec: tuple) -> t
     b, meta = sc["business"], sc["meta"]
     now = datetime.fromisoformat(meta["now"])
     order = [tools[i] for i in meta["tools_order"]]
-    rules = teacher_rules(meta["style"]["register"], b, sc["opener"])
+    rules = teacher_rules(meta["style"]["register"], b, sc["opener"], meta["style"]["emoji"], closing_for(idx))
     system_long = build_system_prompt(b, styles, meta["style"], now, meta["prayer_times"], "long") + "\n\n" + rules
     backend = TrainBackend(b, meta)
     messages: list[dict] = []
@@ -340,6 +365,7 @@ def generate_one(idx: int, sc: dict, teacher: OpenRouterModel, spec: tuple) -> t
     rec = {"id": f"gen-{idx:05d}", "source": "generated", "teacher": teacher.model, "scenario": sc["kind"],
            "customer": sc["customer"],
            "opener_asked": "حياك الله" if meta["style"]["register"] == "formal" else sc["opener"],
+           "closing_asked": closing_for(idx),
            "goal": sc["goal"], "meta": meta_out, "messages": messages}
     return rec, [], spent
 
@@ -388,7 +414,18 @@ TIME_WITH_WORD = re.compile(rf"(?<![\d:])(\d{{1,2}})(?::(\d{{2}}))?\s*{_PART}?\s
 # formal time words are الصباح / الظهر / العصر / المساء (decisions_v3 rule 11)
 FORMAL_CASUAL_TIME = re.compile(r"\d\s*(?:ونص\s*|وربع\s*)?(?:الصبح|المسا(?!ء)|الليل|بالليل)")
 FORMAL_BANNED = ["يا قلبي", "حبيبتي"]
-BANNED_PHRASES = ["ننطرك", "عال العال", "تأكد لي", "بيواصلونك", "يواصلونك"]  # rules 5, 16, 17
+BANNED_PHRASES = ["ننطرك", "عال العال", "تأكد لي", "بيواصلونك", "يواصلونك",  # rules 5, 16, 17
+                  "طال عمرك", "طويل العمر", "تبقين على راسنا"]  # rules 19, 22
+# rule 23: emojis only ✅ on a done booking or cancellation, 🌹 / 🌸 answering thanks, at most one per message
+ALLOWED_EMOJI, FLOWERS = {"✅", "🌹", "🌸"}, {"🌹", "🌸"}
+EMOJI_PARTS = {"‍", "️", "♀", "♂"}  # joiners and modifiers inside one emoji
+DONE_WORD = re.compile(rf"(?<![{AR}])تم(?![{AR}])")  # «تم», not «تمام»
+THANKS = re.compile(r"شكر|مشكور|العافي|تسلم|يسلمو|جزاك|ما قصرت|كفيت ووفيت|الله يسعدك|الله يخليك")
+# rule 24: «الله يعافيك، العفو» repeats the reply; «ولو» does not answer thanks
+THANKS_REPLY_OLW = re.compile(rf"^\W*ولو(?![{AR}])")
+# «الملغي» for «الإلغاء» and «ألغى» for the first-person «ألغي» (batch 01); «الحجز الملغي» is fine
+CANCEL_WORDING = re.compile(rf"(?<![{AR}])و?(ألغى|الغى)(?![{AR}])|(?<!الحجز )(?<!الموعد )(?<![{AR}])(الملغي)(?![{AR}])")
+CUSTOMER_FORMAL = ["في انتظار"]  # with MSA_WORDS, on customer lines (batch 01 gen-00045)
 # rule 18: Modern Standard Arabic duals; Saudi says «حجزين», «موعدين»
 MSA_DUALS = ["حجزان", "موعدان", "وقتان", "يومان", "ساعتان", "خياران", "شخصان", "خدمتان", "جلستان", "حصتان",
              "طاولتان", "قاعتان", "غرفتان", "فرعان"]
@@ -397,6 +434,8 @@ MSA_DUAL_RE = re.compile(rf"(?<![{AR}])[وبل]?({'|'.join(MSA_DUALS)})(?![{AR}]
 MASCULINE = ["عطني", "تبي", "تبغى", "تحب", "تقدر", "تامر", "تآمر", "أبشر", "ابشر", "تفضل", "خبرني", "اختار",
              "ارسل", "أرسل", "تكفى", "حاب", "متأكد"]
 MASCULINE_RE = re.compile(rf"(?<![{AR}])[وف]?({'|'.join(MASCULINE)})(?![{AR}])")
+# after the customer gives a woman's name, the same forms are wrong anywhere («تبقى» was written for «تبغى»)
+MASCULINE_AFTER_NAME_RE = re.compile(rf"(?<![{AR}])[وف]?({'|'.join(MASCULINE + ['تبقى'])})(?![{AR}])")
 # the teacher's own reasoning leaking into a reply (pilot_v3 gen-00010, gen-00029)
 URL = re.compile(r"https?://\S+|\S+\.(?:com|sa|net)\S*")
 ENGLISH_SENTENCE = re.compile(r"[A-Za-z']+(?:[\s,;:!?-]+[A-Za-z']+){3,}")
@@ -438,6 +477,13 @@ CLAIM_VERBS = ["سجلت", "سجّلت", "واصلت", "بلغتهم", "أكدت
 BOOKED_CLAIM = re.compile(r"محجوز(?:ة)?\s+(?:لك|باسمك|لكم)|حجزت لك|حجزتلك")
 HANDOFF_VERBS = ["حولت", "حوّلت"]
 HANDOFF_CLAIMS = {"رفعت", "بلغتهم", "واصلت"}  # «سؤالك رفعته للفريق» after handoff_to_human
+# «وصلت ملاحظتك للفريق»: says something reached the team; only true in a turn that called handoff_to_human
+# (batch 02: details added after the first handoff were said to have reached the team)
+_SENT = rf"(?<![{AR}])[وف]?(?:وصل|وصّل|وضح|وضّح|رفع|بلغ|نقل|أرسل|ارسل|حولت|حوّلت|حولنا|حوّلنا)[{AR}]*"
+_TEAM = rf"(?<![{AR}])(?:لل|ل)(?:فريق|إدارة|ادارة)[{AR}]*"
+TEAM_CLAIM = re.compile(rf"{_SENT}[^،,.!؟\n]*{_TEAM}|{_TEAM}[^،,.!؟\n]*{_SENT}")
+# rule 25: «لا تتأخرون علي» is not answered «الله يعينك»
+HURRY = re.compile(r"تتأخر|تتاخر|بسرعه|بسرعة|استعجل|مستعجل|ضروري|عاجل")
 PLACEHOLDER_NAMES = {"غير معروف", "غير محدد", "عميل", "العميل", "unknown", "customer", "n/a", "-", "؟", "?", ""}
 ENGLISH_PHRASE = re.compile(r"[A-Za-z]+[\s,]+[A-Za-z]+")
 
@@ -568,6 +614,53 @@ def day_slot_problems(text: str, today: date, dated: dict, extra: set) -> list[s
     return list(dict.fromkeys(out))
 
 
+def emojis_in(text: str) -> list[str]:
+    return [c for c in EMOJI.findall(text) if c not in EMOJI_PARTS]
+
+
+def emoji_fits(e: str, text: str, last_user: str) -> bool:
+    """Rule 23: ✅ on a message saying something is done («تم»), a flower answering thanks."""
+    return (e == "✅" and bool(DONE_WORD.search(text))) or (e in FLOWERS and bool(THANKS.search(last_user)))
+
+
+def emoji_problems(text: str, last_user: str) -> list[str]:
+    ems = emojis_in(text)
+    out = []
+    if set(ems) - ALLOWED_EMOJI:
+        out.append("emoji not allowed: " + " ".join(sorted(set(ems) - ALLOWED_EMOJI)))
+    if len(ems) > 1:
+        out.append(f"{len(ems)} emojis in one message (at most one)")
+    out += [f"{e} in the wrong place" for e in dict.fromkeys(ems) if e in ALLOWED_EMOJI and not emoji_fits(e, text, last_user)]
+    return out
+
+
+def repair_emojis(text: str, last_user: str, switch_on: bool) -> str:
+    """Remove every emoji rule 23 does not allow, and the space it leaves; nothing else changes.
+    Keeps the first allowed emoji that fits its message, if the switch is on."""
+    keep = next((e for e in emojis_in(text) if switch_on and e in ALLOWED_EMOJI and emoji_fits(e, text, last_user)), None)
+    out, kept, i = [], False, 0
+    while i < len(text):
+        c = text[i]
+        if not EMOJI.match(c):
+            out.append(c)
+            i += 1
+            continue
+        if c == keep and not kept:
+            kept = True
+            out.append(c)
+            i += 1
+            continue
+        i += 1
+        nxt = text[i] if i < len(text) else "\n"
+        if EMOJI.match(nxt):  # the rest of the same emoji, or another one: handled next
+            continue
+        if out and out[-1] == " " and nxt in " \n":
+            out.pop()  # «حياك الله 🌿» -> «حياك الله»
+        elif (not out or out[-1] == "\n") and nxt == " ":
+            i += 1  # «🌿 حياك الله» at the start of a line
+    return "".join(out)
+
+
 def time_word_problems(text: str, known24: dict, hours24: dict) -> tuple[list[str], list[str]]:
     """A time-of-day word must fit the hour it names (decisions_v4 rule 11: morning before 12:00,
     evening from 12:00, casual «الليل» late; «الظهر» and «العصر» are not time labels). The hour comes
@@ -628,6 +721,7 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
     services = " ".join(s["name"] for s in business["services"])
     allowed_tool, allowed_customer, women = set(), set(), business["customers"] == "women only"
     handoff_done, booked, first_reply, first_user, last_user = False, False, True, None, ""
+    named_woman = False  # the customer gave a woman's name
     # slots the tools listed for today that have already passed (the backend lists the whole day)
     now = datetime.fromisoformat(meta["now"])
     now_min = now.hour * 60 + now.minute
@@ -651,8 +745,11 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
                                  if 1 <= int(n) <= 24}
             if FEMALE_NAME.search(text) or FEMALE_SELF.search(text):
                 women = True
+            if FEMALE_NAME.search(text):
+                named_woman = True
             if ENGLISH_PHRASE.search(text):
                 problems.append(f"English phrase in a customer line: «{text[:40]}»")
+            problems += [f"formal word in a customer line «{w.strip()}»" for w in MSA_WORDS + CUSTOMER_FORMAL if w in text]
             # rule 12: only the customer's first message may greet
             if first_user is not None and RETURNED_SALAAM.search(text):
                 problems.append("customer starts a later message with «وعليكم السلام»")
@@ -737,6 +834,21 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
         masc = MASCULINE_RE.search(text)
         if business["customers"] == "women only" and masc:
             problems.append(f"masculine form «{masc.group(1)}» at a women-only business")
+        # ... and after the customer gave a woman's name (batch 01 gen-00092)
+        masc = MASCULINE_AFTER_NAME_RE.search(text)
+        if named_woman and business["customers"] != "women only" and masc:
+            problems.append(f"masculine form «{masc.group(1)}» after the customer gave a woman's name")
+        # rule 23: emojis
+        problems += emoji_problems(text, last_user)
+        # rule 24: courtesy pairs
+        if "يعافيك" in text and "العفو" in text:
+            problems.append("«الله يعافيك» and «العفو» in one reply")
+        if THANKS.search(last_user) and THANKS_REPLY_OLW.search(text):
+            problems.append("«ولو» as a reply to thanks")
+        # «الملغي» for «الإلغاء», «ألغى» for «ألغي» (batch 01)
+        cancel = CANCEL_WORDING.search(text)
+        if cancel:
+            problems.append(f"«{cancel.group(1) or cancel.group(2)}» (say «ألغي» / «الإلغاء»)")
         # rule 15: health or care tips (a word list cannot tell them from practical tips)
         if HEALTH_TIP.search(text):
             flags.append(f"possible health tip «{HEALTH_TIP.search(text).group(0)}»")
@@ -760,6 +872,14 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
             problems.append(f"says «{BOOKED_CLAIM.search(text).group(0)}» before any booking tool")
         if any(w in text for w in HANDOFF_VERBS) and not handoff_done:
             problems.append("says it transferred the request, but there was no handoff")
+        # «وصلت ... للفريق» needs a handoff_to_human call in this turn (a detail added later is not sent)
+        handoff_now = any(tc["function"]["name"] == "handoff_to_human" for x in turn for tc in x.get("tool_calls") or [])
+        team = TEAM_CLAIM.search(text)
+        if team and not handoff_now:
+            problems.append(f"says «{team.group(0)[:30]}» but this turn sent nothing to the team")
+        # rule 25
+        if "الله يعينك" in text and HURRY.search(last_user):
+            problems.append("«الله يعينك» as a reply to a request to hurry")
         first_reply = False
     return list(dict.fromkeys(problems + address_problems(rec, business))), list(dict.fromkeys(flags))
 
@@ -803,8 +923,15 @@ def opener(rec: dict) -> str:
     return "other"
 
 
+def closing(rec: dict) -> str:
+    """Which courtesy closing the last receptionist reply uses, for the per-run closing mix."""
+    last = next((m["content"] for m in reversed(rec["messages"]) if m["role"] == "assistant" and m.get("content")), "")
+    return next((c for c in sorted(CLOSINGS, key=len, reverse=True) if c in last), "other / none")
+
+
 def run_report(kept: list[dict], rejected: list[dict]) -> str:
-    """Per-run summary: formal pass rate, rejections per check, and the opener mix (1g)."""
+    """Per-run summary: formal pass rate, rejections per check, the opener mix (1g) and the closing mix
+    of the kept conversations."""
     from collections import Counter
 
     gen = [r for r in kept + rejected if "messages" in r]
@@ -816,6 +943,7 @@ def run_report(kept: list[dict], rejected: list[dict]) -> str:
              "rejections by check (a conversation can fail several):"]
     lines += [f"  {n:3d}  {reason}" for reason, n in reasons.most_common()]
     lines.append("first-reply openers: " + ", ".join(f"{o} {n}" for o, n in openers.most_common()))
+    lines.append("closings (kept): " + ", ".join(f"{c} {n}" for c, n in Counter(closing(r) for r in kept).most_common()))
     return "\n".join(lines)
 
 
@@ -904,6 +1032,7 @@ def cmd_generate(args) -> None:
             return
         rec, problems, spent = generate_one(idx, sc, teacher, spec_list)
         if rec is not None:
+            repair_record(rec)
             problems = check(rec, spec_by_id, tok, test_grams)
         with LOCK:
             state["spent"] += spent
@@ -946,16 +1075,22 @@ def cmd_recheck(args) -> None:
                   for l in (ROOT / "data" / "test" / f).read_text(encoding="utf-8").splitlines()
                   for m in json.loads(l)["messages"] if m["role"] == "user"]
     keep_path, reject_path = OUT_DIR / f"{args.name}.jsonl", OUT_DIR / f"{args.name}.rejects.jsonl"
-    recs = [json.loads(l) for p in (keep_path, reject_path) if p.exists() for l in p.read_text(encoding="utf-8").splitlines()]
+    read = lambda p: [json.loads(l) for l in p.read_text(encoding="utf-8").splitlines()] if p.exists() else []
     kept, rejected = [], []
-    for r in sorted(recs, key=lambda r: r["id"]):
+    for was_kept, r in sorted([(True, r) for r in read(keep_path)] + [(False, r) for r in read(reject_path)],
+                              key=lambda x: x[1]["id"]):
+        if not in_batch(r, args.batch):  # other batches stay exactly as they are
+            (kept if was_kept else rejected).append(r)
+            continue
         r.pop("problems", None)
         r.pop("flags", None)
+        if "messages" in r:
+            repair_record(r)
         problems = check(r, (businesses, styles, tools), tok, test_grams) if "messages" in r else ["generation failed"]
         (rejected if problems else kept).append({**r, **({"problems": problems} if problems else {})})
     for path, rows in ((keep_path, kept), (reject_path, rejected)):
         path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows), encoding="utf-8", newline="\n")
-    print(run_report(kept, rejected))
+    print(run_report([r for r in kept if in_batch(r, args.batch)], [r for r in rejected if in_batch(r, args.batch)]))
 
 
 def render(rec: dict) -> str:
@@ -971,6 +1106,46 @@ def render(rec: dict) -> str:
         else:
             lines.append(f"موظف: {m['content']}")
     return "\n".join(lines)
+
+
+def repair_record(rec: dict) -> bool:
+    """The rule 23 emoji repair on one conversation, before its checks (founder decision after batch 02):
+    remove every emoji the rule does not allow from the replies, and mark the conversation."""
+    last_user, changed = "", False
+    for m in rec["messages"]:
+        if m["role"] == "user":
+            last_user = m["content"]
+        elif m["role"] == "assistant" and m.get("content"):
+            new = repair_emojis(m["content"], last_user, rec["meta"]["style"]["emoji"] == "on")
+            changed |= new != m["content"]
+            m["content"] = new
+    if changed:
+        rec["repairs"] = sorted(set(rec.get("repairs", [])) | {"emoji"})
+    return changed
+
+
+def cmd_repair_emojis(args) -> None:
+    """Rule 23 repair on kept conversations: remove every emoji the rule does not allow from the replies,
+    mechanically. Checks that the text without emojis is unchanged, and marks each changed conversation."""
+    path = OUT_DIR / f"{args.name}.jsonl"
+    recs = [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines()]
+    plain = lambda t: re.sub(r"\s+", " ", EMOJI.sub("", t)).strip()
+    changed = 0
+    for r in recs:
+        last_user, before = "", json.dumps(r["messages"], ensure_ascii=False)
+        for m in r["messages"]:
+            if m["role"] == "user":
+                last_user = m["content"]
+            elif m["role"] == "assistant" and m.get("content"):
+                new = repair_emojis(m["content"], last_user, r["meta"]["style"]["emoji"] == "on")
+                if plain(new) != plain(m["content"]):
+                    sys.exit(f"{r['id']}: the repair changed more than emojis")
+                m["content"] = new
+        if json.dumps(r["messages"], ensure_ascii=False) != before:
+            changed += 1
+            r["repairs"] = sorted(set(r.get("repairs", [])) | {"emoji"})
+    path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in recs), encoding="utf-8", newline="\n")
+    print(f"{args.name}: {changed} of {len(recs)} conversations changed; text without emojis identical in all")
 
 
 def cmd_import_review(args) -> None:
@@ -1015,7 +1190,8 @@ def cmd_sheet(args) -> None:
         w.writerow(["id", "business", "style", "scenario", "flags", "conversation", "verdict (ok / fix / bad)", "note"])
         for r in recs:
             w.writerow([r["id"], r["meta"]["business_id"], "/".join(r["meta"]["style"].values()), r["scenario"],
-                        "; ".join(r.get("flags", [])), render(r), "", ""])
+                        "; ".join((["emoji repaired"] if "emoji" in r.get("repairs", []) else []) + r.get("flags", [])),
+                        render(r), "", ""])
     print(f"wrote {out} ({len(recs)} conversations)")
 
 
@@ -1039,5 +1215,9 @@ if __name__ == "__main__":
     ir.add_argument("--by", required=True, help="who reviewed, recorded with every verdict")
     rc = sub.add_parser("recheck")
     rc.add_argument("name")
+    rc.add_argument("--batch", type=int, help="recheck only this batch; the others stay as they are")
+    re_ = sub.add_parser("repair-emojis")
+    re_.add_argument("name")
     a = ap.parse_args()
-    {"generate": cmd_generate, "sheet": cmd_sheet, "recheck": cmd_recheck, "import-review": cmd_import_review}[a.cmd](a)
+    {"generate": cmd_generate, "sheet": cmd_sheet, "recheck": cmd_recheck, "import-review": cmd_import_review,
+     "repair-emojis": cmd_repair_emojis}[a.cmd](a)

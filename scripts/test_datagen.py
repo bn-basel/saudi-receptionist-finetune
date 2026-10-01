@@ -278,9 +278,10 @@ VET = BUSINESSES["train_vet_1"]  # 09:00-21:00
 expect("«العيادة تفتح من 9 الصباح إلى 9 المساء» passes (batch 1 gen-00009)",
        record([USER] + OPEN9 + [reply("العيادة تفتح من 9 الصباح إلى 9 المساء. السبت فيه 9 الصباح")], "formal"), True, VET)
 HANDOFF_EARLIER = tool("handoff_to_human", {"reason": "x"}, {"status": "queued", "expected_wait_min": 10})
-expect("«رفعت» after a handoff in an earlier turn passes (batch 1 gen-00036)",
+expect("«رفعته للفريق» a turn after the handoff fails (decisions_v7; was allowed after batch 1)",
        record([USER] + HANDOFF_EARLIER + [reply("الفريق بيتواصلون معك"), {"role": "user", "content": "طيب"},
-                                          reply("سؤالك رفعته للفريق وبيتواصلون معك خلال 10 دقايق")]), True)
+                                          reply("سؤالك رفعته للفريق وبيتواصلون معك خلال 10 دقايق")]),
+       False, reason="sent nothing to the team")
 expect("«رفعت» with no handoff still fails", record([USER, reply("سؤالك رفعته للفريق")]), False, reason="رفعت")
 expect("«حابه أسأل» is evidence (batch 1 gen-00006)", record([{"role": "user", "content": "حابه أسأل عن المقهى"}, reply("تسلمين")]), True)
 expect("«ماني متاكده» is evidence (batch 1 gen-00061)", record([{"role": "user", "content": "لا ماني متاكده"}, reply("تبغين نلغيه؟")]), True)
@@ -290,6 +291,89 @@ for name, ok in [("women-only teacher prompt has the feminine line", "«عطين
                  ("mixed business teacher prompt has no feminine line", "Every customer of this business is a woman" not in teacher_rules("casual", GYM, "هلا"))]:
     failures += not ok
     print(f"{'ok  ' if ok else 'FAIL'} {name}")
+# ---- decisions_v6 (batch 01 review): rules 22-24 and the builder checks ----
+THANKS_USER = {"role": "user", "content": "شكرا يعطيك العافية"}
+expect("«طال عمرك» fails (rule 22)", record([USER, reply("أبشر طال عمرك")]), False, reason="طال عمرك")
+expect("«يا طويل العمر» fails", record([USER, reply("حياك الله يا طويل العمر")]), False, reason="طويل العمر")
+# rule 23: emojis
+expect("decorative 🌿 fails", record([USER, reply("حياك الله 🌿")]), False, reason="not allowed")
+expect("🙏 fails", record([USER, reply("أبشر 🙏")]), False, reason="not allowed")
+expect("✅ on «تم الحجز» passes", record([USER] + SLOTS + BOOK + [reply("تم الحجز ✅")]), True)
+expect("✅ without «تم» fails", record([USER] + SLOTS + BOOK + [reply("حجزك جاهز ✅")]), False, reason="wrong place")
+expect("✅ next to «تمام» (not «تم») fails", record([USER, reply("تمام ✅")]), False, reason="wrong place")
+expect("🌹 answering thanks passes", record([USER, reply("تم"), THANKS_USER, reply("الله يعافيك 🌹")]), True)
+expect("🌸 with no thanks fails", record([USER, reply("حياك الله 🌸")]), False, reason="wrong place")
+expect("two emojis in one message fail", record([USER, reply("تم"), THANKS_USER, reply("الله يعافيك 🌹🌸")]), False, reason="2 emojis")
+# rule 24: courtesy pairs
+expect("«الله يعافيك، العفو» fails", record([USER, reply("تم"), THANKS_USER, reply("الله يعافيك، العفو")]), False, reason="العفو")
+expect("«الله يعافيك، هذا واجبنا» passes", record([USER, reply("تم"), THANKS_USER, reply("الله يعافيك، هذا واجبنا")]), True)
+expect("«ولو» answering thanks fails", record([USER, reply("تم"), THANKS_USER, reply("ولو، حياك الله")]), False, reason="ولو")
+expect("«ولو تحتاج شي» (meaning 'if') passes", record([USER, reply("ولو تحتاج شي خبرني")]), True)
+# formal words on customer lines, «الملغي» / «ألغى»
+expect("customer «حسنا… في انتظار رد الفريق» fails (batch 01 gen-00045)",
+       record([{"role": "user", "content": "حسنا في انتظار رد الفريق"}, reply("الفريق بيتواصلون معك")]), False, reason="customer line")
+expect("customer «بانتظار ردكم» passes", record([{"role": "user", "content": "طيب بانتظار ردكم"}, reply("أبشر")]), True)
+expect("«الملغي مجاني» fails", record([USER, reply("الملغي مجاني قبل 24 ساعة")]), False, reason="الملغي")
+expect("«الحجز الملغي» passes", record([USER, reply("الحجز الملغي رقمه B-1")]), True)
+expect("«ألغى لك الحجز» (first person) fails", record([USER, reply("أبشر، ألغى لك الحجز؟")]), False, reason="ألغى")
+expect("«ألغي لك الحجز» passes", record([USER, reply("أبشر، ألغي لك الحجز؟")]), True)
+# masculine forms after a woman's name (batch 01 gen-00092)
+expect("«تبقى» after the customer says «نورة» fails", record([{"role": "user", "content": "اسمي نورة"}, reply("تبقى أحجز لك؟")]),
+       False, reason="woman's name")
+expect("«تبين» after «نورة» passes", record([{"role": "user", "content": "اسمي نورة"}, reply("تبين أحجز لك؟")]), True)
+# the teacher hears about allowed emojis only when the switch is on (train_v1 batch 2)
+for name, ok in [("emoji off: the teacher prompt names no emoji", not any(e in teacher_rules("casual", GYM, "هلا", "off") for e in "✅🌹🌸")),
+                 ("emoji on: the teacher prompt names ✅ 🌹 🌸", all(e in teacher_rules("casual", GYM, "هلا", "on") for e in "✅🌹🌸"))]:
+    failures += not ok
+    print(f"{'ok  ' if ok else 'FAIL'} {name}")
+# ---- decisions_v7 (batch 02 review) ----
+H = tool("handoff_to_human", {"reason": "شكوى"}, {"status": "queued", "expected_wait_min": 10})
+H2 = tool("handoff_to_human", {"reason": "تفاصيل إضافية"}, {"status": "queued", "expected_wait_min": 10}, 2)
+NEW_DETAIL = {"role": "user", "content": "وكمان الموظف تأخر علي ساعة"}
+expect("«وصلت ملاحظتك للفريق» after a new detail, no new handoff, fails (batch 02 gen-00104)",
+       record([USER] + H + [reply("الفريق بيتواصلون معك خلال 10 دقايق"), NEW_DETAIL, reply("ملاحظتك وصلت للفريق")]),
+       False, reason="sent nothing to the team")
+expect("the same claim after a second handoff in that turn passes",
+       record([USER] + H + [reply("الفريق بيتواصلون معك خلال 10 دقايق"), NEW_DETAIL] + H2 + [reply("ملاحظتك وصلت للفريق")]), True)
+expect("«قلها لهم لما يتواصلون معك» passes",
+       record([USER] + H + [reply("الفريق بيتواصلون معك خلال 10 دقايق"), NEW_DETAIL, reply("قلها لهم لما يتواصلون معك")]), True)
+expect("«حولت طلبك للفريق» in the handoff turn passes", record([USER] + H + [reply("حولت طلبك للفريق وبيتواصلون معك")]), True)
+HURRY_USER = {"role": "user", "content": "لا تتأخرون علي"}
+expect("«الله يعينك» to «لا تتأخرون علي» fails (rule 25)",
+       record([USER] + H + [reply("الفريق بيتواصلون معك"), HURRY_USER, reply("الله يعينك، ما نتأخر عليك")]), False, reason="الله يعينك")
+expect("«أبشر، ما راح نتأخر عليك» passes",
+       record([USER] + H + [reply("الفريق بيتواصلون معك"), HURRY_USER, reply("أبشر، ما راح نتأخر عليك بإذن الله")]), True)
+# closings: assigned per conversation, independent of the scenario stream
+from datagen import CLOSINGS, closing, closing_for, sample_scenario  # noqa: E402
+import random  # noqa: E402
+picks = [closing_for(i) for i in range(600)]
+for name, ok in [("closing_for is stable", closing_for(7) == closing_for(7)),
+                 ("all closings get used, none above 25%", set(picks) == set(CLOSINGS) and max(picks.count(c) for c in CLOSINGS) < 150),
+                 ("teacher prompt carries the assigned closing", "«بأي وقت»" in teacher_rules("casual", GYM, "هلا", "off", "بأي وقت")),
+                 ("«حنا تحت الخدمة» is no longer a rule example", "حنا تحت الخدمة" not in teacher_rules("formal", GYM, "x", "off")),
+                 ("closing() reads the last reply", closing({"messages": [USER, reply("تم الحجز. حياك الله بأي وقت")]}) == "حياك الله بأي وقت")]:
+    failures += not ok
+    print(f"{'ok  ' if ok else 'FAIL'} {name}")
+# complaints fit the business (batch 02 gen-00181: pain at a tutoring centre)
+TUTOR = next(b for b in BUSINESSES.values() if "tutor" in b["type"] or "learning" in b["type"] or "language" in b["type"])
+rng = random.Random(3)
+goals = [sample_scenario(rng, [TUTOR]) for _ in range(300)]
+complaint = [g["goal"] for g in goals if g["kind"] == "complaint" and "went wrong" in g["goal"]]
+ok = bool(complaint) and all(TUTOR["type"] in g for g in complaint)
+failures += not ok
+print(f"{'ok  ' if ok else 'FAIL'} a health-style complaint names the business type ({TUTOR['type']})")
+# the emoji repair removes only disallowed emojis and the space they leave
+from datagen import repair_emojis  # noqa: E402
+for before, last, on, after in [("حياك الله 🌿\nتفضل", "", True, "حياك الله\nتفضل"),
+                                 ("🙏 أبشر", "", True, "أبشر"),
+                                 ("أهلين 🙋‍♀️ وش تبي؟", "", True, "أهلين وش تبي؟"),
+                                 ("تم الحجز ✅🌟", "", True, "تم الحجز ✅"),
+                                 ("الله يعافيك 🌸🌸", "شكرا", True, "الله يعافيك 🌸"),
+                                 ("حياك الله 🌸", "", True, "حياك الله"),
+                                 ("تم الحجز ✅", "", False, "تم الحجز")]:
+    got = repair_emojis(before, last, on)
+    failures += got != after
+    print(f"{'ok  ' if got == after else 'FAIL'} repair «{before}» -> «{got}»")
 # 1g: opener classification
 for text, want in [("وعليكم السلام ورحمة الله، هلا والله", "هلا والله"), ("يا هلا", "يا هلا"), ("حياك الله، تفضل", "حياك الله"),
                    ("أهلين", "أهلين")]:
