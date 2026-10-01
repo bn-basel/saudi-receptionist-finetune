@@ -41,11 +41,12 @@ TEACHERS = ["deepseek-v4.1-flash", "deepseek-v4-pro"]
 DEFAULT_TEACHER = "deepseek-v4.1-flash"
 MAX_CUSTOMER_TURNS = 4
 MAX_TOOL_STEPS = 5
+BATCH_SIZE = 100  # the full run is reviewed batch by batch
 TOKEN_LIMIT = 1280  # hard cap; Stage 2 measured 1,024 as safe, Stage 7 may extend it
 DAYS_EN = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 # Writing rules for the teacher: the native-speaker decisions from the Stage 4 and Stage 6 reviews
-# (reviews/mujawib/decisions_v3.md). The important ones are also enforced by rule_checks().
+# (reviews/mujawib/decisions_v4.md). The important ones are also enforced by rule_checks().
 TEACHER_RULES = """Writing rules for every reply (decided by a native Saudi reviewer):
 - Write like a real Saudi receptionist texting on WhatsApp: short, natural spoken Saudi. Never Modern Standard Arabic, Egyptian or Levantine words (no ماذا، لماذا، أريد، الآن، سوف، يرجى، حسنًا). Every sentence complete, no "...".
 - If the customer's message has «السلام عليكم», your reply starts with «وعليكم السلام». Return the salaam once only: never start a later reply with «وعليكم السلام».
@@ -59,17 +60,24 @@ TEACHER_RULES = """Writing rules for every reply (decided by a native Saudi revi
 - Never say something was done, saved, sent, passed on or booked («محجوز لك») unless a tool did it. Call create_booking only with the customer's real name: ask for it first, never a placeholder like «غير معروف».
 - After handoff_to_human, a person from the team contacts the customer within the tool's expected_wait_min. Never say you will come back or answer yourself, and never say "seconds".
 - No health or care tips (drink water, stay out of the sun, rest); practical tips about the service itself are fine («جيب معك لبس رياضي»). For pain or a medical worry, at most suggest seeing a doctor.
+- On today's date, never offer or book a time that has already passed ("Now" is the current time), even if the tool lists it.
+- Saudi wording, not Modern Standard Arabic: «حجزين», «موعدين», never «حجزان», «موعدان». «أكد لي، تبغى تلغيه؟», never «تأكد لي تبغى نلغيه». «الفريق بيتواصلون معك», never «بيواصلونك».
+- Write only the message to the customer: never your own reasoning, notes to yourself, or English sentences.
 - Greetings must fit the time of day. Never write Arabic in Latin letters.
 """
-TIME_WORD_RULE = ("- The time-of-day word must fit the hour, using today's prayer times: {morning} until 12:00, «الظهر» "
-                  "from 12:00 until Asr ({asr}), «العصر» from Asr until Maghrib ({maghrib}), {evening} from {evening_start}{night}. "
-                  "Noon is «12 الظهر», never «12 المساء»; 1 pm is «1 الظهر», never «1 المساء».\n")
+# decisions_v4 rule 11: a clock rule, not prayer times (whether 3 pm is «الظهر» or «العصر» depends on the
+# city and the season, and a model cannot get that reliably right)
+TIME_WORD_RULE = ("- Time-of-day words: {morning} before 12:00, {evening} from 12:00 («12 {evening_bare}», «3 {evening_bare}», "
+                  "«8 {evening_bare}»){night}. Never «الظهر» or «العصر» after a time; «بعد العصر» for a period the customer "
+                  "asked about is fine.\n")
 REGISTER_RULES = {
-    "formal": """- Formal register: your FIRST reply starts with «وعليكم السلام، حياك الله» if the customer greeted with salaam, otherwise «حياك الله». Never use «هلا», «يا قلبي» or «حبيبتي». Time words: «الصباح / الظهر / العصر / المساء» (not الصبح / المسا / الليل). Use honorifics like «طال عمرك», «اسمك الكريم».
+    "formal": """- Formal register: your FIRST reply starts with «وعليكم السلام، حياك الله» if the customer greeted with salaam, otherwise «حياك الله». Never use «هلا», «يا قلبي» or «حبيبتي». Time words: «الصباح / المساء» (not الصبح / المسا / الليل). Use honorifics like «طال عمرك», «اسمك الكريم».
 """,
-    "casual": """- Casual register: your FIRST reply starts with «وعليكم السلام، {opener}» if the customer greeted with salaam, otherwise «{opener}». Time words: «الصبح / الظهر / العصر / المسا / الليل».
+    "casual": """- Casual register: your FIRST reply starts with «وعليكم السلام، {opener}» if the customer greeted with salaam, otherwise «{opener}». Time words: «الصبح / المسا», and «الليل» late at night.
 """,
 }
+DEPOSIT_RULE = ("- This business takes a deposit to confirm a booking ({policy}): after create_booking, say the booking is "
+                "confirmed once the deposit is paid. Never call it confirmed before that.\n")
 HOME_VISIT_RULE = ("- This business visits the customer at home: ask for their address (district and street) before booking, "
                    "pass it as `address` in create_booking, and never invite them to come in.\n")
 CASUAL_OPENERS = ["يا هلا", "أهلين", "حياك", "مرحبا", "هلا والله", "هلا"]
@@ -133,14 +141,17 @@ def voho_examples(register: str, k: int = 8) -> list[str]:
     return random.Random(7).sample(sorted(set(good)), k)
 
 
-def teacher_rules(register: str, business: dict, opener_word: str, prayer: dict) -> str:
+def teacher_rules(register: str, business: dict, opener_word: str) -> str:
     formal = register == "formal"
+    evening = "المساء" if formal else "المسا"
     rules = TEACHER_RULES + REGISTER_RULES[register].format(opener=opener_word) + TIME_WORD_RULE.format(
-        morning="«الصباح»" if formal else "«الصبح»", evening="«المساء»" if formal else "«المسا»",
-        asr=prayer["Asr"], maghrib=prayer["Maghrib"], evening_start=f"{evening_start(prayer) // 60:02d}:{evening_start(prayer) % 60:02d}",
-        night="" if formal else f", «الليل» from Isha ({prayer['Isha']})")
+        morning="«الصباح»" if formal else "«الصبح»", evening=f"«{evening}»", evening_bare=evening,
+        night="" if formal else f", and «الليل» from {NIGHT_START // 60}:00 («10 الليل»)")
     if "home visit" in business["type"]:
         rules += HOME_VISIT_RULE
+    deposit = next((p for p in business.get("policies", []) if "deposit" in p), None)
+    if deposit:
+        rules += DEPOSIT_RULE.format(policy=deposit)
     examples = EXAMPLES[register] if EXAMPLES else voho_examples(register)
     if not examples:
         return rules
@@ -275,7 +286,7 @@ def generate_one(idx: int, sc: dict, teacher: OpenRouterModel, spec: tuple) -> t
     b, meta = sc["business"], sc["meta"]
     now = datetime.fromisoformat(meta["now"])
     order = [tools[i] for i in meta["tools_order"]]
-    rules = teacher_rules(meta["style"]["register"], b, sc["opener"], meta["prayer_times"])
+    rules = teacher_rules(meta["style"]["register"], b, sc["opener"])
     system_long = build_system_prompt(b, styles, meta["style"], now, meta["prayer_times"], "long") + "\n\n" + rules
     backend = TrainBackend(b, meta)
     messages: list[dict] = []
@@ -326,7 +337,7 @@ def generate_one(idx: int, sc: dict, teacher: OpenRouterModel, spec: tuple) -> t
     return rec, [], spent
 
 
-# --- Review rules (reviews/mujawib/decisions_v3.md), each backed by a check -------------------
+# --- Review rules (reviews/mujawib/decisions_v4.md), each backed by a check -------------------
 AR_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
 AR = "ء-ي"  # Arabic letters, for whole-word matching
 WEEKDAY = {"الاثنين": 0, "الإثنين": 0, "الثلاثاء": 1, "الثلاثا": 1, "الأربعاء": 2, "الاربعاء": 2, "الأربعا": 2,
@@ -349,7 +360,7 @@ def _date(n: int) -> str:
 DATE_RE = re.compile(_date(0))
 # a day name and a date or relative day may be joined by «يوم» or a linking word («بعد بكرة يوافق الخميس»)
 _LINK = r"\s*[(،,]?\s*(?:(?:يوافق|يصادف|الموافق|اللي هو|يكون|هو)\s+)?(?:يوم\s+)?"
-REL_THEN_DAY = re.compile(rf"(?<!\S)({_REL}){_LINK}[وبل]?({_DAY})(?![{AR}])")
+REL_THEN_DAY = re.compile(rf"(?<!\S)و?({_REL}){_LINK}[وبل]?({_DAY})(?![{AR}])")
 DAY_THEN_DATE = re.compile(rf"(?<![{AR}])[وبل]?(?P<day>{_DAY}){_LINK}" + _date(1))
 DATE_THEN_DAY = re.compile(_date(2) + rf"\s*[(،,]?\s*(?:يوم\s+)?[وبل]?(?P<day>{_DAY})(?![{AR}])")
 ISO_DATE = re.compile(r"\d{4}-\d{1,2}-\d{1,2}")
@@ -359,7 +370,9 @@ TIME_KIND = {**dict.fromkeys(["الصبح", "الصباح", "صباحا", "صب�
              **dict.fromkeys(["الليل", "بالليل", "ليلا", "ليلاً"], "night")}
 # longest first, so «المساء» is not read as «المسا»
 TIME_WORDS = "(?:" + "|".join(sorted(TIME_KIND, key=len, reverse=True)) + ")"
-TIME_TOLERANCE = 60  # minutes either side of a window (decisions_v3 rule 11); rows inside it are flagged
+# decisions_v4 rule 11, a clock rule: minutes of the day each word covers (ends above 1440 run past midnight)
+NIGHT_START, NIGHT_TOLERANCE = 20 * 60, 60  # casual «الليل» "late"; 19:00-19:59 is flagged, not rejected
+TIME_WINDOWS = {"morning": (3 * 60, 12 * 60), "evening": (12 * 60, 27 * 60), "night": (NIGHT_START, 27 * 60)}
 CLOCK = re.compile(r"(?<!\d)(\d{1,2}):(\d{2})(?!\d)")
 _PART = r"(ونص|ونصف|وربع|الا ربع|إلا ربع)"
 SPOKEN = re.compile(rf"(?:الساعة|الساعه)\s*(\d{{1,2}})(?!\d|:)(?:\s*{_PART})?"
@@ -368,7 +381,20 @@ TIME_WITH_WORD = re.compile(rf"(?<![\d:])(\d{{1,2}})(?::(\d{{2}}))?\s*{_PART}?\s
 # formal time words are الصباح / الظهر / العصر / المساء (decisions_v3 rule 11)
 FORMAL_CASUAL_TIME = re.compile(r"\d\s*(?:ونص\s*|وربع\s*)?(?:الصبح|المسا(?!ء)|الليل|بالليل)")
 FORMAL_BANNED = ["يا قلبي", "حبيبتي"]
-BANNED_PHRASES = ["ننطرك", "عال العال"]
+BANNED_PHRASES = ["ننطرك", "عال العال", "تأكد لي", "بيواصلونك", "يواصلونك"]  # rules 5, 16, 17
+# rule 18: Modern Standard Arabic duals; Saudi says «حجزين», «موعدين»
+MSA_DUALS = ["حجزان", "موعدان", "وقتان", "يومان", "ساعتان", "خياران", "شخصان", "خدمتان", "جلستان", "حصتان",
+             "طاولتان", "قاعتان", "غرفتان", "فرعان"]
+MSA_DUAL_RE = re.compile(rf"(?<![{AR}])[وبل]?({'|'.join(MSA_DUALS)})(?![{AR}])")
+# masculine forms addressed to the customer, rejected at a women-only business (pilot_v3 gen-00000)
+MASCULINE = ["عطني", "تبي", "تبغى", "تحب", "تقدر", "تامر", "تآمر", "أبشر", "ابشر", "تفضل", "خبرني", "اختار",
+             "ارسل", "أرسل", "تكفى", "حاب", "متأكد"]
+MASCULINE_RE = re.compile(rf"(?<![{AR}])[وف]?({'|'.join(MASCULINE)})(?![{AR}])")
+# the teacher's own reasoning leaking into a reply (pilot_v3 gen-00010, gen-00029)
+URL = re.compile(r"https?://\S+|\S+\.(?:com|sa|net)\S*")
+ENGLISH_SENTENCE = re.compile(r"[A-Za-z']+(?:[\s,;:!?-]+[A-Za-z']+){3,}")
+SELF_TALK = re.compile(r"\b(?:Hmm+|Alternative|Let me|I should|I need to|I will|tool result|the user|system prompt)\b"
+                       r"|ما أبدأ|التعليمات|القواعد|البرومبت|نتيجة الأداة", re.IGNORECASE)
 SALAAM = re.compile(r"(?:ال)?سلام عليكم")
 RETURNED_SALAAM = re.compile(r"^\W*وعليكم السلام")
 ABSHIR_ASK = re.compile(r"[أا]بشر\s+ب(?:اسم|عنوان|رقم|جوال)")  # rule 14: «ابشر باسمك» meaning "give me your name"
@@ -387,7 +413,7 @@ HOURS_WORDS = re.compile(r"نفتح|نقفل|نسكر|يفتح|يقفل|يسكر
 # Evidence that the customer is a woman comes only from what she says about herself: her name or a
 # feminine word about herself, as whole words (in pilot_v2 «وعد» matched inside «موعد»). Words she
 # addresses to the receptionist («تكفين») say nothing about her.
-FEMALE_NAME = re.compile(rf"(?<![{AR}])(?:{'|'.join(CUSTOMER_NAMES['female'])})(?![{AR}])")
+FEMALE_NAME = re.compile(rf"(?<![{AR}])(?:{'|'.join(n.replace('ة', '[ةه]') for n in CUSTOMER_NAMES['female'])})(?![{AR}])")
 FEMALE_SELF = re.compile(rf"(?:انا|أنا)\s+(?:(?!ب|ال|في)[{AR}]+ة(?![{AR}])|حامل)"
                          rf"|(?<![{AR}])و?(?:زوجي|صديقاتي|ربيعاتي)(?![{AR}])")
 # «وأتابع لك» if the wait runs long is accepted (decisions_v2: «إن تأخر عليك الوضع»), so it is not here.
@@ -491,7 +517,7 @@ def day_slot_problems(text: str, today: date, dated: dict, extra: set) -> list[s
     never looked at are not checked here."""
     t = text.translate(AR_DIGITS)
     refs = []  # (start, end, candidate dates)
-    for m in re.finditer(rf"(?<!\S)({_REL})(?![{AR}])", t):
+    for m in re.finditer(rf"(?<!\S)و?({_REL})(?![{AR}])", t):
         refs.append((m.start(), m.end(), {today + timedelta(days=RELATIVE[m.group(1)])}))
     for m in re.finditer(rf"(?<![{AR}])[وبل]?({_DAY})(?![{AR}])", t):
         refs.append((m.start(), m.end(), {d for d in dated if d.weekday() == WEEKDAY[m.group(1)]}))
@@ -528,44 +554,40 @@ def day_slot_problems(text: str, today: date, dated: dict, extra: set) -> list[s
     return list(dict.fromkeys(out))
 
 
-def evening_start(prayer: dict) -> int:
-    """«المسا / المساء» is natural from 17:00, or from Maghrib minus 90 minutes if that is earlier
-    («5 المساء» with Maghrib at 18:30; founder decision after pilot_v2)."""
-    return min(17 * 60, to_min(prayer["Maghrib"]) - 90)
-
-
-def time_windows(prayer: dict) -> dict[str, tuple[int, int]]:
-    """Minutes of the day each time-of-day word covers (decisions_v3 rule 11). Evening and night run
-    past midnight, so their ends are above 1440."""
-    asr, maghrib, isha = (to_min(prayer[k]) for k in ("Asr", "Maghrib", "Isha"))
-    return {"morning": (3 * 60, 12 * 60), "noon": (12 * 60, asr), "asr": (asr, maghrib),
-            "evening": (evening_start(prayer), 24 * 60), "night": (isha, 27 * 60)}
-
-
-def time_word_problems(text: str, windows: dict, known24: dict) -> tuple[list[str], list[str]]:
-    """A time-of-day word must fit the hour it names (rule 11). The hour comes from the tools when the
-    time is one of theirs (so «12 المساء» for a 12:00 slot is noon, not midnight). Returns
-    (outside the window by more than TIME_TOLERANCE, inside the tolerance only)."""
+def time_word_problems(text: str, known24: dict, hours24: dict) -> tuple[list[str], list[str]]:
+    """A time-of-day word must fit the hour it names (decisions_v4 rule 11: morning before 12:00,
+    evening from 12:00, casual «الليل» late; «الظهر» and «العصر» are not time labels). The hour comes
+    from the tools when the time is one of theirs (so «12 المساء» for a 12:00 slot is noon, not
+    midnight); in a sentence that states opening hours («من 8 الصبح لين 8 المسا») the opening hours
+    count too. Returns (problems, flags): «الليل» up to NIGHT_TOLERANCE before NIGHT_START is a flag."""
     bad, near = [], []
-    for h, mm, part, word in TIME_WITH_WORD.findall(text.translate(AR_DIGITS)):
+    found = []
+    for sentence in re.split(r"[.!؟\n]", text.translate(AR_DIGITS)):
+        lookup = {k: known24.get(k, set()) | hours24.get(k, set()) for k in known24.keys() | hours24.keys()} \
+            if HOURS_WORDS.search(sentence) else known24
+        found += [(x, lookup) for x in TIME_WITH_WORD.findall(sentence)]
+    for (h, mm, part, word), lookup in found:
         h, m = spoken_time(int(h), int(mm or 0), part)
         if h > 24 or m > 59:
             continue
-        cands = {h * 60 + m} if h > 12 else known24.get(clock12(h, m)) or {h % 12 * 60 + m, (h % 12 + 12) * 60 + m}
-        kind = TIME_KIND[word]
-        start, end = windows[kind]
-
-        def fits(slack: int) -> bool:
-            # the evening start is already the founder's widened boundary, so no tolerance before it
-            before = 0 if kind == "evening" else slack
-            return any(start - before <= x <= end + slack for t in cands for x in (t, t + 1440))
         said = f"«{h}{':%02d' % m if m else ''} {word}»"
+        kind = TIME_KIND[word]
+        if kind not in TIME_WINDOWS:
+            bad.append(f"{said}: «الظهر / العصر» are not time labels (say الصباح / المساء)")
+            continue
+        cands = {h * 60 + m} if h > 12 else lookup.get(clock12(h, m)) or {h % 12 * 60 + m, (h % 12 + 12) * 60 + m}
+        start, end = TIME_WINDOWS[kind]
+
+        def fits(before: int) -> bool:
+            return any(start - before <= x < end for t in cands for x in (t, t + 1440))
         hhmm = "/".join(f"{t // 60:02d}:{t % 60:02d}" for t in sorted(cands))
         window = f"{start // 60:02d}:{start % 60:02d}-{end // 60 % 24:02d}:{end % 60:02d}"
-        if not fits(TIME_TOLERANCE):
-            bad.append(f"time word does not fit the hour: {said} for {hhmm} ({word} is {window})")
-        elif not fits(0):
+        if fits(0):
+            continue
+        if kind == "night" and fits(NIGHT_TOLERANCE):
             near.append(f"time word near a boundary: {said} for {hhmm} ({word} is {window})")
+        else:
+            bad.append(f"time word does not fit the hour: {said} for {hhmm} ({word} is {window})")
     return bad, near
 
 
@@ -583,15 +605,30 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
     for x in [int(h) * 60 + int(mm) for m in msgs if m["role"] == "tool" or m.get("tool_calls")
               for h, mm in CLOCK.findall(m.get("content") or json.dumps([tc["function"]["arguments"] for tc in m.get("tool_calls") or []]))]:
         known24.setdefault(clock12(x // 60 % 24, x % 60), set()).add(x % 1440)
-    tool_times = set(known24)
+    hours24: dict[tuple[int, int], set[int]] = {}
     for x in [to_min(p) for spec in business["schedule"].values() if spec for p in spec.split("-")]:
-        if clock12(x // 60 % 24, x % 60) not in tool_times:
-            known24.setdefault(clock12(x // 60 % 24, x % 60), set()).add(x % 1440)
-    windows = time_windows(meta["prayer_times"])
+        hours24.setdefault(clock12(x // 60 % 24, x % 60), set()).add(x % 1440)
+    for k, v in hours24.items():
+        known24.setdefault(k, v)
     dated = dated_times(msgs)
     services = " ".join(s["name"] for s in business["services"])
     allowed_tool, allowed_customer, women = set(), set(), business["customers"] == "women only"
     handoff_done, booked, first_reply, first_user, last_user = False, False, True, None, ""
+    # slots the tools listed for today that have already passed (the backend lists the whole day)
+    now = datetime.fromisoformat(meta["now"])
+    now_min = now.hour * 60 + now.minute
+    past_today, other_days = set(), set()
+    for m in msgs:
+        if m["role"] == "tool" and m.get("name") == "get_available_slots":
+            try:
+                res = json.loads(m["content"])
+            except ValueError:
+                continue
+            for t in res.get("slots") or []:
+                if res.get("date") == str(today) and to_min(t) < now_min:
+                    past_today.add(clock12(*map(int, t.split(":"))))
+                elif res.get("date") != str(today):
+                    other_days.add(clock12(*map(int, t.split(":"))))
     for i, m in enumerate(msgs):
         if m["role"] == "user":
             text = m["content"]
@@ -621,6 +658,9 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
                 if tc["function"]["name"] == "create_booking" and isinstance(a, dict) and \
                         str(a.get("customer_name", "")).strip().lower() in PLACEHOLDER_NAMES:
                     problems.append(f"create_booking with a placeholder name «{a.get('customer_name', '')}»")
+                if tc["function"]["name"] in ("create_booking", "reschedule_booking") and isinstance(a, dict) and \
+                        a.get("date") == str(today) and CLOCK.fullmatch(str(a.get("time", ""))) and to_min(a["time"]) < now_min:
+                    problems.append(f"books {a['time']} today, already past (now {now:%H:%M})")
             continue
         text = m.get("content") or ""
         if not text:
@@ -635,7 +675,7 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
         if formal:
             problems += [f"formal reply says «{w}»" for w in FORMAL_BANNED if w in text]
             if FORMAL_CASUAL_TIME.search(text.translate(AR_DIGITS)):
-                problems.append("formal reply uses casual time words (formal: الصباح / الظهر / العصر / المساء)")
+                problems.append("formal reply uses casual time words (formal: الصباح / المساء)")
         # rule 13: return the salaam in the first reply, and only there
         if first_reply and first_user and SALAAM.search(first_user) and "عليكم السلام" not in text:
             problems.append("does not return the customer's «السلام عليكم»")
@@ -649,8 +689,13 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
         if bad_times:
             problems.append("time not from a tool: " + ", ".join(f"{h}:{mm:02d}" for h, mm in bad_times))
         problems += day_slot_problems(text, today, dated, allowed_customer | (stated & hours))
+        # a slot already past today, offered (pilot_v3 gen-00048: 13:00-17:00 offered at 18:31)
+        passed = sorted(({clock12(*t) for t in text_times(text)} & past_today) - other_days - allowed_customer)
+        if passed:
+            problems.append("offers a time already past today: " + ", ".join(f"{h}:{mm:02d}" for h, mm in passed)
+                            + f" (now {now:%H:%M})")
         # rule 11: the time-of-day word fits the hour
-        bad_words, near_words = time_word_problems(text, windows, known24)
+        bad_words, near_words = time_word_problems(text, known24, hours24)
         problems += bad_words
         flags += near_words
         # 1c: day names and dates agree with the clock; dates are written the way people say them
@@ -665,6 +710,19 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
             problems.append(f"«{ABSHIR_ASK.search(text).group(0)}» used to ask for something (say «عطني»)")
         if "الكشف" in text and "كشف" not in services:
             problems.append("«الكشف» at a business with no such service")
+        dual = MSA_DUAL_RE.search(text)
+        if dual:
+            problems.append(f"Modern Standard Arabic dual «{dual.group(1)}» (Saudi: «حجزين», «موعدين»)")
+        # the teacher's reasoning leaking into the reply
+        plain = URL.sub(" ", text)
+        if rec.get("scenario") != "english" and ENGLISH_SENTENCE.search(plain):
+            problems.append(f"English sentence in a reply: «{ENGLISH_SENTENCE.search(plain).group(0)[:40]}»")
+        if SELF_TALK.search(plain):
+            problems.append(f"self-talk in a reply: «{SELF_TALK.search(plain).group(0)}»")
+        # masculine forms to the customer at a women-only business (pilot_v3 gen-00000)
+        masc = MASCULINE_RE.search(text)
+        if business["customers"] == "women only" and masc:
+            problems.append(f"masculine form «{masc.group(1)}» at a women-only business")
         # rule 15: health or care tips (a word list cannot tell them from practical tips)
         if HEALTH_TIP.search(text):
             flags.append(f"possible health tip «{HEALTH_TIP.search(text).group(0)}»")
@@ -850,10 +908,14 @@ def cmd_generate(args) -> None:
                 state["stop"] = True
                 print(f"Budget ${args.budget:.2f} reached: stopping. Re-run to continue.")
 
+    # The scenario list depends only on the seed and --n, so batch k is always the same 100 scenarios
+    # and an interrupted batch resumes where it stopped.
+    items = list(enumerate(scenarios))[batch_range(args.batch)] if args.batch else list(enumerate(scenarios))
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        list(pool.map(work, enumerate(scenarios)))
+        list(pool.map(work, items))
     print(f"\ncost ${state['spent']:.3f} this run")
-    read = lambda p: [json.loads(l) for l in p.read_text(encoding="utf-8").splitlines()] if p.exists() else []
+    read = lambda p: [r for l in p.read_text(encoding="utf-8").splitlines() if in_batch(r := json.loads(l), args.batch)] \
+        if p.exists() else []
     print(run_report(read(keep_path), read(reject_path)))
 
 
@@ -918,10 +980,21 @@ def cmd_import_review(args) -> None:
     print(f"imported {sum(counts.values())} verdicts: {counts}; {len(missing)} conversations have none yet")
 
 
+def batch_range(batch: int) -> slice:
+    return slice((batch - 1) * BATCH_SIZE, batch * BATCH_SIZE)
+
+
+def in_batch(rec: dict, batch: int | None) -> bool:
+    if not batch:
+        return True
+    r = batch_range(batch)
+    return r.start <= int(rec["id"].split("-")[-1]) < r.stop
+
+
 def cmd_sheet(args) -> None:
     path = OUT_DIR / f"{args.name}.jsonl"
-    recs = [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines()]
-    out = OUT_DIR / f"{args.name}.review.csv"
+    recs = [r for l in path.read_text(encoding="utf-8").splitlines() if in_batch(r := json.loads(l), args.batch)]
+    out = OUT_DIR / (f"{args.name}.batch{args.batch:02d}.review.csv" if args.batch else f"{args.name}.review.csv")
     with out.open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f)
         w.writerow(["id", "business", "style", "scenario", "flags", "conversation", "verdict (ok / fix / bad)", "note"])
@@ -941,8 +1014,10 @@ if __name__ == "__main__":
     g.add_argument("--budget", type=float, default=0.5)
     g.add_argument("--seed", type=int, default=6)
     g.add_argument("--teacher", default=DEFAULT_TEACHER, choices=TEACHERS)
+    g.add_argument("--batch", type=int, help=f"generate only batch k ({BATCH_SIZE} scenarios) of the --n scenario pool")
     s = sub.add_parser("sheet")
     s.add_argument("name")
+    s.add_argument("--batch", type=int, help="only this batch of a batched run")
     ir = sub.add_parser("import-review")
     ir.add_argument("name")
     ir.add_argument("csv_path")
