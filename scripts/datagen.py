@@ -65,6 +65,9 @@ TEACHER_RULES = """Writing rules for every reply (decided by a native Saudi revi
 - Thanks («شكراً») → «العفو», «هذا واجبنا», «الله يعافيك» or «حياك الله، بالخدمة بأي وقت». «الله يحييك» only answers «حياك». Keep a reply to thanks to one or two parts, not three.
 - Never state a policy or fact that is not in the business facts above (for example whether children are welcome); hand off instead.
 - When the customer gives a group size («لمجموعة 8 أشخاص»), call search_services for a group service and use it if there is one, before booking a plain table or room.
+- When the customer moves a booking with a relative day («من بكرة لبعد بكرة», «من اليوم لبكرة») but the booking is on another day, do not pick a date: give the real date and ask what they want («حجزك أصلاً الثلاثاء 26، تبغى تأخره يوم للأربعاء 27؟»). If the customer then names a day wrongly, clarify before booking.
+- Answer from the business facts when you can: at a home-visit business, «أقدر أجيب عيالي؟» is answered that the team comes to the customer's home, no handoff. Weather or sports small talk: «ما عندي علم» and move on; never invent it, never hand it off.
+- A day right before a closed day is still a normal day: offer Thursday's slots even when Friday is closed.
 - When the customer names a day for an existing booking, compare it with the booking's date from get_my_bookings. If it differs, say so first («حجزك أصلاً يوم …») before changing anything.
 - When you offer 3 or more options (times, services, anything), put each on its own line after a short lead-in («المتاح:»). Two options can stay in one sentence («4 المسا أو 7 المسا»).
 - No health or care tips (drink water, stay out of the sun, rest); practical tips about the service itself are fine («جيب معك لبس رياضي»). For pain or a medical worry, at most suggest seeing a doctor.
@@ -308,6 +311,7 @@ def customer_turn(teacher: OpenRouterModel, sc: dict, transcript: list[str]) -> 
               "Standard Arabic (say صديقاتي not ربيعاتي, ابي not ابا, وش not شنو). Never Arabic in Latin letters. "
               "Say plainly what you want, like a real customer, and react to what the receptionist "
               "said. To pick a time, start with «احجز لي» followed by one of the times offered, never «خذ». "
+              "Name the service the way a customer would say it, not the catalogue name («تفصيل ثوب», not «تفصيل ثوب موعد مقاسات»). "
               "Only your FIRST message may greet: never start a later message with «وعليكم السلام» or return the "
               "receptionist's greeting, just answer. If your goal is done or cannot be done, reply exactly [END].")
     convo = "\n".join(transcript) or "(no messages yet: write your first message)"
@@ -450,6 +454,8 @@ HUMAN_IDENTITY = re.compile(r"[أا]نا (?:رجل|رجال|حرمة|حرمه)|�
 # batch 04: a customer line holding a whole fake turn («Receptionist: … Customer: …», gen-00394)
 ROLE_LABEL = re.compile(r"\b(?:receptionist|customer|assistant|user|agent)\s*:|(?:^|\n)\s*(?:الموظف|موظف|العميل|عميل|المساعد)\s*:",
                         re.IGNORECASE)
+# a broken customer word mixing scripts («تسلمonmفضلين», batch 05 gen-00476); «ابي booking» with a space is fine
+MIXED_WORD = re.compile(rf"[{AR}]+[A-Za-z]+[{AR}A-Za-z]*|[A-Za-z]+[{AR}]+[{AR}A-Za-z]*")
 EASTERN_DIGIT = re.compile("[٠-٩]")  # replies write numbers with 0-9 only (batch 04 gen-00367)
 # rule 35: a business closing at midnight says «لين 12 الليل», not «12 المساء» (noon) (batch 04 gen-00344)
 NOON_FOR_MIDNIGHT = re.compile(r"(?:إلى|الى|لين|لـ|حتى|ل)\s*12\s*(?:المساء|المسا)(?![ء-ي])")
@@ -792,6 +798,8 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
                 named_woman = True
             for h, mm, part, word in TIME_WITH_WORD.findall(text.translate(AR_DIGITS)):
                 customer_said.add((clock12(*spoken_time(int(h), int(mm or 0), part)), TIME_KIND[word]))
+            if MIXED_WORD.search(text):
+                problems.append(f"Latin letters inside an Arabic word in a customer line: «{MIXED_WORD.search(text).group(0)}»")
             if ROLE_LABEL.search(text):
                 problems.append(f"role label in a customer line: «{ROLE_LABEL.search(text).group(0).strip()}»")
             if any(int(h) == 0 for h, *_ in TIME_WITH_WORD.findall(text.translate(AR_DIGITS))):

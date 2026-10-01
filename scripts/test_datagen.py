@@ -436,6 +436,14 @@ for name, ok in [("teacher rule: midnight is «12 الليل»", "Midnight is «
 expect("«ما نقدر نحجز قبل 7 الصباح، هذا وقت فتحنا» states hours (batch 05 gen-00489)",
        record([USER] + tool("get_available_slots", {"service_id": "x", "date": "2026-11-06"}, {"date": "2026-11-06", "slots": ["07:30"]})
               + [reply("ما نقدر نحجز قبل 7 الصباح، هذا وقت فتحنا. المتاح 7 ونص الصباح")]), True, BUSINESSES["train_cafe_1"])
+# ---- decisions_v11 (batch 05 review) ----
+expect("a customer word mixing scripts «تسلمonmفضلين» fails (batch 05 gen-00476)",
+       record([USER, reply("تم"), {"role": "user", "content": "تسلمonmفضلين"}, reply("الله يعافيك")]), False, reason="Latin letters inside")
+expect("«ابي booking بكرة» (separate words) still passes", record([{"role": "user", "content": "ابي booking بكرة"}, reply("تمام")]), True)
+for name, ok in [("teacher rule 39: give the real date before moving with a relative day", "حجزك أصلاً الثلاثاء 26" in teacher_rules("casual", GYM, "هلا")),
+                 ("teacher rule: Thursday before a closed Friday is still offered", "Thursday" in teacher_rules("casual", GYM, "هلا"))]:
+    failures += not ok
+    print(f"{'ok  ' if ok else 'FAIL'} {name}")
 # rule 34: the list repair puts 3+ options one per line and changes nothing else
 from datagen import repair_lists  # noqa: E402
 for before, after in [
