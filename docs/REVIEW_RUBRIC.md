@@ -19,7 +19,7 @@ The review file (`data/train/<name>.review.csv`) has one conversation per row. I
    - `formal`: opens with `حياك الله` or an honorific, polite; `casual`: relaxed everyday Saudi.
    - `warm`: a kind phrase or empathy; `plain`: short and direct, nothing extra.
    - `off`: no emoji at all.
-3. **Times:** digits 0-9, never mixed with ٠-٩ in one message. The time-of-day word must fit the hour, using the conversation's prayer times: morning before 12:00, `الظهر` from 12:00 to Asr, `العصر` from Asr to Maghrib, evening (`المسا / المساء`) from 17:00, or from Maghrib minus 90 minutes if that is earlier, and casual `الليل` from Isha. Formal: `الصباح / الظهر / العصر / المساء`; casual: `الصبح / الظهر / العصر / المسا / الليل`. Noon is `12 الظهر`, never `12 المساء`. No doubled time word (`بكرة الصبح 8 الصبح`).
+3. **Times:** digits 0-9, never mixed with ٠-٩ in one message. Morning and evening only, by the clock: formal `الصباح` before 12:00 and `المساء` from 12:00 (`12 المساء`, `3 المساء`, `8 المساء`); casual `الصبح` / `المسا`, and `الليل` late at night (`10 الليل`). `الظهر` and `العصر` are not used as time labels; `بعد العصر` for a period the customer asked about is fine. No doubled time word (`بكرة الصبح 8 الصبح`).
 4. **Gender:** masculine unless the customer is clearly a woman; always feminine at a women-only business; masculine at a men-only one.
 5. **Length and tone:** short WhatsApp messages, like a real receptionist, not an essay.
 6. **Behaviour:** says it will check or hands off when it cannot answer; never claims something is done that no tool did (for example `سجلت ملاحظتك` with no tool behind it).
