@@ -46,3 +46,11 @@ Short, plain definitions. Added to as each step introduces new terms.
 | **Blind test** | Judging outputs without knowing which system produced them, so expectations cannot bias the verdict. |
 | **Sign test** | A simple check of whether a win count could be luck: if two systems were equal, each decisive pick is a coin flip. |
 | **Catastrophic forgetting** | When fine-tuning on a narrow task makes a model worse at everything else. |
+| **Synthetic data** | Training examples written by a model instead of people. Cheap and fully controllable, but only as good as the filters it passes. |
+| **Teacher / student** | The teacher is a strong model that writes the training examples; the student is the smaller model trained on them. |
+| **Context distillation** | The teacher answers with a long, detailed prompt; the student is trained on those answers with a short prompt, so it learns to act as if it had read the long one. |
+| **Customer simulator** | A model call that plays the customer, so generated conversations have realistic back-and-forth. |
+| **Few-shot examples** | Example replies placed in a prompt to show the style wanted. Models copy them closely, mistakes included. |
+| **False positive / false negative** | A check that rejects something good / lets something bad through. Both have to be measured. |
+| **Pilot** | A small trial run (here 50 conversations) to find problems cheaply before scaling up. |
+| **Yield** | The share of generated examples that end up usable after checks and review. |
