@@ -57,7 +57,7 @@ TEACHER_RULES = """Writing rules for every reply (decided by a native Saudi revi
 - Call the service by a short spoken form of THIS business's own service name (drop sizes and brackets). Never use a service word this business does not have.
 - To ask for a name or address: «عطني اسمك الكريم», «وش اسمك الكريم؟», «عطني عنوانك (الحي والشارع)». Never «ابشر باسمك» or «ابشر بعنوانك»: «أبشر» means "consider it done", not "give me".
 - Warm: add a kind phrase. Plain: nothing extra.
-- Courtesy pairs: «يعطيك العافية» (with or without «شكراً») → «الله يعافيك», optionally «ما سوينا شي» or «هذا واجبنا»; never add «العفو», and never answer thanks with «ولو». The customer's «ابشر» → «الله يبشرك بالخير», never «أبشر» back. Say «الله يعافيك» / «الله يحييك» only when the customer just said «يعطيك العافية» / «حياك» or thanked you. Never «طال عمرك» or «طويل العمر». Never «تبقين على راسنا», never «طمني عليك». «لا تتأخرون علي» → «أبشر، ما راح نتأخر عليك بإذن الله، الفريق بيتواصل معك خلال 10 دقايق», never «الله يعينك».
+- Courtesy pairs: «يعطيك العافية» (with or without «شكراً») → «الله يعافيك» alone, optionally «ما سوينا شي» or «هذا واجبنا»; no «العفو» anywhere in that reply, even when the customer also thanked you. Never answer thanks with «ولو». The customer's «ابشر» → «الله يبشرك بالخير», never «أبشر» back. Say «الله يعافيك» / «الله يحييك» only when the customer just said «يعطيك العافية» / «حياك» or thanked you. Never «طال عمرك» or «طويل العمر». Never «تبقين على راسنا», never «طمني عليك». «لا تتأخرون علي» → «أبشر، ما راح نتأخر عليك بإذن الله، الفريق بيتواصل معك خلال 10 دقايق», never «الله يعينك».
 - After a handoff, if the customer adds a new detail, either call handoff_to_human again with it, or tell the customer «قلها لهم لما يتواصلون معك». Never say it reached the team otherwise.
 - Masculine forms until the customer says something about HERSELF that shows she is a woman (her name, «أنا متأكدة», «زوجي»); words she addresses to you («تكفين») are not evidence. Always feminine at a women-only business.
 - Never say something was done, saved, sent, passed on or booked («محجوز لك») unless a tool did it. Call create_booking only with the customer's real name: ask for it first, never a placeholder like «غير معروف».
@@ -81,6 +81,7 @@ TEACHER_RULES = """Writing rules for every reply (decided by a native Saudi revi
 - Cancel only the booking the customer named or confirmed. If the customer repeats «إيه، الغيه» after the cancellation is done, it is not a new instruction: if nothing else is booked, say it is already cancelled; if another booking remains, ask «تقصد ألغي لك … بعد؟» and cancel nothing until they say so.
 - On today's date, never offer or book a time that has already passed ("Now" is the current time), even if the tool lists it.
 - Saudi wording, not Modern Standard Arabic: «حجزين», «موعدين», never «حجزان», «موعدان». «أكد لي، تبغى تلغيه؟», never «تأكد لي تبغى نلغيه». «الفريق بيتواصلون معك», never «بيواصلونك».
+- Never use «الاثنين» to mean "both": it reads as Monday. Say «اليومين» or name the days.
 - Write only the message to the customer: never your own reasoning, notes to yourself, or English sentences.
 - Greetings must fit the time of day. Never write Arabic in Latin letters.
 """
@@ -466,7 +467,9 @@ DAY_THEN_DATE = re.compile(rf"(?<![{AR}])[وبل]?(?P<day>{_DAY}){_LINK}" + _dat
 # no «و» before the day: «الخميس 18 مارس، والسبت 20 مارس» starts a new item (train_v1 gen-00748)
 DATE_THEN_DAY = re.compile(_date(2) + rf"\s*[(،,]?\s*(?:يوم\s+)?[بل]?(?P<day>{_DAY})(?![{AR}])")
 ISO_DATE = re.compile(r"\d{4}-\d{1,2}-\d{1,2}")
-TIME_KIND = {**dict.fromkeys(["الصبح", "الصباح", "صباحا", "صباحاً"], "morning"),
+# «الفجر» / «المغرب» only read a customer's time («٥ الفجر» → the reply «ما ينفع 5 الصباح» is theirs, batch 07
+# gen-00796); in a reply PRAYER_WORD rejects them
+TIME_KIND = {**dict.fromkeys(["الصبح", "الصباح", "صباحا", "صباحاً", "الفجر"], "morning"), "المغرب": "evening",
              **dict.fromkeys(["الظهر", "ظهرا", "ظهراً"], "noon"), **dict.fromkeys(["العصر", "عصرا", "عصراً"], "asr"),
              **dict.fromkeys(["المسا", "المساء", "مساء", "مساءً"], "evening"),
              **dict.fromkeys(["الليل", "بالليل", "ليلا", "ليلاً"], "night")}
@@ -481,8 +484,10 @@ SPOKEN = re.compile(rf"(?:الساعة|الساعه)\s*(\d{{1,2}})(?!\d|:)(?:\s*
                     rf"|(?<!\d|:)(\d{{1,2}})\s*{_PART}?\s*{TIME_WORDS}")
 TIME_WITH_WORD = re.compile(rf"(?<![\d:])(\d{{1,2}})(?::(\d{{2}}))?\s*{_PART}?\s*({TIME_WORDS})")
 # formal time words are الصباح / الظهر / العصر / المساء (decisions_v3 rule 11)
-# (midnight is «12 الليل» in both registers, rule 35)
-FORMAL_CASUAL_TIME = re.compile(r"\d\s*(?:ونص\s*|وربع\s*)?(?:الصبح|المسا(?!ء))|(?<!\d)(?!12\s)\d{1,2}\s*(?:ونص\s*|وربع\s*)?(?:الليل|بالليل)")
+# (after midnight is «الليل» in both registers: «12 الليل», «1 الليل», «2 الليل», 00:00-03:00, rule 35 and
+# decisions_v16; batch 10 gen-00933 «من 7 الصباح إلى 1 الليل»)
+FORMAL_CASUAL_TIME = re.compile(r"\d\s*(?:ونص\s*|وربع\s*)?(?:الصبح|المسا(?!ء))"
+                                r"|(?<!\d)(?!(?:12|1|2)(?!\d))\d{1,2}\s*(?:ونص\s*|وربع\s*)?(?:الليل|بالليل)")
 FORMAL_BANNED = ["يا قلبي", "حبيبتي"]
 BANNED_PHRASES = ["ننطرك", "عال العال", "تأكد لي", "بيواصلونك", "يواصلونك",  # rules 5, 16, 17
                   "طال عمرك", "طويل العمر", "تبقين على راسنا"]  # rules 19, 22
@@ -849,6 +854,9 @@ def labelled_only(text: str, t: tuple[int, int], these: set[int], others: set[in
 _DAYS_NOT_MONDAY = "|".join(d for d in sorted(WEEKDAY, key=len, reverse=True) if "ثنين" not in d)
 AVAILABLE_WHEN = re.compile(rf"\d|(?<![{AR}])[وبل]?(?:{_DAYS_NOT_MONDAY}|{_REL})(?![{AR}])"
                             rf"|(?:يوم|{_REL})\s+(?:ال)?[اإ]?ثنين(?![{AR}])")
+HOUR_WORDS = {"وحده": 1, "واحد": 1, "ثنتين": 2, "اثنين": 2, "ثلاث": 3, "اربع": 4, "أربع": 4, "خمس": 5, "ست": 6,
+              "سبع": 7, "ثمان": 8, "ثمني": 8, "تسع": 9, "عشر": 10, "احدعش": 11, "حدعش": 11, "اثنعش": 12, "ثنعش": 12}
+HOUR_WORD_RE = re.compile(rf"(?<![{AR}])(?:ال)?({'|'.join(sorted(HOUR_WORDS, key=len, reverse=True))})(?![{AR}])")
 CONFIRM = re.compile(rf"(?<![{AR}])(?:إيه|ايه|اي|إي|ايوه|إيوه|نعم|أكيد|اكيد|تمام|اوكي|أوكي|[أا]لغ[ِ]?يه|[أا]لغ[ِ]?ه)(?![{AR}])")
 ALL_OF_THEM = re.compile(r"كلهم|كلها|الاثنين|الثنين|الحجزين|الموعدين|الثنتين")
 GENERIC_SERVICE_WORDS = {"حصه", "جلسه", "موعد", "حجز"}
@@ -947,6 +955,11 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
             allowed_customer |= {clock12(h, mm) for h, mm in text_times(text)}
             allowed_customer |= {clock12(int(n), 0) for n in re.findall(r"(?<!\d)(\d{1,2})(?!\d)", text.translate(AR_DIGITS))
                                  if 1 <= int(n) <= 24}
+            # an hour written as a word («مثلا ست الصباح», batch 11 gen-01010; «الساعه عشر», batch 10 gen-00914)
+            allowed_customer |= {(HOUR_WORDS[w], 0) for w in HOUR_WORD_RE.findall(text)}
+            in_digits = HOUR_WORD_RE.sub(lambda x: str(HOUR_WORDS[x.group(1)]), text).translate(AR_DIGITS)
+            for h, mm, part, word in TIME_WITH_WORD.findall(in_digits):
+                customer_said.add((clock12(*spoken_time(int(h), int(mm or 0), part)), TIME_KIND[word]))
             if FEMALE_NAME.search(text) or FEMALE_SELF.search(text):
                 women = True
             if FEMALE_NAME.search(text):
@@ -1221,6 +1234,36 @@ def leak_score(line: str, test_grams: list) -> float:
     return max((jaccard(g, t) for t in test_grams), default=0.0)
 
 
+CLOSED_WORDS = re.compile(r"مغلق|مسكر|مقفل|سكرين|قفلين|إجازة|اجازة|إجازتنا|ما نفتح|مو فاتحين|ما نشتغل")
+
+
+def closed_day_dates_ok(problems: list[str], text: str, business: dict, now: datetime) -> list[str]:
+    """The benchmark's date check (scoring.py, frozen) accepts only dates a tool or the customer gave. For training,
+    the date of a closed day is fine in a sentence that says it is closed («بعد بكرة الجمعة 19 مارس، وإحنا الجمعة
+    مغلقين», decisions_v16): no tool looks up a closed day."""
+    from scoring import dates_in
+    out = []
+    for p in problems:
+        if p.startswith("dates ") and "match no real date" in p:
+            wrong = [tuple(int(x) for x in t) for t in re.findall(r"\((\d+), (\d+)\)", p)]
+            sentences = [s for s in re.split(r"[.!؟\n]", text) if CLOSED_WORDS.search(s)]
+            said_closed = {dm for s in sentences for dm in dates_in(s)}
+            left = []
+            for d, mo in wrong:
+                y = now.year + (1 if mo < now.month - 6 else 0)
+                try:
+                    closed = open_hours(business, date(y, mo, d)) is None
+                except ValueError:
+                    closed = False
+                if not (closed and (d, mo) in said_closed):
+                    left.append((d, mo))
+            if left:
+                out.append(p if len(left) == len(wrong) else f"dates {left} match no real date in the conversation")
+            continue
+        out.append(p)
+    return out
+
+
 def check(rec: dict, spec: tuple, tok, test_grams: list) -> list[str]:
     """Every reason this conversation must not be used for training (empty = keep)."""
     businesses, styles, tools = spec
@@ -1239,7 +1282,7 @@ def check(rec: dict, spec: tuple, tok, test_grams: list) -> list[str]:
                 problems += [f"invalid call {tc['function']['name']}: {x}" for x in issues]
         if m["role"] == "assistant" and m.get("content"):
             text = m["content"]
-            problems += reply_problems(text, Context(short, rec["messages"][:i]))
+            problems += closed_day_dates_ok(reply_problems(text, Context(short, rec["messages"][:i])), text, b, now)
             problems += [f"formal word {w!r}" for w in MSA_WORDS if w in text]
             if LATIN_WORD.search(text):
                 problems.append("Arabizi")
@@ -1484,7 +1527,28 @@ def repair_record(rec: dict) -> bool:
             m["content"] = new
     if changed:
         rec["repairs"] = sorted(set(rec.get("repairs", [])) | {"emoji"})
-    return changed
+    # rule 24, tightened (decisions_v16): «العفو، الله يعافيك» → «الله يعافيك»
+    courtesy = False
+    for m in rec["messages"]:
+        if m["role"] == "assistant" and m.get("content"):
+            new = repair_courtesy(m["content"])
+            courtesy |= new != m["content"]
+            m["content"] = new
+    if courtesy:
+        rec["repairs"] = sorted(set(rec.get("repairs", [])) | {"courtesy"})
+    return changed or courtesy
+
+
+AFW_DROP = re.compile(r"(?<![ء-ي])العفو،\s*|،\s*العفو(?![ء-ي])")
+
+
+def repair_courtesy(text: str) -> str:
+    """Drop «العفو،» or «، العفو» from a reply that also says «الله يعافيك», and nothing else. Any other
+    «العفو» («العفو يا مشاري، الله يعافيك») is left for the checks to reject."""
+    if "الله يعافيك" not in text or "العفو" not in text:
+        return text
+    new = AFW_DROP.sub("", text, count=1)
+    return new if "العفو" not in new else text
 
 
 def cmd_repair_emojis(args) -> None:
@@ -1610,7 +1674,10 @@ def cmd_repair_prayer_words(args) -> None:
     half hour. Anything else (no `after`, another prayer word or phrase, a count that differs from the list)
     is left for the founder. Verifies that only «العصر» changed."""
     listed: dict[str, int] = {}
-    for row in csv.DictReader(open(args.csv_path, encoding="utf-8-sig")):
+    rows = list(csv.DictReader(open(args.csv_path, encoding="utf-8-sig")))
+    if rows and "find" in rows[0]:
+        return repair_find_replace(args.name, rows)
+    for row in rows:
         listed[row["id"]] = listed.get(row["id"], 0) + 1
     path = OUT_DIR / f"{args.name}.jsonl"
     recs = [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines()]
@@ -1649,6 +1716,86 @@ def cmd_repair_prayer_words(args) -> None:
             skipped.append(r["id"])
     path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in recs), encoding="utf-8", newline="\n")
     print(f"{args.name}: {len(repaired)} conversations prayer-word repaired; left for the founder: {skipped or 'none'}")
+
+
+def repair_find_replace(name: str, rows: list[dict]) -> None:
+    """Prayer-word repair, part 2 (prayer_word_repair_v2.csv): exact find → replace pairs written by the reviewer.
+    Each find must occur exactly once in that row's receptionist lines; undoing the replacement must give back
+    the original; afterwards no prayer word may remain in the row's replies."""
+    pairs: dict[str, list[tuple[str, str]]] = {}
+    for row in rows:
+        pairs.setdefault(row["id"], []).append((row["find"], row["replace"]))
+    path = OUT_DIR / f"{name}.jsonl"
+    recs = [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines()]
+    repaired, skipped = [], []
+    for r in recs:
+        if r["id"] not in pairs or "prayer word" in r.get("repairs", []):
+            continue
+        msgs, ok = json.loads(json.dumps(r["messages"])), True
+        for find, repl in pairs[r["id"]]:
+            hits = [m for m in msgs if m["role"] == "assistant" and m.get("content") and find in m["content"]]
+            if len(hits) != 1 or hits[0]["content"].count(find) != 1 or repl in hits[0]["content"]:
+                ok = False
+                break
+            old = hits[0]["content"]
+            hits[0]["content"] = old.replace(find, repl)
+            if hits[0]["content"].replace(repl, find) != old:
+                ok = False
+                break
+        if ok and any(PRAYER_WORD.search(m["content"]) for m in msgs if m["role"] == "assistant" and m.get("content")):
+            ok = False
+        if ok:
+            r["messages"] = msgs
+            r["repairs"] = sorted(set(r.get("repairs", [])) | {"prayer word"})
+            repaired.append(r["id"])
+        else:
+            skipped.append(r["id"])
+    missing = sorted(set(pairs) - {r["id"] for r in recs})
+    path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in recs), encoding="utf-8", newline="\n")
+    print(f"{name}: {len(repaired)} conversations prayer-word repaired (exact pairs); "
+          f"left for the founder: {skipped or 'none'}; not in this file: {missing or 'none'}")
+
+
+def cmd_rescue(args) -> None:
+    """Re-check rejected conversations after a rule is relaxed or a repair is added (decisions_v16): apply the
+    current repairs and checks to every reject; those that now pass move to the kept file and get their own
+    review sheet. Ids the founder kept rejected (--skip) stay where they are."""
+    from transformers import AutoTokenizer
+    businesses = {b["id"]: b for b in json.loads((ROOT / "spec" / "train_businesses.json").read_text(encoding="utf-8"))}
+    _, styles, tools = load_spec()
+    tools = train_tools(tools)
+    tok = AutoTokenizer.from_pretrained("google/gemma-4-12B-it")
+    test_grams = [trigrams(m["content"]) for f in ("test_v1.jsonl", "dev_v1.jsonl")
+                  for l in (ROOT / "data" / "test" / f).read_text(encoding="utf-8").splitlines()
+                  for m in json.loads(l)["messages"] if m["role"] == "user"]
+    keep_path, reject_path = OUT_DIR / f"{args.name}.jsonl", OUT_DIR / f"{args.name}.rejects.jsonl"
+    kept = [json.loads(l) for l in keep_path.read_text(encoding="utf-8").splitlines()]
+    still, rescued = [], []
+    for r in (json.loads(l) for l in reject_path.read_text(encoding="utf-8").splitlines()):
+        if "messages" not in r or r["id"] in args.skip:
+            still.append(r)
+            continue
+        trial = json.loads(json.dumps(r))
+        trial.pop("problems", None)
+        trial.pop("flags", None)
+        repair_record(trial)
+        problems = check(trial, (businesses, styles, tools), tok, test_grams)
+        if problems:
+            still.append(r)  # unchanged: its original problems stay on record
+        else:
+            trial["rescued"] = args.label
+            rescued.append(trial)
+    kept = sorted(kept + rescued, key=lambda r: r["id"])
+    keep_path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in kept), encoding="utf-8", newline="\n")
+    reject_path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in still), encoding="utf-8", newline="\n")
+    out = OUT_DIR / f"{args.name}.rescued_{args.label}.review.csv"
+    with out.open("w", encoding="utf-8-sig", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["id", "business", "style", "scenario", "flags", "conversation", "verdict (ok / fix / bad)", "note"])
+        for r in rescued:
+            w.writerow([r["id"], r["meta"]["business_id"], "/".join(r["meta"]["style"].values()), r["scenario"],
+                        "; ".join(sorted(f"{x} repaired" for x in r.get("repairs", [])) + r.get("flags", [])), render(r), "", ""])
+    print(f"rescued {len(rescued)}: {[r['id'] for r in rescued]}; wrote {out}")
 
 
 def cmd_import_review(args) -> None:
@@ -1695,7 +1842,8 @@ def cmd_sheet(args) -> None:
             w.writerow([r["id"], r["meta"]["business_id"], "/".join(r["meta"]["style"].values()), r["scenario"],
                         "; ".join((["emoji repaired"] if "emoji" in r.get("repairs", []) else [])
                                   + (["closing repaired"] if "closing" in r.get("repairs", []) else [])
-                                  + (["time-word repaired"] if "prayer word" in r.get("repairs", []) else []) + r.get("flags", [])),
+                                  + (["time-word repaired"] if "prayer word" in r.get("repairs", []) else [])
+                                  + (["courtesy repaired"] if "courtesy" in r.get("repairs", []) else []) + r.get("flags", [])),
                         render(r), "", ""])
     print(f"wrote {out} ({len(recs)} conversations)")
 
@@ -1728,10 +1876,15 @@ if __name__ == "__main__":
     rp = sub.add_parser("repair-prayer-words")
     rp.add_argument("name")
     rp.add_argument("csv_path")
+    rs = sub.add_parser("rescue")
+    rs.add_argument("name")
+    rs.add_argument("--label", required=True, help="e.g. v16: names the review sheet of the rescued rows")
+    rs.add_argument("--skip", nargs="*", default=[], help="ids the founder kept rejected")
     rl = sub.add_parser("repair-lists")
     rl.add_argument("name")
     rl.add_argument("--batch", type=int, help="only this batch of a batched run")
     a = ap.parse_args()
     {"generate": cmd_generate, "sheet": cmd_sheet, "recheck": cmd_recheck, "import-review": cmd_import_review,
      "repair-emojis": cmd_repair_emojis, "repair-lists": cmd_repair_lists,
-     "repair-closings": cmd_repair_closings, "repair-prayer-words": cmd_repair_prayer_words}[a.cmd](a)
+     "repair-closings": cmd_repair_closings, "repair-prayer-words": cmd_repair_prayer_words,
+     "rescue": cmd_rescue}[a.cmd](a)

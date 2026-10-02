@@ -7,6 +7,7 @@ Run: uv run python scripts/test_datagen.py
 
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from build_testset import trigrams
@@ -543,6 +544,35 @@ expect("«بكرة بعد 3 ونص المسا» from after 15:42 passes (the pra
        record([{"role": "user", "content": "ابي بكرة بعد العصر"}] + AFTER + [reply("المتاح بكرة الجمعة بعد 3 ونص المسا: 4 ونص المسا أو 6 المسا")]), True)
 expect("«بعد 4 المسا» (not the after time) still fails",
        record([{"role": "user", "content": "ابي بكرة بعد العصر"}] + AFTER + [reply("المتاح بكرة الجمعة بعد 4 المسا: 4 ونص المسا")]), False, reason="not")
+# ---- decisions_v16 (batch 10 review) ----
+expect("formal «إلى 1 الليل» (after midnight) passes (gen-00933)",
+       record([USER] + SLOTS + [reply("حياك الله، دوامنا إلى 1 الليل، وفيه 4 ونص المساء")], "formal"), True, BUSINESSES["train_cafe_2"])
+expect("formal «11 الليل» still fails (say «11 المساء»)",
+       record([USER] + SLOTS + [reply("حياك الله، دوامنا إلى 11 الليل")], "formal"), False, reason="casual time words")
+PM5 = tool("get_available_slots", {"service_id": "cleaning", "date": "2026-11-06"}, {"date": "2026-11-06", "slots": ["17:00"]})
+expect("the customer's «٥ الفجر» answered «ما ينفع 5 الصباح» passes (gen-00796 repair)",
+       record([{"role": "user", "content": "ابي بكرة ٥ الفجر"}] + PM5 + [reply("ما ينفع 5 الصباح، فيه بكرة 5 المسا")]), True)
+expect("the customer's «ست الصباح» in words answered «ما عندنا 6 الصباح» passes (batch 11 gen-01010)",
+       record([{"role": "user", "content": "ابي بدري مثلا ست الصباح"}] + SLOTS + [reply("ما عندنا 6 الصباح، فيه 4 ونص المسا")]), True)
+from datagen import closed_day_dates_ok, repair_courtesy  # noqa: E402
+CAR2 = BUSINESSES["train_car_service_2"]  # closed on Fridays; NOW is Thursday 5 Nov, so 6 Nov is a Friday
+NOW_DT = datetime.fromisoformat(NOW)
+WRONG = ["dates [(6, 11)] match no real date in the conversation"]
+for name, ok in [
+        ("a closed day's date said to be closed is fine (decisions_v16)",
+         closed_day_dates_ok(WRONG, "بكرة الجمعة 6 نوفمبر، وإحنا الجمعة مغلقين.", CAR2, NOW_DT) == []),
+        ("a closed day's date offered as open still fails", closed_day_dates_ok(WRONG, "بكرة الجمعة 6 نوفمبر فيه 4 المسا.", CAR2, NOW_DT) == WRONG),
+        ("an open day's date with «مغلقين» still fails",
+         closed_day_dates_ok(WRONG, "بكرة 6 نوفمبر، وإحنا مغلقين.", BUSINESSES["train_cafe_2"], NOW_DT) == WRONG),
+        ("courtesy repair: «العفو، الله يعافيك.» → «الله يعافيك.»", repair_courtesy("العفو، الله يعافيك.") == "الله يعافيك."),
+        ("courtesy repair: «الله يعافيك، العفو 🌸» → «الله يعافيك 🌸»", repair_courtesy("الله يعافيك، العفو 🌸") == "الله يعافيك 🌸"),
+        ("courtesy repair leaves «العفو يا مشاري، الله يعافيك» alone",
+         repair_courtesy("العفو يا مشاري، الله يعافيك 🌹") == "العفو يا مشاري، الله يعافيك 🌹"),
+        ("courtesy repair leaves «العفو» without «الله يعافيك» alone", repair_courtesy("العفو، هذا واجبنا") == "العفو، هذا واجبنا"),
+        ("teacher: «الله يعافيك» alone, no «العفو», even with thanks", "even when the customer also thanked you" in teacher_rules("casual", GYM, "هلا")),
+        ("teacher: «الاثنين» is not «both»", "«الاثنين» to mean \"both\"" in teacher_rules("casual", GYM, "هلا"))]:
+    failures += not ok
+    print(f"{'ok  ' if ok else 'FAIL'} {name}")
 from datagen import spoken_clock  # noqa: E402
 for minutes, formal, want in [(15 * 60 + 30, False, "3 ونص المسا"), (15 * 60, True, "3 المساء"), (12 * 60, False, "12 المسا")]:
     ok = spoken_clock(minutes, formal) == want
