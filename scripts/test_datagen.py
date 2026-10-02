@@ -42,7 +42,7 @@ def expect(name: str, rec: dict, ok: bool, business: dict = CLINIC, reason: str 
     print(f"{'ok  ' if good else 'FAIL'} {name:62s} {'passes' if not problems else problems[0][:70]}")
 
 
-USER = {"role": "user", "content": "ابي احجز تنظيف بكرة"}
+USER = {"role": "user", "content": "ابي احجز تنظيف"}  # names no day: the test clinic is closed on the Friday «بكرة» would be
 SLOTS = tool("get_available_slots", {"service_id": "cleaning", "date": "2026-11-06"},
              {"date": "2026-11-06", "slots": ["16:30", "18:00"]})
 
@@ -85,7 +85,7 @@ expect("«عال العال» fails", record([USER, reply("كله عال الع�
 # 1f: feminine forms need evidence
 expect("«أبشري» with no sign of a woman fails", record([USER, reply("أبشري")]), False, reason="feminine")
 expect("«أبشري» after a female name passes", record([{"role": "user", "content": "باسم نورة"}, reply("أبشري")]), True)
-expect("«أبشري» after «انا فاضية» passes", record([{"role": "user", "content": "انا فاضية بكرة"}, reply("أبشري")]), True)
+expect("«أبشري» after «انا فاضية» passes", record([{"role": "user", "content": "انا فاضية الأحد"}, reply("أبشري")]), True)
 expect("«أبشري» at a women-only business passes", record([USER, reply("أبشري")]), True, business=SALON)
 expect("«تبين» after «انا وربيعاتي ٤ بنات» passes (pilot gen-00049)",
        record([{"role": "user", "content": "انا وربيعاتي ٤ بنات"}, reply("تبين أحجز لك؟")]), True)
@@ -123,7 +123,7 @@ for name, ok in [("training tools add an optional address", "address" in booking
     print(f"{'ok  ' if ok else 'FAIL'} {name}")
 # customer lines
 expect("customer half-English «…and book» fails", record([{"role": "user", "content": "بستنى الموعد يناسبني and book"}, reply("تمام")]), False, reason="English")
-expect("customer single English word passes", record([{"role": "user", "content": "ابي booking بكرة"}, reply("تمام")]), True)
+expect("customer single English word passes", record([{"role": "user", "content": "ابي booking الأحد"}, reply("تمام")]), True)
 expect("an English customer line fails (no English in the data)", record([{"role": "user", "content": "book a table please"}, reply("تمام")]), False, reason="English phrase")
 # leakage: greetings are exempt, real copied lines are not
 TEST_GRAMS = [trigrams("السلام عليكم ورحمة الله"), trigrams("ابي احجز قص شعر للولد بكرة بعد العصر")]
@@ -452,7 +452,7 @@ expect("«ما نقدر نحجز قبل 7 الصباح، هذا وقت فتحن�
 # ---- decisions_v11 (batch 05 review) ----
 expect("a customer word mixing scripts «تسلمonmفضلين» fails (batch 05 gen-00476)",
        record([USER, reply("تم"), {"role": "user", "content": "تسلمonmفضلين"}, reply("الله يعافيك")]), False, reason="Latin letters inside")
-expect("«ابي booking بكرة» (separate words) still passes", record([{"role": "user", "content": "ابي booking بكرة"}, reply("تمام")]), True)
+expect("«ابي booking الأحد» (separate words) still passes", record([{"role": "user", "content": "ابي booking الأحد"}, reply("تمام")]), True)
 for name, ok in [("teacher rule 39: give the real date before moving with a relative day", "حجزك أصلاً الثلاثاء 26" in teacher_rules("casual", GYM, "هلا")),
                  ("teacher rule: Thursday before a closed Friday is still offered", "Thursday" in teacher_rules("casual", GYM, "هلا"))]:
     failures += not ok
@@ -538,12 +538,13 @@ expect("«ما نفتح الفجر» fails", record([USER] + SLOTS + [reply("م�
 expect("«8 العشاء» (a time) fails", record([USER] + SLOTS + [reply("فيه 8 العشاء")]), False, reason="prayer time")
 expect("«العشاء» as dinner passes", record([USER] + SLOTS + [reply("العشاء عندنا من المنيو كامل، وفيه 4 ونص المسا")]), True)
 expect("the service «الحمام المغربي» passes", record([USER] + SLOTS + [reply("الحمام المغربي متاح 4 ونص المسا")]), True)
+CAFE2 = BUSINESSES["train_cafe_2"]  # open every day, so «بكرة» (a Friday here) is an open day
 AFTER = tool("get_available_slots", {"service_id": "cleaning", "date": "2026-11-06", "after": "15:42"},
              {"date": "2026-11-06", "slots": ["16:30", "18:00"]})
 expect("«بكرة بعد 3 ونص المسا» from after 15:42 passes (the prayer-word repair)",
-       record([{"role": "user", "content": "ابي بكرة بعد العصر"}] + AFTER + [reply("المتاح بكرة الجمعة بعد 3 ونص المسا: 4 ونص المسا أو 6 المسا")]), True)
+       record([{"role": "user", "content": "ابي بكرة بعد العصر"}] + AFTER + [reply("المتاح بكرة الجمعة بعد 3 ونص المسا: 4 ونص المسا أو 6 المسا")]), True, CAFE2)
 expect("«بعد 4 المسا» (not the after time) still fails",
-       record([{"role": "user", "content": "ابي بكرة بعد العصر"}] + AFTER + [reply("المتاح بكرة الجمعة بعد 4 المسا: 4 ونص المسا")]), False, reason="not")
+       record([{"role": "user", "content": "ابي بكرة بعد العصر"}] + AFTER + [reply("المتاح بكرة الجمعة بعد 4 المسا: 4 ونص المسا")]), False, CAFE2, reason="not from a tool")
 # ---- decisions_v16 (batch 10 review) ----
 expect("formal «إلى 1 الليل» (after midnight) passes (gen-00933)",
        record([USER] + SLOTS + [reply("حياك الله، دوامنا إلى 1 الليل، وفيه 4 ونص المساء")], "formal"), True, BUSINESSES["train_cafe_2"])
@@ -551,7 +552,7 @@ expect("formal «11 الليل» still fails (say «11 المساء»)",
        record([USER] + SLOTS + [reply("حياك الله، دوامنا إلى 11 الليل")], "formal"), False, reason="casual time words")
 PM5 = tool("get_available_slots", {"service_id": "cleaning", "date": "2026-11-06"}, {"date": "2026-11-06", "slots": ["17:00"]})
 expect("the customer's «٥ الفجر» answered «ما ينفع 5 الصباح» passes (gen-00796 repair)",
-       record([{"role": "user", "content": "ابي بكرة ٥ الفجر"}] + PM5 + [reply("ما ينفع 5 الصباح، فيه بكرة 5 المسا")]), True)
+       record([{"role": "user", "content": "ابي بكرة ٥ الفجر"}] + PM5 + [reply("ما ينفع 5 الصباح، فيه بكرة 5 المسا")]), True, CAFE2)
 expect("the customer's «ست الصباح» in words answered «ما عندنا 6 الصباح» passes (batch 11 gen-01010)",
        record([{"role": "user", "content": "ابي بدري مثلا ست الصباح"}] + SLOTS + [reply("ما عندنا 6 الصباح، فيه 4 ونص المسا")]), True)
 from datagen import closed_day_dates_ok, repair_courtesy  # noqa: E402
@@ -573,6 +574,37 @@ for name, ok in [
         ("teacher: «الاثنين» is not «both»", "«الاثنين» to mean \"both\"" in teacher_rules("casual", GYM, "هلا"))]:
     failures += not ok
     print(f"{'ok  ' if ok else 'FAIL'} {name}")
+# ---- decisions_v17 (batch 11 review) ----
+SEVEN_AM = tool("get_available_slots", {"service_id": "outdoor", "date": "2026-11-06"},
+                {"date": "2026-11-06", "slots": ["07:00", "07:30", "08:30", "10:00", "11:30", "14:00"]})
+expect("«ما فيه موعد 7 الليل بكرة» echoing the customer's «٧ بالليل» fails (rescued gen-00190)",
+       record([{"role": "user", "content": "ابي احجز جلسة خارجية بكرة الساعة ٧ بالليل"}] + SEVEN_AM
+              + [reply("للأسف ما فيه موعد 7 الليل بكرة، المتاح بكرة: 7 الصبح، و8 ونص الصبح")]), False, reason="does not fit")
+for hour, slot in [(4, "16:00"), (5, "05:00"), (6, "18:00"), (7, "19:00")]:
+    expect(f"«{hour} الليل» fails whatever the slot list holds ({slot})",
+           record([USER, *tool("get_available_slots", {"service_id": "x", "date": "2026-11-06"}, {"date": "2026-11-06", "slots": [slot]}),
+                   reply(f"فيه بكرة {hour} الليل")]), False, reason="does not fit")
+expect("the customer's «8 المساء» echoed while a tool lists 08:00 still passes",
+       record([{"role": "user", "content": "ابي 8 المساء"}, *tool("get_available_slots", {"service_id": "x", "date": "2026-11-06"},
+                                                                 {"date": "2026-11-06", "slots": ["08:00", "16:30"]}),
+               reply("ما فيه 8 المساء، فيه 4 ونص المسا")]), True)
+FRIDAY_ASK = {"role": "user", "content": "ابي احجز تغيير زيت بكرة"}  # NOW is Thursday; CAR2 is closed on Fridays
+expect("a closed day answered with other days, not saying it is closed, fails (rule 47, gen-01059)",
+       record([FRIDAY_ASK, reply("أقرب يوم متاح عندنا السبت، تبغى أشوف لك المواعيد؟")]), False, CAR2, reason="rule 47")
+expect("«بكرة الجمعة إجازة عندنا» then another day passes",
+       record([FRIDAY_ASK, reply("بكرة الجمعة إجازة عندنا، تبغى أشوف لك السبت؟")]), True, CAR2)
+expect("«عندي موعد بكرة» (an existing booking) is not a request for the closed day (gen-01015)",
+       record([{"role": "user", "content": "عندي موعد بكرة وابي اتاكد"}, reply("ما لقيت لك موعد مسجل، عطني اسمك الكريم")]), True, CAR2)
+expect("«كيف الجو عندكم بكرة؟» on a closed day is small talk, not a request (batch 12 gen-01175)",
+       record([{"role": "user", "content": "كيف الجو عندكم بكرة؟"}, reply("الجو ما عندي علم فيه، حنا بالخدمة")]), True, CAR2)
+ONE_BOOKING = tool("get_my_bookings", {}, {"bookings": [{"booking_id": "B-1", "service": "حصة", "service_id": "x",
+                                                         "date": "2026-11-11", "time": "12:00"}]})
+for text, ok in [("حجزك أصلاً الأربعاء 11 نوفمبر، تبغى نأخره للاثنين 9 نوفمبر؟", False),   # gen-00830
+                 ("حجزك أصلاً الأربعاء 11 نوفمبر، تبغى نقدمه للاثنين 9 نوفمبر؟", True),
+                 ("حجزك أصلاً الأربعاء 11 نوفمبر، تبغى نأخره للجمعة 13 نوفمبر؟", True),
+                 ("حجزك أصلاً الأربعاء 11 نوفمبر، تبغى نقدمه للجمعة 13 نوفمبر؟", False),
+                 ("حجزك الأربعاء 11 نوفمبر، ولا تتأخر علينا", True)]:
+    expect(f"move wording: «{text[-28:]}»", record([USER] + ONE_BOOKING + [reply(text)]), ok, reason=None if ok else "say «")
 from datagen import spoken_clock  # noqa: E402
 for minutes, formal, want in [(15 * 60 + 30, False, "3 ونص المسا"), (15 * 60, True, "3 المساء"), (12 * 60, False, "12 المسا")]:
     ok = spoken_clock(minutes, formal) == want

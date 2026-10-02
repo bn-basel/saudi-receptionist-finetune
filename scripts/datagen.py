@@ -68,7 +68,7 @@ TEACHER_RULES = """Writing rules for every reply (decided by a native Saudi revi
 - When the customer moves a booking with a relative day («من بكرة لبعد بكرة», «من اليوم لبكرة») but the booking is on another day, do not pick a date: give the booking's real date and ask what they want («حجزك أصلاً الثلاثاء 26، تبغى تأخره يوم؟»). Name a new date only after get_available_slots returned it, together with its times. If the customer then names a day wrongly, clarify before booking.
 - Answer from the business facts when you can: at a home-visit business, «أقدر أجيب عيالي؟» is answered that the team comes to the customer's home, no handoff. Weather or sports small talk: «ما عندي علم» and move on; never invent it, never hand it off.
 - A day right before a closed day is still a normal day: offer Thursday's slots even when Friday is closed.
-- When the customer asks for a closed day, offer the nearest open day first, on either side (Friday closed → Thursday or Saturday, not Sunday), even if you already checked it; a later day can be a second choice.
+- When the customer asks for a closed day, first say that day is closed («الجمعة إجازة عندنا»), then offer the nearest open day, on either side (Friday closed → Thursday or Saturday, not Sunday), even if you already checked it; a later day can be a second choice. Never offer other days without saying why.
 - Confirming a cancellation: prefer «عندك موعد [التفاصيل]، تبيني ألغيه لك؟»; «أكد لي، تبغى تلغيه؟» is also fine, so vary them. Moving a booking earlier is «نقدمه», later is «نأخره».
 - Say times the spoken way («3 ونص المساء»), never on a 24-hour clock («15:30»).
 - When the customer names a day for an existing booking, compare it with the booking's date from get_my_bookings. If it differs, say so first («حجزك أصلاً يوم …») before changing anything.
@@ -817,9 +817,12 @@ def time_word_problems(text: str, known24: dict, hours24: dict, by_customer: fro
         kind = TIME_KIND[word]
         if kind not in TIME_WINDOWS:  # «الظهر / العصر»: PRAYER_WORD rejects them anywhere (rule 11, strict)
             continue
-        if (clock12(h, m), kind) in by_customer:
-            continue
         cands = {h * 60 + m} if h > 12 else lookup.get(clock12(h, m)) or {h % 12 * 60 + m, (h % 12 + 12) * 60 + m}
+        # the customer's own time («8 المساء» while a tool lists 08:00) is read the customer's way, but the word
+        # must still fit one reading of the hour: «7 الليل» (07:00 or 19:00) never does (decisions_v17,
+        # rescued gen-00190 echoed the customer's «٧ بالليل»)
+        if (clock12(h, m), kind) in by_customer:
+            cands = {h * 60 + m} if h > 12 else {h % 12 * 60 + m, (h % 12 + 12) * 60 + m}
         start, end = TIME_WINDOWS[kind]
 
         def fits(before: int) -> bool:
@@ -1158,6 +1161,7 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
         if "الله يعينك" in text and HURRY.search(last_user):
             problems.append("«الله يعينك» as a reply to a request to hurry")
         first_reply = False
+    problems += unsaid_closed_days(msgs, today, business) + move_direction_problems(msgs, today)
     return list(dict.fromkeys(problems + address_problems(rec, business))), list(dict.fromkeys(flags))
 
 
@@ -1234,7 +1238,92 @@ def leak_score(line: str, test_grams: list) -> float:
     return max((jaccard(g, t) for t in test_grams), default=0.0)
 
 
-CLOSED_WORDS = re.compile(r"مغلق|مسكر|مقفل|سكرين|قفلين|إجازة|اجازة|إجازتنا|ما نفتح|مو فاتحين|ما نشتغل")
+CLOSED_WORDS = re.compile(r"مغلق|مسكر|مقفل|مقفول|سكرين|قفلين|[إا]جاز[ةه]|إجازتنا|اجازتنا|عطل[ةه]|ما نفتح|مو فاتحين"
+                          r"|ما نشتغل|ما عندنا دوام|ما فيه دوام")
+
+
+def plain_ar(text: str) -> str:
+    return re.sub(r"[ً-ْ]", "", text)  # without harakat and shadda («مقفّلين» → «مقفلين»)
+
+
+def named_days(text: str, today: date) -> list[date]:
+    """The dates a customer line names: «اليوم / بكرة / بعد بكرة» and weekday names (the next such day)."""
+    t = plain_ar(text)
+    out = [today + timedelta(days=RELATIVE[m.group(1)]) for m in re.finditer(rf"(?<![{AR}])[وبل]?({_REL})(?![{AR}])", t)]
+    for m in re.finditer(rf"(?<![{AR}])[وبل]?({_DAY})(?![{AR}])", t):
+        out.append(today + timedelta(days=(WEEKDAY[m.group(1)] - today.weekday()) % 7))
+    return out
+
+
+EXISTING_BOOKING = re.compile(r"عندي (?:موعد|حجز)|موعدي|حجزي|موعدنا|حجزنا")
+# rule 47 is about asking for that day: to book, or whether it is open («كيف الجو عندكم اليوم؟» on a closed Friday
+# is small talk, batch 12 gen-01175)
+BOOK_INTENT = re.compile(r"احجز|حجز|موعد|متاح|فاضي|فاتحين|تفتحون|مفتوحين|دوام|اوقات|أوقات|وقت|ينفع|يمديكم|تجون")
+
+
+def unsaid_closed_days(msgs: list[dict], today: date, business: dict) -> list[str]:
+    """Rule 47 (decisions_v17): when the customer asks for a day the business is closed, the reply says it is
+    closed before offering other days (batch 11 gen-01059, batch 09 gen-00840). Once said, later replies need
+    not repeat it."""
+    said, out = False, []
+    for i, m in enumerate(msgs):
+        if m["role"] == "assistant" and m.get("content") and CLOSED_WORDS.search(plain_ar(m["content"])):
+            said = True
+        # a line about an existing booking («عندي موعد اليوم», «ابي احول موعدي من بكرة لبعد بكرة») is not a request
+        # for that day: rule 39 (check the booking's real date first) comes before rule 47 (gen-01015, gen-00885)
+        if m["role"] != "user" or said or EXISTING_BOOKING.search(m["content"]) or not BOOK_INTENT.search(m["content"]):
+            continue
+        closed = [d for d in named_days(m["content"], today) if open_hours(business, d) is None]
+        if not closed:
+            continue
+        reply = None
+        for x in msgs[i + 1:]:
+            if x["role"] == "user":
+                break
+            if x["role"] == "assistant" and x.get("content"):
+                reply = x["content"]
+                break
+        if reply is not None and not CLOSED_WORDS.search(plain_ar(reply)):
+            out.append(f"the customer asked for {WEEKDAYS_AR[closed[0].weekday()]} {closed[0]:%d/%m}, a closed day, "
+                       f"and the reply does not say it is closed (rule 47)")
+    return out
+
+
+# «نأخره للاثنين» / «نقدمه لبكرة»: the direction word followed by the day it moves to. «لا تتأخر» (be late) and
+# «نقدم لك» (we offer) have no «ل + day» after them
+MOVE = re.compile(rf"(?<![{AR}])(?P<verb>[نتأ]أخر|[نت]اخر|أأخر|[نتأ]قدم)(?:ه|ها|هم)?\s+(?:موعدك\s+|حجزك\s+)?(?:ل|لـ|إلى|الى)"
+                  rf"(?P<rest>[^.،؟!\n]*)")
+
+
+def move_direction_problems(msgs: list[dict], today: date) -> list[str]:
+    """«نأخر / تأخر» moves a booking later and «نقدم / تقدم» earlier (rule 41's wording; batch 11 rescued
+    gen-00830 and batch 06 gen-00588 said «نأخره» for an earlier day)."""
+    from scoring import dates_in
+    bookings: list[date] = []
+    out = []
+    for m in msgs:
+        if m["role"] == "tool" and m.get("name") == "get_my_bookings":
+            try:
+                bookings += [date.fromisoformat(b["date"]) for b in json.loads(m["content"]).get("bookings") or []]
+            except (ValueError, KeyError, TypeError):
+                pass
+        if m["role"] != "assistant" or not m.get("content") or not bookings:
+            continue
+        text = plain_ar(m["content"]).translate(AR_DIGITS)
+        for mv in MOVE.finditer(text):
+            rest = "ل" + mv.group("rest")
+            target = [d for d in (date(today.year + (1 if mo < today.month - 6 else 0), mo, dd)
+                                  for dd, mo in dates_in(rest) if 1 <= dd <= 31) if d] or named_days(rest, today)[:1]
+            mentioned = [b for b in bookings if (b.day, b.month) in dates_in(text)]
+            old = mentioned[0] if mentioned else (bookings[0] if len(set(bookings)) == 1 else None)
+            if not target or old is None or target[0] == old:
+                continue
+            later = "خر" in mv.group("verb")
+            if later and target[0] < old:
+                out.append(f"«{mv.group('verb')}» (later) moves {old:%d/%m} to the earlier {target[0]:%d/%m}: say «نقدمه»")
+            elif not later and target[0] > old:
+                out.append(f"«{mv.group('verb')}» (earlier) moves {old:%d/%m} to the later {target[0]:%d/%m}: say «نأخره»")
+    return out
 
 
 def closed_day_dates_ok(problems: list[str], text: str, business: dict, now: datetime) -> list[str]:
