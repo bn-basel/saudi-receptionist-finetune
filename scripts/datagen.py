@@ -76,7 +76,9 @@ TEACHER_RULES = """Writing rules for every reply (decided by a native Saudi revi
 - No health advice of any kind, not even "see a doctor". For any symptom, pain, reaction or feeling unwell: say «سلامتك» and call handoff_to_human in that same reply. No judgement on how serious it is, no filler («وأنت أولى بالطمأنينة»). Practical tips about the service itself are fine («جيب معك لبس رياضي»).
 - On any complaint, call handoff_to_human in the same reply that apologises; never write «بحولك للفريق» without the tool call.
 - Never «يعطيك العافية» or «الله يعطيك العافية» yourself. After a booking, end with «… إن شاء الله», «نشوفك على خير», or nothing.
-- Never «حبيبتي» / «حبيبي», and never plead («تكفى لا تتأخر»): state the policy instead («نحفظ لك الطاولة 15 دقيقة»).
+- Never address the customer with a pet name, an endearment or a compliment: only their name («تم يا سعد») or nothing («تم إلغاء موعدك» ends there). Never plead («تكفى لا تتأخر»): state the policy instead («نحفظ لك الطاولة 15 دقيقة»).
+- Never say a day or time is available («الخميس عندنا متاح», «6 الصبح متاح») before get_available_slots returned it for that day. Check first, then answer from the result.
+- Cancel only the booking the customer named or confirmed. If the customer repeats «إيه، الغيه» after the cancellation is done, it is not a new instruction: if nothing else is booked, say it is already cancelled; if another booking remains, ask «تقصد ألغي لك … بعد؟» and cancel nothing until they say so.
 - On today's date, never offer or book a time that has already passed ("Now" is the current time), even if the tool lists it.
 - Saudi wording, not Modern Standard Arabic: «حجزين», «موعدين», never «حجزان», «موعدان». «أكد لي، تبغى تلغيه؟», never «تأكد لي تبغى نلغيه». «الفريق بيتواصلون معك», never «بيواصلونك».
 - Write only the message to the customer: never your own reasoning, notes to yourself, or English sentences.
@@ -317,7 +319,8 @@ def customer_turn(teacher: OpenRouterModel, sc: dict, transcript: list[str]) -> 
               "Standard Arabic (say صديقاتي not ربيعاتي, ابي not ابا, وش not شنو). Never Arabic in Latin letters. "
               "Say plainly what you want, like a real customer, and react to what the receptionist "
               "said. To pick a time, start with «احجز لي» followed by one of the times offered, never «خذ». "
-              "To confirm a cancellation say «إيه، الغيه» (or «ألغه»). "
+              "To confirm a cancellation say «إيه، الغيه» (or «ألغه»), once: after the receptionist says it is "
+              "cancelled, never repeat it, just thank them or end. "
               "Ask only for services this business offers (a women's salon customer never asks for «تفصيل ثوب»). "
               "Name the service the way a customer would say it, not the catalogue name («تفصيل ثوب», not «تفصيل ثوب موعد مقاسات»). "
               "Only your FIRST message may greet: never start a later message with «وعليكم السلام» or return the "
@@ -477,7 +480,11 @@ EASTERN_DIGIT = re.compile("[٠-٩]")  # replies write numbers with 0-9 only (ba
 # decisions_v13: rule 42 (the receptionist never says «يعطيك العافية»), rule 44 (no «حبيبتي / حبيبي», no pleading
 # «تكفى»), a recurring typo, and medical words left for the reviewer (a customer may ask for a female doctor)
 OWN_YAATIK = re.compile(r"يعطيك العافي[ةه]")
-ENDEARMENT = re.compile(rf"(?<![{AR}])[وف]?(حبيبتي|حبيبي|تكفى|تكفين)(?![{AR}])")
+# decisions_v14 widened rule 44 to forms of address («يا طيب», «يا الغالية»; batch 08 gen-00728, gen-00778)
+ENDEARMENT = re.compile(rf"(?<![{AR}])[وف]?(حبيبتي|حبيبي|تكفى|تكفين|يا\s+(?:طيب|طيبة|الغالي|الغالية|غالي|غالية))(?![{AR}])")
+# rule 45: «الخميس عندنا متاح», «6 الصبح متاح» before any slot lookup (batch 08 gen-00754, gen-00775). Only the
+# claim «متاح»; the noun «المتاح» («أشوف لك المتاح») offers to look
+AVAILABLE_CLAIM = re.compile(rf"(?<![{AR}])(?:مو\s+|مب\s+)?متاح(?:ة|ين)?(?![{AR}])")
 TYPOS = ["إجانتنا", "اجانتنا"]
 MEDICAL_WORDS = re.compile(r"دكتور|طبيب|مختص")
 # rule 35: a business closing at midnight says «لين 12 الليل», not «12 المساء» (noon) (batch 04 gen-00344)
@@ -550,7 +557,10 @@ TEAM_CLAIM = re.compile(rf"{_SENT}[^،,.!؟\n]*{_TEAM}|{_TEAM}[^،,.!؟\n]*{_SEN
 _WILL_SEND = rf"(?<![{AR}])[وف]?(?:بحو?ّ?ل|أحو?ّ?ل|احو?ّ?ل|بنحو?ّ?ل|برفع|أرفع|ارفع|بنرفع|بوصل|بوصّل)[{AR}]*"
 # an offer («أقدر أحول طلبك للفريق», «تبيني أحوله؟») is not a promise
 _OFFER = r"(?<!أقدر )(?<!اقدر )(?<!تبيني )(?<!تبغاني )(?<!تبغيني )(?<!ودك )(?<!تبي )"
-HANDOFF_PROMISE = re.compile(rf"{_OFFER}{_WILL_SEND}[^،,.!؟\n]*{_TEAM}|{_OFFER}{_WILL_SEND}(?=\s*(?:لهم|للمسؤول))")
+# «بقول لهم إنك تبي تعويض» with no tool call (batch 08 gen-00723): telling the team is a handoff too
+_WILL_TELL = rf"(?<![{AR}])[وف]?(?:بقول|بأقول|بنقول|ببلغ|ببلّغ|بنبلغ|بخبر|بنخبر)"
+HANDOFF_PROMISE = re.compile(rf"{_OFFER}{_WILL_SEND}[^،,.!؟\n]*{_TEAM}|{_OFFER}{_WILL_SEND}(?=\s*(?:لهم|للمسؤول))"
+                             rf"|{_OFFER}{_WILL_TELL}(?:هم(?![{AR}])|(?=\s*(?:لهم|للمسؤول))|[^،,.!؟\n]*{_TEAM})")
 # rule 25: «لا تتأخرون علي» is not answered «الله يعينك»
 HURRY = re.compile(r"تتأخر|تتاخر|بسرعه|بسرعة|استعجل|مستعجل|ضروري|عاجل")
 PLACEHOLDER_NAMES = {"غير معروف", "غير محدد", "عميل", "العميل", "unknown", "customer", "n/a", "-", "؟", "?", ""}
@@ -753,10 +763,11 @@ def time_word_problems(text: str, known24: dict, hours24: dict, by_customer: fro
             continue
         said = f"«{h}{':%02d' % m if m else ''} {word}»"
         kind = TIME_KIND[word]
-        if (clock12(h, m), kind) in by_customer:
-            continue
+        # not even when echoing the customer's «5 العصر» (decisions_v14, batch 08 gen-00791)
         if kind not in TIME_WINDOWS:
             bad.append(f"{said}: «الظهر / العصر» are not time labels (say الصباح / المساء)")
+            continue
+        if (clock12(h, m), kind) in by_customer:
             continue
         cands = {h * 60 + m} if h > 12 else lookup.get(clock12(h, m)) or {h % 12 * 60 + m, (h % 12 + 12) * 60 + m}
         start, end = TIME_WINDOWS[kind]
@@ -786,6 +797,59 @@ def labelled_only(text: str, t: tuple[int, int], these: set[int], others: set[in
                 and fits(kind, these) and not fits(kind, others):
             return True
     return False
+
+
+# ... said of a time or a day. «الاثنين» is also "both" («الكاش ومدى، والاثنين متاحين», batch 09 gen-00890),
+# so it counts as Monday only after «يوم» or a relative day
+_DAYS_NOT_MONDAY = "|".join(d for d in sorted(WEEKDAY, key=len, reverse=True) if "ثنين" not in d)
+AVAILABLE_WHEN = re.compile(rf"\d|(?<![{AR}])[وبل]?(?:{_DAYS_NOT_MONDAY}|{_REL})(?![{AR}])"
+                            rf"|(?:يوم|{_REL})\s+(?:ال)?[اإ]?ثنين(?![{AR}])")
+CONFIRM = re.compile(rf"(?<![{AR}])(?:إيه|ايه|اي|إي|ايوه|إيوه|نعم|أكيد|اكيد|تمام|اوكي|أوكي|[أا]لغ[ِ]?يه|[أا]لغ[ِ]?ه)(?![{AR}])")
+ALL_OF_THEM = re.compile(r"كلهم|كلها|الاثنين|الثنين|الحجزين|الموعدين|الثنتين")
+GENERIC_SERVICE_WORDS = {"حصه", "جلسه", "موعد", "حجز"}
+
+
+def norm_word(w: str) -> str:
+    w = re.sub(r"[ً-ْ]", "", w).translate(str.maketrans("أإآة", "اااه"))
+    return w[2:] if w.startswith("ال") and len(w) > 4 else w
+
+
+def cancel_unnamed(msgs: list[dict], i: int, booking_id: str) -> bool:
+    """Rule 46: a cancel_booking (in message i) is fine only when the customer's last message names that
+    booking (its service, day or date, or «كلهم»), or confirms the receptionist's question about it, or
+    the customer only ever had that one booking. A repeated «إيه، الغيه» after a done cancellation
+    named nothing (batch 08 gen-00751 then cancelled the other booking)."""
+    bookings = {}
+    for m in msgs[:i]:
+        if m["role"] == "tool" and m.get("name") == "get_my_bookings":
+            try:
+                bookings.update({b["booking_id"]: b for b in json.loads(m["content"]).get("bookings") or []})
+            except (ValueError, KeyError, TypeError):
+                pass
+    b = bookings.get(booking_id)
+    users = [k for k in range(i) if msgs[k]["role"] == "user"]
+    # an id the tools never showed is the invented-id check's business; with one booking there is no wrong
+    # one to cancel (a reschedule done as cancel + create, after the customer gives a name, is fine)
+    if b is None or not users or len(bookings) == 1:
+        return False
+    last_user = msgs[users[-1]]["content"]
+    t = last_user.translate(AR_DIGITS)
+    words = {norm_word(w) for w in re.findall(rf"[{AR}]+", t)}
+    named = {norm_word(w) for w in re.findall(rf"[{AR}]+", b.get("service", ""))}
+    named = {w for w in named if len(w) >= 3} - GENERIC_SERVICE_WORDS
+    try:
+        d = date.fromisoformat(b["date"])
+        named |= {norm_word(WEEKDAYS_AR[d.weekday()])}
+        # its date or its hour («ألغِ الأول حق ٨ المساء», train_v1 gen-00358)
+        hour = int(str(b.get("time", "0:0")).split(":")[0])
+        day_said = bool({str(d.day), str(hour % 12 or 12)} & set(re.findall(r"\d+", t)))
+    except (KeyError, ValueError):
+        day_said = False
+    if booking_id in last_user or ALL_OF_THEM.search(last_user) or words & named or day_said:
+        return False
+    asked = next((msgs[k]["content"] for k in range(users[-1] - 1, -1, -1)
+                  if msgs[k]["role"] == "assistant" and msgs[k].get("content")), "")
+    return not (CONFIRM.search(last_user) and "؟" in asked)
 
 
 def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
@@ -871,6 +935,9 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
                 booked = True
             for tc in m.get("tool_calls") or []:
                 a = tc["function"]["arguments"]
+                if tc["function"]["name"] == "cancel_booking" and isinstance(a, dict) and \
+                        cancel_unnamed(msgs, i, str(a.get("booking_id", ""))):
+                    problems.append(f"cancels {a.get('booking_id')}, which the customer did not name or confirm (rule 46)")
                 if tc["function"]["name"] == "create_booking" and isinstance(a, dict) and \
                         str(a.get("customer_name", "")).strip().lower() in PLACEHOLDER_NAMES:
                     problems.append(f"create_booking with a placeholder name «{a.get('customer_name', '')}»")
@@ -964,6 +1031,12 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
             problems.append("the receptionist says «يعطيك العافية» (rule 42)")
         if ENDEARMENT.search(text):
             problems.append(f"«{ENDEARMENT.search(text).group(1)}» in a reply (rule 44)")
+        # rule 45: availability of a day or time claimed before any slot lookup
+        if not any(x["role"] == "tool" and x.get("name") == "get_available_slots" for x in msgs[:i]):
+            claim45 = next((s for s in re.split(r"[.!؟\n]", text.translate(AR_DIGITS)) if AVAILABLE_CLAIM.search(s)
+                            and AVAILABLE_WHEN.search(s)), None)
+            if claim45:
+                problems.append(f"says «{AVAILABLE_CLAIM.search(claim45).group(0)}» before any slot lookup (rule 45)")
         problems += [f"typo «{w}»" for w in TYPOS if w in text]
         if MEDICAL_WORDS.search(text):
             flags.append(f"medical word «{MEDICAL_WORDS.search(text).group(0)}» (rule 43: check it is not advice)")

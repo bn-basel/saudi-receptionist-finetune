@@ -60,3 +60,5 @@ Short, plain definitions. Added to as each step introduces new terms.
 | **Selection bias** | Choosing among many options by their test scores picks the one that got lucky, so its score overstates its real skill. |
 | **Learning curve** | Score plotted against the amount of training or data; shows where more stops helping. |
 | **Epoch / pass** | One time through all the training examples. |
+| **Back-test (of a check)** | Running a new automatic check over data people already reviewed before trusting it: it should catch the rows they rejected and leave the rows they passed alone. |
+| **Regression test** | A test written from a bug that was found, so the same mistake is caught automatically if it ever comes back. |

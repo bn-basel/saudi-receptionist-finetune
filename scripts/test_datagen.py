@@ -492,6 +492,53 @@ for name, ok in [("teacher rule 43: «سلامتك» and hand off at once", "«�
                  ("teacher rule 39 (A): name a new date only after get_available_slots", "Name a new date only after get_available_slots" in teacher_rules("casual", GYM, "هلا"))]:
     failures += not ok
     print(f"{'ok  ' if ok else 'FAIL'} {name}")
+# ---- decisions_v14 (batch 08 review) ----
+expect("«يا الغالية» fails (rule 44 widened, gen-00728)", record([USER, reply("تم إلغاء موعدك يا الغالية")]), False, SALON, reason="rule 44")
+expect("«يا طيب» fails (gen-00778)", record([USER, reply("بأي وقت يا طيب")]), False, reason="rule 44")
+expect("the name instead passes", record([USER, reply("تم يا سعد")]), True)
+expect("«الخميس عندنا متاح» before any lookup fails (rule 45, gen-00775)",
+       record([USER, reply("الخميس عندنا متاح إن شاء الله، كم عددكم؟")]), False, reason="rule 45")
+expect("«6 الصبح متاح» before any lookup fails (gen-00754)", record([USER, reply("طيب، 6 الصبح متاح. أي يوم تبغاه؟")]), False, reason="rule 45")
+expect("«4 ونص المسا متاح» after the lookup passes", record([USER] + SLOTS + [reply("تمام، 4 ونص المسا متاح، عطني اسمك الكريم")]), True)
+expect("«أشوف لك المتاح» (an offer to look) passes", record([USER, reply("عطني اليوم اللي تبغاه وأشوف لك المتاح من 4 المسا")]), True)
+expect("«والاثنين متاحين» (both payment methods) passes (batch 09 gen-00890)",
+       record([USER, reply("نقبل الكاش ومدى، والاثنين متاحين عندنا.")]), True)
+expect("«يوم الاثنين متاح» before any lookup fails", record([USER, reply("يوم الاثنين متاح عندنا")]), False, reason="rule 45")
+TWO = tool("get_my_bookings", {}, {"bookings": [
+    {"booking_id": "B-1", "service": "حصة إنجليزي", "service_id": "en", "date": "2026-11-08", "time": "17:00"},
+    {"booking_id": "B-2", "service": "اختبار تحديد مستوى", "service_id": "lv", "date": "2026-11-10", "time": "16:00"}]})
+
+
+def cancel(bid: str, n: int = 2) -> list[dict]:
+    return tool("cancel_booking", {"booking_id": bid}, {"booking_id": bid, "status": "cancelled"}, n)
+
+
+ASK = reply("عندك حجزين: حصة إنجليزي الأحد 8 نوفمبر، 5 المسا، واختبار تحديد مستوى الثلاثاء 10 نوفمبر، 4 المسا. أيهم تبغى تلغيه؟")
+expect("cancelling the booking the customer named passes",
+       record([USER] + TWO + [ASK, {"role": "user", "content": "ألغي حصة الإنجليزي"}] + cancel("B-1") + [reply("تم الإلغاء")]), True)
+expect("cancelling by its hour passes («حق ٤ المسا»)",
+       record([USER] + TWO + [ASK, {"role": "user", "content": "الغي حق ٤ المسا"}] + cancel("B-2") + [reply("تم الإلغاء")]), True)
+expect("a repeated «إيه، الغيه» that cancels the other booking fails (rule 46, gen-00751)",
+       record([USER] + TWO + [ASK, {"role": "user", "content": "ألغي حصة الإنجليزي"}] + cancel("B-1") +
+              [reply("تم إلغاء حصة الإنجليزي. باقي عندك اختبار تحديد مستوى الثلاثاء 10 نوفمبر."),
+               {"role": "user", "content": "إيه، الغيه"}] + cancel("B-2", 3) + [reply("تم الإلغاء")]), False, reason="rule 46")
+expect("«إيه، الغيه» answering «تقصد ألغي لك الاختبار بعد؟» passes",
+       record([USER] + TWO + [reply("تقصد ألغي لك اختبار تحديد مستوى بعد؟"), {"role": "user", "content": "إيه، الغيه"}]
+              + cancel("B-2") + [reply("تم الإلغاء")]), True)
+expect("echoing the customer's «5 العصر» still fails (gen-00791)",
+       record([{"role": "user", "content": "ابي 5 العصر"}] + SLOTS + [reply("ما فيه 5 العصر، فيه 4 ونص المسا")]), False, reason="not time labels")
+expect("«بعد العصر» as a period passes", record([{"role": "user", "content": "ابي بعد العصر"}] + SLOTS + [reply("بعد العصر فيه 4 ونص المسا")]), True)
+expect("«بقول لهم» with no handoff call fails (gen-00723)", record([USER, reply("أبشر، بقول لهم إنك تبي تعويض")]), False, reason="without calling handoff")
+expect("«بقولهم» with no handoff call fails", record([USER, reply("أبشر، بقولهم")]), False, reason="without calling handoff")
+expect("«بقول لهم» in the turn that calls handoff passes", record([USER] + H + [reply("أبشر، بقول لهم إنك تبي تعويض")]), True)
+expect("«بقول لك» (to the customer) passes", record([USER] + SLOTS + [reply("بقول لك المتاح: 4 ونص المسا أو 6 المسا")]), True)
+# the banned words are not quoted to the teacher: quoting them seemed to prime it (batch 09: 3 × «يا طيب»)
+for name, ok in [("teacher rule 44 describes, without quoting, «يا طيب»", "pet name" in teacher_rules("casual", GYM, "هلا")
+                  and "يا طيب" not in teacher_rules("casual", GYM, "هلا")),
+                 ("teacher rule 45: check before saying available", "before get_available_slots returned it" in teacher_rules("casual", GYM, "هلا")),
+                 ("teacher rule 46: a repeated «إيه، الغيه» is not a new instruction", "تقصد ألغي لك" in teacher_rules("casual", GYM, "هلا"))]:
+    failures += not ok
+    print(f"{'ok  ' if ok else 'FAIL'} {name}")
 # rule 34: the list repair puts 3+ options one per line and changes nothing else
 from datagen import repair_lists  # noqa: E402
 for before, after in [
