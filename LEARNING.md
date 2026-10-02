@@ -129,3 +129,20 @@ One entry per step: the concept in one paragraph, what we did, and what I learne
 - Checks tuned on the reviewed pilots look better on those pilots than they will on new data. The honest test is the next batch: how many of the reviewer's rejections the checks did not catch.
 - When a rule is hard for people to state precisely, it is hard for a model too. Time-of-day words tied to prayer times kept producing edge cases, so the rule became a simple clock rule (morning before 12:00, evening after).
 
+
+## Step 7 — First fine-tuning run (QLoRA on the reviewed data)
+
+**Concept.** QLoRA keeps Gemma's 12 billion weights frozen in 4-bit and trains small add-on matrices (LoRA adapters) beside them; a checkpoint is just those add-ons (~400 MB). Each training example is a whole conversation rendered exactly as the benchmark renders it (short prompt, tools, Gemma's own chat template), but the model is only graded on what the receptionist writes: its replies, its tool calls and the two tokens that end its turn. The customer's lines and the tool results are masked out, so the model learns to act, not to predict customers. Checkpoints are saved along the way and compared on the **dev** set (40 cases, used for choices); the chosen one is measured once on the **test** set (160 cases, never used for choices).
+
+**What we did.**
+- Wrote [scripts/train.py](scripts/train.py): 348 "gold" conversations (reviewed ok and passing today's checks; 331 train, 17 held back), max 1,536 tokens, LoRA rank 16 on all linear layers, learning rate 2e-4, 4 passes, a checkpoint every 15 steps. Checked the loss mask by printing one example with the trained parts in brackets.
+- The first smoke test ran at 228 s per step: `prepare_model_for_kbit_training` turns the non-4-bit weights, including Gemma's 262k-token embedding table, into float32, which pushed the GPU to 17.2 GB on a 16 GB card and Windows spilled into system memory. Keeping them in bf16 gave 12.9 GB and ~1.8 s per conversation. The full run took 33 minutes.
+- Added adapter loading to the benchmark (`hf:<model>@<adapter folder>`) and scored all 12 checkpoints on dev: 75% after less than half a pass, then a plateau around 80–90% from about two passes on (untuned: 37.5%). Fixed the tie-break rule before touching the test set (best dev score, then lowest held-back error) → checkpoint 150.
+- Test set, run once: **143/160 = 89.4%** (95% CI 84–93%), against 40.6% untuned and 87.5–94.4% for the API models.
+
+**What I learned.**
+- The first thing fine-tuning taught was the tool-calling habit, not the dialect: after less than half a pass the dev score had doubled, and prices and bookings went from 0 to almost all correct. Prompting could not do this in Stage 5.
+- Choose on dev, measure once on test, and write the selection rule down before looking. Trying several candidates on test and keeping the best is the lottery ticket again.
+- With 40 cases, three cases is noise: checkpoints that tie at 36/40 fail on different cases. The shape of a curve is trustworthy; single differences are not.
+- The model learns the data's habits, good and bad. It hands off every unknown question (12/12, where DeepSeek gets 4/12), but on complaints it apologises and says it will pass it on without calling the tool, because many training complaints did that. Better data on that one behaviour fixes it; more of the same data would not.
+- Fine-tuning narrows as well as teaches: with a tool it never saw in training (`reschedule_booking`), the tuned model fell back on the procedure it was trained on (check slots first) and scored lower than before (9 → 7 of 10).

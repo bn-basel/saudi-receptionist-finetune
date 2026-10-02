@@ -54,3 +54,9 @@ Short, plain definitions. Added to as each step introduces new terms.
 | **False positive / false negative** | A check that rejects something good / lets something bad through. Both have to be measured. |
 | **Pilot** | A small trial run (here 50 conversations) to find problems cheaply before scaling up. |
 | **Yield** | The share of generated examples that end up usable after checks and review. |
+| **Checkpoint** | A snapshot of the trained adapter saved during training, so different amounts of training can be compared afterwards. |
+| **Loss mask** | Marking which tokens the model is graded on during training. Here only the receptionist's own words and tool calls; the customer and the tool results are masked out. |
+| **Dev set** | A small practice set used to make choices (prompts, checkpoints). The test set is kept for the one final measurement. |
+| **Selection bias** | Choosing among many options by their test scores picks the one that got lucky, so its score overstates its real skill. |
+| **Learning curve** | Score plotted against the amount of training or data; shows where more stops helping. |
+| **Epoch / pass** | One time through all the training examples. |
