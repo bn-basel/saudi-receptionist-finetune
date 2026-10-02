@@ -22,6 +22,9 @@ The goal is to beat both the untuned base model and a strong API baseline on a h
 | 2 | Base model choice | Done: [`google/gemma-4-12B-it`](https://huggingface.co/google/gemma-4-12B-it) (Apache-2.0) |
 | 3 | Task spec: businesses, tools, style switches, data format | Done: [docs/TASK_SPEC.md](docs/TASK_SPEC.md) |
 | 4 | Test set: 160 test + 40 dev cases, native-speaker reviewed, frozen | Done: [docs/TEST_SET.md](docs/TEST_SET.md) |
+| 5 | Benchmark harness and baselines | Done: results below |
+| 6 | Training data: generation, automatic checks, review | In progress: about 520 reviewed-ok conversations, batches of 100 |
+| 7 | QLoRA fine-tuning | Run 1 done (89.4% on the test set); more runs as the data grows |
 
 Nothing below this line is claimed until it is done and verified. Results, dataset card and model card will be added when they exist.
 
@@ -67,6 +70,28 @@ What the results show:
 
 These scores only check tools and facts. Whether the replies sound like natural Saudi dialect is judged separately, in a blind review by a native speaker.
 
+**Stage 7: first fine-tune (run 1).** Gemma-4-12B-it with QLoRA on 331 reviewed training conversations, 33 minutes on the RTX 5080. Twelve checkpoints were compared on the dev set; one was chosen by a rule fixed in advance (best dev score, ties broken by the lowest held-out loss) and run once on the test set.
+
+![Test-set scores: fine-tuned Gemma against the untuned model, HUMAIN's ALLaM and three API models](docs/charts/test_scores.svg)
+
+| Model | Test score (160 cases) | 95% CI |
+|---|---|---|
+| ALLaM-7B-Instruct (HUMAIN), prompted | 38.1% short / 41.9% long prompt | 31–46% / 35–50% |
+| Gemma-4-12B-it, untuned | 40.6% short / 44.4% long prompt | 33–48% / 37–52% |
+| **Gemma-4-12B-it + QLoRA (this project)** | **89.4%** | **84–93%** |
+| Gemini 3.8 Flash (API) | 87.5% | 81–92% |
+| GPT-5.4 mini (API) | 92.5% | 87–96% |
+| DeepSeek V4.1 Flash (API) | 94.4% | 90–97% |
+
+- **Fine-tuning closed the gap that prompting could not.** The untuned model gains 4 points from a fully explained prompt; fine-tuning adds 49. Prices went from 2 to 15 of 16 and bookings from 0 to 23 of 24.
+- **More than twice the score of Saudi Arabia's ALLaM on this task.** ALLaM-7B (HUMAIN) is smaller than Gemma-4-12B and was prompted, not fine-tuned, so this compares a task-trained model with a general one. The fair next comparison is ALLaM fine-tuned on the same data (on the roadmap).
+- **In the range of the API models, locally and at no cost per reply.** The intervals overlap with Gemini 3.8 Flash and GPT-5.4 mini; DeepSeek V4.1 Flash is probably still ahead. On questions nobody can answer, the fine-tuned model hands off every time (12/12, against 4/12 for DeepSeek).
+- **Weak spots, from the training data:** on complaints it apologises and says it will pass them on without calling the handoff tool (6/10), a habit present in its training conversations and now corrected in the generator; with a tool it never saw in training it falls back on the trained procedure (7/10, 9/10 before fine-tuning).
+
+![Dev-set score after each training checkpoint](docs/charts/checkpoint_curve.svg)
+
+Most of the gain arrives in the first pass over the data; the score levels off around 80–90% after about two passes, and a fourth pass adds nothing. These scores check tools and facts only; whether the replies sound natural is judged separately in the blind dialect review (Stage 8). Raw outputs: [`results/stage7/`](results/stage7/). Charts: `uv run python scripts/make_charts.py`.
+
 **Known limitations so far.** The test messages are synthetic drafts reviewed and edited by one native speaker, so their phrasing is less varied than real customers. The dialect verdicts come from one judge.
 
 ## Roadmap (plan, not results)
@@ -80,6 +105,7 @@ This is a comparison study as much as a fine-tune. The question is not only "did
 | 7 | QLoRA training on the RTX 5080, as a data comparison: **A** generated conversations only, **B** the same plus about 20% filtered human-written Saudi dialogues ([Voho](docs/DATA_SOURCES.md), no tools), and later **C** "dialect-first": training on Najdi web text before the task data. Compared on tool accuracy and blind dialect review |
 | 8 | Evaluation: automatic tool-call checks, blind A/B dialect review, confidence intervals, cost and speed per reply |
 | 9 | Publish: results table and charts (model vs model, short vs long prompt, before vs after fine-tuning), raw outputs per model, side-by-side conversation gallery, dataset card, model card with honest limitations |
+| Later | ALLaM-7B (HUMAIN) fine-tuned on the same data, for a like-for-like comparison with Saudi Arabia's own model |
 | Later | The same data on a larger model trained on rented cloud GPUs, to compare what model size buys; other regional dialects, each with its own test set |
 
 Fairness rules for the comparison: every model sees the same test cases, tools and system-prompt format. Prompt-only competitors are tested with the short prompt the fine-tuned model uses **and** with a longer, fully explained version, and both results are reported. Prompts are tuned only on the dev set and frozen before any test result exists. Each API's terms are checked before its outputs are published.

@@ -65,7 +65,7 @@ TEACHER_RULES = """Writing rules for every reply (decided by a native Saudi revi
 - Thanks («شكراً») → «العفو», «هذا واجبنا», «الله يعافيك» or «حياك الله، بالخدمة بأي وقت». «الله يحييك» only answers «حياك». Keep a reply to thanks to one or two parts, not three.
 - Never state a policy or fact that is not in the business facts above (for example whether children are welcome); hand off instead.
 - When the customer gives a group size («لمجموعة 8 أشخاص»), call search_services for a group service and use it if there is one, before booking a plain table or room.
-- When the customer moves a booking with a relative day («من بكرة لبعد بكرة», «من اليوم لبكرة») but the booking is on another day, do not pick a date: give the real date and ask what they want («حجزك أصلاً الثلاثاء 26، تبغى تأخره يوم للأربعاء 27؟»). If the customer then names a day wrongly, clarify before booking.
+- When the customer moves a booking with a relative day («من بكرة لبعد بكرة», «من اليوم لبكرة») but the booking is on another day, do not pick a date: give the booking's real date and ask what they want («حجزك أصلاً الثلاثاء 26، تبغى تأخره يوم؟»). Name a new date only after get_available_slots returned it, together with its times. If the customer then names a day wrongly, clarify before booking.
 - Answer from the business facts when you can: at a home-visit business, «أقدر أجيب عيالي؟» is answered that the team comes to the customer's home, no handoff. Weather or sports small talk: «ما عندي علم» and move on; never invent it, never hand it off.
 - A day right before a closed day is still a normal day: offer Thursday's slots even when Friday is closed.
 - When the customer asks for a closed day, offer the nearest open day first, on either side (Friday closed → Thursday or Saturday, not Sunday), even if you already checked it; a later day can be a second choice.
@@ -73,7 +73,10 @@ TEACHER_RULES = """Writing rules for every reply (decided by a native Saudi revi
 - Say times the spoken way («3 ونص المساء»), never on a 24-hour clock («15:30»).
 - When the customer names a day for an existing booking, compare it with the booking's date from get_my_bookings. If it differs, say so first («حجزك أصلاً يوم …») before changing anything.
 - When you offer 3 or more options (times, services, anything), put each on its own line after a short lead-in («المتاح:»). Two options can stay in one sentence («4 المسا أو 7 المسا»).
-- No health or care tips (drink water, stay out of the sun, rest); practical tips about the service itself are fine («جيب معك لبس رياضي»). For pain or a medical worry, at most suggest seeing a doctor.
+- No health advice of any kind, not even "see a doctor". For any symptom, pain, reaction or feeling unwell: say «سلامتك» and call handoff_to_human in that same reply. No judgement on how serious it is, no filler («وأنت أولى بالطمأنينة»). Practical tips about the service itself are fine («جيب معك لبس رياضي»).
+- On any complaint, call handoff_to_human in the same reply that apologises; never write «بحولك للفريق» without the tool call.
+- Never «يعطيك العافية» or «الله يعطيك العافية» yourself. After a booking, end with «… إن شاء الله», «نشوفك على خير», or nothing.
+- Never «حبيبتي» / «حبيبي», and never plead («تكفى لا تتأخر»): state the policy instead («نحفظ لك الطاولة 15 دقيقة»).
 - On today's date, never offer or book a time that has already passed ("Now" is the current time), even if the tool lists it.
 - Saudi wording, not Modern Standard Arabic: «حجزين», «موعدين», never «حجزان», «موعدان». «أكد لي، تبغى تلغيه؟», never «تأكد لي تبغى نلغيه». «الفريق بيتواصلون معك», never «بيواصلونك».
 - Write only the message to the customer: never your own reasoning, notes to yourself, or English sentences.
@@ -180,7 +183,7 @@ def teacher_rules(register: str, business: dict, opener_word: str, emoji: str = 
     evening = "المساء" if formal else "المسا"
     rules = TEACHER_RULES + REGISTER_RULES[register].format(opener=opener_word) + TIME_WORD_RULE.format(
         morning="«الصباح»" if formal else "«الصبح»", evening=f"«{evening}»", evening_bare=evening,
-        night="" if formal else f", and «الليل» from {NIGHT_START // 60}:00 («10 الليل»)")
+        night="" if formal else f", and «الليل» only from {NIGHT_START // 60}:00 («10 الليل»; 7:30 pm is «7 ونص المسا»)")
     # Naming the allowed emojis made the teacher add them even with the switch off (train_v1 batch 2),
     # so a conversation with the switch off is told only that.
     rules += EMOJI_RULE_ON if emoji == "on" else EMOJI_RULE_OFF
@@ -315,6 +318,7 @@ def customer_turn(teacher: OpenRouterModel, sc: dict, transcript: list[str]) -> 
               "Say plainly what you want, like a real customer, and react to what the receptionist "
               "said. To pick a time, start with «احجز لي» followed by one of the times offered, never «خذ». "
               "To confirm a cancellation say «إيه، الغيه» (or «ألغه»). "
+              "Ask only for services this business offers (a women's salon customer never asks for «تفصيل ثوب»). "
               "Name the service the way a customer would say it, not the catalogue name («تفصيل ثوب», not «تفصيل ثوب موعد مقاسات»). "
               "Only your FIRST message may greet: never start a later message with «وعليكم السلام» or return the "
               "receptionist's greeting, just answer. If your goal is done or cannot be done, reply exactly [END].")
@@ -423,7 +427,7 @@ TIME_KIND = {**dict.fromkeys(["الصبح", "الصباح", "صباحا", "صب�
 # longest first, so «المساء» is not read as «المسا»
 TIME_WORDS = "(?:" + "|".join(sorted(TIME_KIND, key=len, reverse=True)) + ")"
 # decisions_v4 rule 11, a clock rule: minutes of the day each word covers (ends above 1440 run past midnight)
-NIGHT_START, NIGHT_TOLERANCE = 20 * 60, 60  # casual «الليل» "late"; 19:00-19:59 is flagged, not rejected
+NIGHT_START, NIGHT_TOLERANCE = 20 * 60, 0  # casual «الليل» only from 8 pm; before that it is rejected (decisions_v13)
 TIME_WINDOWS = {"morning": (3 * 60, 12 * 60), "evening": (12 * 60, 27 * 60), "night": (NIGHT_START, 27 * 60)}
 CLOCK = re.compile(r"(?<!\d)(\d{1,2}):(\d{2})(?!\d)")
 _PART = r"(ونص|ونصف|وربع|الا ربع|إلا ربع)"
@@ -469,6 +473,12 @@ ROLE_LABEL = re.compile(r"\b(?:receptionist|customer|assistant|user|agent)\s*:|(
 # a broken customer word mixing scripts («تسلمonmفضلين», batch 05 gen-00476); «ابي booking» with a space is fine
 MIXED_WORD = re.compile(rf"[{AR}]+[A-Za-z]+[{AR}A-Za-z]*|[A-Za-z]+[{AR}]+[{AR}A-Za-z]*")
 EASTERN_DIGIT = re.compile("[٠-٩]")  # replies write numbers with 0-9 only (batch 04 gen-00367)
+# decisions_v13: rule 42 (the receptionist never says «يعطيك العافية»), rule 44 (no «حبيبتي / حبيبي», no pleading
+# «تكفى»), a recurring typo, and medical words left for the reviewer (a customer may ask for a female doctor)
+OWN_YAATIK = re.compile(r"يعطيك العافي[ةه]")
+ENDEARMENT = re.compile(rf"(?<![{AR}])[وف]?(حبيبتي|حبيبي|تكفى|تكفين)(?![{AR}])")
+TYPOS = ["إجانتنا", "اجانتنا"]
+MEDICAL_WORDS = re.compile(r"دكتور|طبيب|مختص")
 # rule 35: a business closing at midnight says «لين 12 الليل», not «12 المساء» (noon) (batch 04 gen-00344)
 NOON_FOR_MIDNIGHT = re.compile(r"(?:إلى|الى|لين|لـ|حتى|ل)\s*12\s*(?:المساء|المسا)(?![ء-ي])")
 COURTESY_CALL = re.compile(r"العافي|يعافيك|حياك|حيّاك|يحييك|شكر|مشكور|تسلم|يسلمو|جزاك|ما قصرت|كفيت ووفيت|الله يسعدك|الله يخليك")
@@ -534,6 +544,12 @@ HANDOFF_CLAIMS = {"رفعت", "بلغتهم", "واصلت"}  # «سؤالك رف
 _SENT = rf"(?<![{AR}])[وف]?(?:وصل|وصّل|وضح|وضّح|رفع|بلغ|نقل|أرسل|ارسل|حولت|حوّلت|حولنا|حوّلنا)[{AR}]*"
 _TEAM = rf"(?<![{AR}])(?:لل|ل)(?:فريق|إدارة|ادارة)[{AR}]*"
 TEAM_CLAIM = re.compile(rf"{_SENT}[^،,.!؟\n]*{_TEAM}|{_TEAM}[^،,.!؟\n]*{_SENT}")
+# rule 43 / complaints: promising to pass it on («بحولك للفريق») in a turn that called no handoff (Stage 7 test:
+# the tuned model said it would hand off complaints without the tool call, a habit from the training data)
+_WILL_SEND = rf"(?<![{AR}])[وف]?(?:بحو?ّ?ل|أحو?ّ?ل|احو?ّ?ل|بنحو?ّ?ل|برفع|أرفع|ارفع|بنرفع|بوصل|بوصّل)[{AR}]*"
+# an offer («أقدر أحول طلبك للفريق», «تبيني أحوله؟») is not a promise
+_OFFER = r"(?<!أقدر )(?<!اقدر )(?<!تبيني )(?<!تبغاني )(?<!تبغيني )(?<!ودك )(?<!تبي )"
+HANDOFF_PROMISE = re.compile(rf"{_OFFER}{_WILL_SEND}[^،,.!؟\n]*{_TEAM}|{_OFFER}{_WILL_SEND}(?=\s*(?:لهم|للمسؤول))")
 # rule 25: «لا تتأخرون علي» is not answered «الله يعينك»
 HURRY = re.compile(r"تتأخر|تتاخر|بسرعه|بسرعة|استعجل|مستعجل|ضروري|عاجل")
 PLACEHOLDER_NAMES = {"غير معروف", "غير محدد", "عميل", "العميل", "unknown", "customer", "n/a", "-", "؟", "?", ""}
@@ -926,6 +942,13 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
             problems.append(f"promises the manager: «{MANAGER_PROMISE.search(text).group(0)[:30]}»")
         if HUMAN_IDENTITY.search(text):
             problems.append(f"presents itself as a person: «{HUMAN_IDENTITY.search(text).group(0)}» (rule 30)")
+        if OWN_YAATIK.search(text):
+            problems.append("the receptionist says «يعطيك العافية» (rule 42)")
+        if ENDEARMENT.search(text):
+            problems.append(f"«{ENDEARMENT.search(text).group(1)}» in a reply (rule 44)")
+        problems += [f"typo «{w}»" for w in TYPOS if w in text]
+        if MEDICAL_WORDS.search(text):
+            flags.append(f"medical word «{MEDICAL_WORDS.search(text).group(0)}» (rule 43: check it is not advice)")
         if CLOCK_24.search(text):
             problems.append(f"24-hour time «{CLOCK_24.search(text).group(0)}» in a reply (say «3 ونص المساء»)")
         if EASTERN_DIGIT.search(text):
@@ -969,6 +992,11 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
         team = TEAM_CLAIM.search(text)
         if team and not handoff_now:
             problems.append(f"says «{team.group(0)[:30]}» but this turn sent nothing to the team")
+        promise = HANDOFF_PROMISE.search(text)
+        if promise and re.match(r"[^.!؟\n]*؟", text[promise.start():]):  # a question offers, it does not promise
+            promise = None
+        if promise and not handoff_now:
+            problems.append(f"promises «{promise.group(0)[:30]}» without calling handoff_to_human in this turn")
         # rule 25
         if "الله يعينك" in text and HURRY.search(last_user):
             problems.append("«الله يعينك» as a reply to a request to hurry")
@@ -1212,37 +1240,67 @@ DATE_WORDS = re.compile(rf"{_DAY}|{_REL}|{_MON}")
 ONLY_TIME = re.compile(rf"^\d{{1,2}}(?::\d{{2}})?(?:\s*{_PART})?(?:\s*{TIME_WORDS})?$")
 
 
-def inline_list(sentence: str) -> tuple[str | None, list[str], str] | None:
-    """(lead-in, items, the sentence end) if this sentence lists 3 or more options inline, else None. The
-    lead-in ends with «:» or with an options word («عندنا», «متاح»…); without one, every item must be just a
-    time. A leading «و» on the 2nd and later items is dropped (no service name starts with «و»)."""
+def list_segments(body: str) -> list[tuple[int, int]]:
+    """Spans of the parts of a sentence split at «،» / «,» outside brackets («(500 ريال، 60 دقيقة)» is one part,
+    batch 07 gen-00699), and at a «و» joining two times («8 الصبح و10 الصبح و12 المسا», gen-00619)."""
+    spans, depth, start = [], 0, 0
+    for i, c in enumerate(body + "،"):
+        depth += (c == "(") - (c == ")")
+        if c in "،," and depth == 0:
+            spans.append((start, i))
+            start = i + 1
+    out = []
+    for s, e in spans:
+        cuts = [m.start() for m in re.finditer(r"\s+و\s*(?=\d)", body[s:e])]
+        for a, b in zip([s] + [s + c for c in cuts], [s + c for c in cuts] + [e]):
+            if body[a:b].strip():  # «، و7 المسا»: the «و» right after a comma is not a second split
+                out.append((a, b))
+    return out
+
+
+def inline_list(sentence: str) -> tuple[str, str | None, list[str], str] | None:
+    """(text before the list, lead-in, items, the sentence end) if this sentence lists 3 or more options inline,
+    else None. The lead-in ends with «:» or with an options word («عندنا», «متاح»…), which may come after a first
+    clause («ما عندنا تفصيل ثوب، عندنا قص شعر، سشوار…», gen-00648); without one, every item must be just a time.
+    A leading «و» on the 2nd and later items is dropped (no service name starts with «و»)."""
     body = sentence.strip()
     end = body[-1] if body and body[-1] in ".؟!" else ""
     body = body[:-1] if end else body
     m = LIST_LEAD_SPLIT.match(body)
-    lead, body = (m.group(1).strip(), m.group(2)) if m else (None, body)
-    items = [x.strip() for x in re.split(r"[،,]", body)]
-    if lead is None:  # «عندنا تنظيف مكيف، …»: the lead-in is the text up to the last options word
-        words = list(LIST_LEAD.finditer(items[0]))
-        negated = words and re.search(r"(?:^|\s)(?:ما|مو|مب)\s*$", items[0][:words[-1].start()])  # «ما عندنا…»
-        if words and not negated and items[0][words[-1].end():].strip():
-            cut = items[0].find(" ", words[-1].end())
-            if cut > 0:
-                lead, items[0] = items[0][:cut].strip(), items[0][cut:].strip()
-                if any(len(x.split()) > 4 for x in items):  # without «:», only short items are options
-                    return None
-    if len(items) < 3 or any(not x or len(x.split()) > 6 or "رقم" in x or "B-" in x for x in items):
-        return None
-    if any(re.match(r"(?:أو|او|ولا)\s", x) for x in items[1:]):
-        return None  # «أو» is a word, not one of the separators the founder named
-    # a day, a date or «اليوم / بكرة» among the items makes it a description («كشف بيطري، الثلاثاء 26 يناير، 11
-    # الصباح»), not options, unless the options are the days themselves
-    if any(DATE_WORDS.search(x) for x in items) and not all(re.fullmatch(rf"و?(?:{_DAY})", x) for x in items):
-        return None
-    items = [items[0]] + [re.sub(r"^و\s*", "", x) for x in items[1:]]
-    if not ((lead and LIST_LEAD.search(lead)) or all(ONLY_TIME.match(x) for x in items)):
-        return None
-    return lead, items, end
+    colon_lead = m.group(1).strip() if m else None
+    if colon_lead:
+        body = m.group(2)
+    segs = list_segments(body)
+    for k in range(0, len(segs) - 2):
+        if colon_lead and k > 0:
+            break
+        prefix = body[:segs[k][0]].rstrip()
+        items = [body[s:e].strip() for s, e in segs[k:]]
+        lead = colon_lead
+        if lead is None:  # «عندنا تنظيف مكيف، …»: the lead-in is the text up to the last options word
+            words = list(LIST_LEAD.finditer(items[0]))
+            negated = words and re.search(r"(?:^|\s)(?:ما|مو|مب)\s*$", items[0][:words[-1].start()])  # «ما عندنا…»
+            if words and not negated and items[0][words[-1].end():].strip():
+                cut = items[0].find(" ", words[-1].end())
+                if cut > 0:
+                    lead, items[0] = items[0][:cut].strip(), items[0][cut:].strip()
+                    if any(len(x.split()) > 4 for x in items):  # without «:», only short items are options
+                        continue
+        if len(items) < 3 or any(not x or len(x.split()) > 6 or "رقم" in x or "B-" in x for x in items):
+            continue
+        if any(re.match(r"(?:أو|او|ولا)\s", x) for x in items[1:]):
+            continue  # «أو» is a word, not one of the separators the founder named
+        # a day, a date or «اليوم / بكرة» among the items makes it a description («كشف بيطري، الثلاثاء 26 يناير، 11
+        # الصباح»), not options, unless the options are the days themselves
+        if any(DATE_WORDS.search(x) for x in items) and not all(re.fullmatch(rf"و?(?:{_DAY})", x) for x in items):
+            continue
+        items = [items[0]] + [re.sub(r"^و\s*", "", x) for x in items[1:]]
+        if not ((lead and LIST_LEAD.search(lead)) or all(ONLY_TIME.match(x) for x in items)):
+            continue
+        if k > 0 and not lead:  # a time list after a first clause needs a lead-in word to start it
+            continue
+        return prefix, lead, items, end
+    return None
 
 
 def repair_lists(text: str) -> str:
@@ -1262,8 +1320,8 @@ def repair_lists(text: str) -> str:
             if pending:
                 out.append(" ".join(pending))
                 pending = []
-            lead, items, end = found
-            out += ([lead] if lead else []) + items[:-1] + [items[-1] + end]
+            prefix, lead, items, end = found
+            out += ([prefix] if prefix else []) + ([lead] if lead else []) + items[:-1] + [items[-1] + end]
         if pending:
             out.append(" ".join(pending))
     return "\n".join(out)
@@ -1342,6 +1400,59 @@ def cmd_repair_lists(args) -> None:
           "only separators and line breaks changed")
 
 
+# Rule 42: the receptionist never says «يعطيك العافية». The repair removes it with the «،», «و» or «.» that joins
+# it, in three shapes; anything else (for example «يعطيك العافية يا حمد.») is left for the founder.
+_YAATIK = r"(?:الله )?يعطيك العافي[ةه]"
+CLOSING_SHAPES = [
+    re.compile(rf"\s*[،,]\s*و?{_YAATIK}"),                              # «تم إلغاء الحجز، الله يعطيك العافية. لو…»
+    re.compile(rf"(?:(?<=^)|(?<=\n)|(?<=[.!؟] )){_YAATIK}\s*[،,]\s*و?"),  # «الله يعطيك العافية، ونشوفك على خير»
+    re.compile(rf"(?:\s|^){_YAATIK}\.?(?=\s*$|\n)"),                     # «…ديسمبر. الله يعطيك العافية.»
+]
+
+
+def repair_closing(text: str) -> str | None:
+    """The reply without «يعطيك العافية», or None if it cannot be removed cleanly."""
+    for shape in CLOSING_SHAPES:
+        new = shape.sub("", text, count=1)
+        if new != text:
+            new = re.sub(r"[ \t]+\n", "\n", new).rstrip()
+            if re.search(_YAATIK, new):
+                new = repair_closing(new)  # a second occurrence
+            return new if new and new.strip() else None
+    return None
+
+
+def cmd_repair_closings(args) -> None:
+    """Rule 42 repair on the reviewed rows whose note asks for it: remove the receptionist's «يعطيك العافية».
+    Verifies that only the phrase and its joiners («،», «و», «.», spaces) were removed."""
+    path = OUT_DIR / f"{args.name}.jsonl"
+    recs = [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines()]
+    repaired, skipped = [], []
+    for r in recs:
+        if "closing repair (rule 42)" not in r.get("review", {}).get("note", "") or "closing" in r.get("repairs", []):
+            continue
+        new_msgs, ok = [], True
+        for m in r["messages"]:
+            if m["role"] == "assistant" and m.get("content") and re.search(_YAATIK, m["content"]):
+                new = repair_closing(m["content"])
+                removed = "" if new is None else "".join(
+                    m["content"][i1:i2] for op, i1, i2, _, _ in difflib.SequenceMatcher(None, m["content"], new, autojunk=False).get_opcodes()
+                    if op != "equal")
+                if new is None or re.search(_YAATIK, new) or re.sub(rf"{_YAATIK}|[\s،,.و]", "", removed):
+                    ok = False
+                    break
+                m = {**m, "content": new}
+            new_msgs.append(m)
+        if ok:
+            r["messages"] = new_msgs
+            r["repairs"] = sorted(set(r.get("repairs", [])) | {"closing"})
+            repaired.append(r["id"])
+        else:
+            skipped.append(r["id"])
+    path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in recs), encoding="utf-8", newline="\n")
+    print(f"{args.name}: {len(repaired)} conversations closing-repaired; left for the founder: {skipped or 'none'}")
+
+
 def cmd_import_review(args) -> None:
     """Attach reviewer verdicts from a filled review CSV (columns id, verdict, note) to the records.
     Only "ok" conversations are used for training; "fix" and "bad" are kept on file, not trained on."""
@@ -1384,7 +1495,8 @@ def cmd_sheet(args) -> None:
         w.writerow(["id", "business", "style", "scenario", "flags", "conversation", "verdict (ok / fix / bad)", "note"])
         for r in recs:
             w.writerow([r["id"], r["meta"]["business_id"], "/".join(r["meta"]["style"].values()), r["scenario"],
-                        "; ".join((["emoji repaired"] if "emoji" in r.get("repairs", []) else []) + r.get("flags", [])),
+                        "; ".join((["emoji repaired"] if "emoji" in r.get("repairs", []) else [])
+                                  + (["closing repaired"] if "closing" in r.get("repairs", []) else []) + r.get("flags", [])),
                         render(r), "", ""])
     print(f"wrote {out} ({len(recs)} conversations)")
 
@@ -1412,9 +1524,12 @@ if __name__ == "__main__":
     rc.add_argument("--batch", type=int, help="recheck only this batch; the others stay as they are")
     re_ = sub.add_parser("repair-emojis")
     re_.add_argument("name")
+    rc_ = sub.add_parser("repair-closings")
+    rc_.add_argument("name")
     rl = sub.add_parser("repair-lists")
     rl.add_argument("name")
     rl.add_argument("--batch", type=int, help="only this batch of a batched run")
     a = ap.parse_args()
     {"generate": cmd_generate, "sheet": cmd_sheet, "recheck": cmd_recheck, "import-review": cmd_import_review,
-     "repair-emojis": cmd_repair_emojis, "repair-lists": cmd_repair_lists}[a.cmd](a)
+     "repair-emojis": cmd_repair_emojis, "repair-lists": cmd_repair_lists,
+     "repair-closings": cmd_repair_closings}[a.cmd](a)

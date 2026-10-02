@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 from build_testset import trigrams
-from datagen import leak_score, opener, rule_checks, train_tools
+from datagen import leak_score, opener, repair_lists, rule_checks, train_tools
 from prompt import load_spec
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -162,7 +162,7 @@ EVENING = tool("get_available_slots", {"service_id": "yoga", "date": "2026-11-06
 expect("10:30 written «10 ونص المسا» fails", record([USER] + EVENING + [reply("فيه 10 ونص المسا")]), False, GYM, reason="does not fit")
 expect("16:30 «4 ونص المساء» passes whatever the prayer times", record([USER] + EVENING + [reply("فيه 4 ونص المساء")], "formal",
        prayer={"Asr": "15:40", "Maghrib": "18:30", "Isha": "20:00"}), True, GYM)
-expect_flag("19:00 «7 الليل» is a flag, not a reject", record([USER] + EVENING + [reply("فيه 7 الليل")]), "near a boundary", GYM)
+expect("19:00 «7 الليل» fails (decisions_v13: «الليل» only from 8 pm)", record([USER] + EVENING + [reply("فيه 7 الليل")]), False, GYM, reason="does not fit")
 expect("18:00 «6 الليل» fails", record([USER] + EVENING + [reply("فيه 6 الليل")]), False, GYM, reason="does not fit")
 expect("«بعد العصر» for a period the customer asked about passes",
        record([{"role": "user", "content": "ابي موعد بعد العصر"}] + EVENING + [reply("بعد العصر فيه 4 ونص المسا")]), True, GYM)
@@ -457,6 +457,30 @@ for text in ("ابغى الساعه ٩", "يعني ٤ او ٥", "أشوفكم ا
     expect(f"customer «{text}» keeps its digit", record([USER, reply("تمام"), {"role": "user", "content": text}, reply("أبشر")]), True, GYM)
 for name, ok in [("teacher rule 40: nearest open day first", "nearest open day" in teacher_rules("casual", GYM, "هلا")),
                  ("teacher rule 41: «تبيني ألغيه لك؟»", "تبيني ألغيه لك؟" in teacher_rules("casual", GYM, "هلا"))]:
+    failures += not ok
+    print(f"{'ok  ' if ok else 'FAIL'} {name}")
+# ---- decisions_v13 (batch 07 review) and the Stage 7 complaint finding ----
+expect("the receptionist's «الله يعطيك العافية» fails (rule 42)", record([USER, reply("تم الحجز، الله يعطيك العافية")]), False, reason="rule 42")
+expect("«حبيبتي» in a casual reply fails (rule 44)", record([USER, reply("أبشري حبيبتي")]), False, SALON, reason="rule 44")
+expect("«فتكفى لا تتأخر» fails (rule 44)", record([USER, reply("نحفظ لك الطاولة، فتكفى لا تتأخر")]), False, reason="rule 44")
+expect("the typo «إجانتنا» fails", record([USER, reply("الجمعة إجانتنا")]), False, reason="typo")
+expect_flag("«دكتور» is flagged for the reviewer, not rejected", record([USER, reply("تبي دكتورة؟ أقدر أسأل الفريق")]), "medical word")
+expect("«بحولك للفريق» without a handoff call fails (Stage 7 test, complaint-06)",
+       record([USER, reply("سلامتك، بحولك للفريق وبيتواصلون معك")]), False, reason="without calling handoff")
+expect("«بحولك للفريق» in the turn that calls handoff passes", record([USER] + H + [reply("سلامتك، بحولك للفريق وبيتواصلون معك")]), True)
+expect("«أقدر أحول طلبك للفريق» (an offer) passes", record([USER, reply("أقدر أحول طلبك للفريق إذا تبي")]), True)
+expect("«تبيني أحوله للفريق؟» (a question) passes", record([USER, reply("تبيني أحوله للفريق؟")]), True)
+for before, after in [("والسبت عندنا 8 ونص الصبح و10 الصبح و12 ونص المسا و1 المسا.",
+                       "والسبت عندنا\n8 ونص الصبح\n10 الصبح\n12 ونص المسا\n1 المسا."),                                   # gen-00619
+                      ("ما عندنا تفصيل ثوب، عندنا قص شعر، سشوار، صبغة، ومكياج سهرة. تبين وحدة منها؟",
+                       "ما عندنا تفصيل ثوب،\nعندنا\nقص شعر\nسشوار\nصبغة\nمكياج سهرة.\nتبين وحدة منها؟"),                  # gen-00648
+                      ("عندنا خدمتين: تصوير شخصي (500 ريال، 60 دقيقة)، وتصوير عائلي (770 ريال، 90 دقيقة).",
+                       "عندنا خدمتين: تصوير شخصي (500 ريال، 60 دقيقة)، وتصوير عائلي (770 ريال، 90 دقيقة).")]:   # gen-00699
+    got = repair_lists(before)
+    failures += got != after
+    print(f"{'ok  ' if got == after else 'FAIL'} list repair «{before[:45]}»" + ("" if got == after else f" -> {got!r}"))
+for name, ok in [("teacher rule 43: «سلامتك» and hand off at once", "«سلامتك»" in teacher_rules("casual", GYM, "هلا")),
+                 ("teacher rule 39 (A): name a new date only after get_available_slots", "Name a new date only after get_available_slots" in teacher_rules("casual", GYM, "هلا"))]:
     failures += not ok
     print(f"{'ok  ' if ok else 'FAIL'} {name}")
 # rule 34: the list repair puts 3+ options one per line and changes nothing else
