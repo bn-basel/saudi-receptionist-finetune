@@ -236,6 +236,15 @@ TODAY = tool("get_available_slots", {"service_id": "cleaning", "date": "2026-11-
 expect("offering today's 13:00 at 17:00 fails (pilot_v3 gen-00048)", record([USER] + TODAY + [reply("اليوم فيه 1 المسا أو 6 المسا")]),
        False, reason="already past today")
 expect("offering only today's 18:00 at 17:00 passes", record([USER] + TODAY + [reply("اليوم فيه 6 المسا")]), True)
+TWICE = tool("get_available_slots", {"service_id": "cleaning", "date": "2026-11-05"},
+             {"date": "2026-11-05", "slots": ["07:00", "19:00"]})
+expect("«7 المساء» for today's 19:00 passes when 07:00 has passed (batch 08 gen-00780)",
+       record([USER] + TWICE + [reply("اليوم فيه 7 المساء")]), True)
+expect("«7 الصبح» for today's past 07:00 still fails", record([USER] + TWICE + [reply("اليوم فيه 7 الصبح")]),
+       False, reason="already past today")
+expect("«والسبت» after a date starts a new item (batch 08 gen-00748)",
+       record([USER, reply("فيه الجمعة 6 نوفمبر، والسبت 7 نوفمبر")]), True)
+expect("a wrong day right after a date still fails", record([USER, reply("فيه 6 نوفمبر السبت")]), False, reason="called")
 expect("booking today's 14:00 at 17:00 fails",
        record([USER] + TODAY + tool("create_booking", {"service_id": "cleaning", "date": "2026-11-05", "time": "14:00", "customer_name": "فهد"},
                                     {"booking_id": "B-1", "status": "confirmed"}, 2) + [reply("تم الحجز")]), False, reason="already past")

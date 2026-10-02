@@ -418,7 +418,8 @@ DATE_RE = re.compile(_date(0))
 _LINK = r"\s*[(،,]?\s*(?:(?:يوافق|يصادف|الموافق|اللي هو|يكون|هو)\s+)?(?:يوم\s+)?"
 REL_THEN_DAY = re.compile(rf"(?<!\S)[وبل]{{0,2}}({_REL}){_LINK}[وبل]?({_DAY})(?![{AR}])")
 DAY_THEN_DATE = re.compile(rf"(?<![{AR}])[وبل]?(?P<day>{_DAY}){_LINK}" + _date(1))
-DATE_THEN_DAY = re.compile(_date(2) + rf"\s*[(،,]?\s*(?:يوم\s+)?[وبل]?(?P<day>{_DAY})(?![{AR}])")
+# no «و» before the day: «الخميس 18 مارس، والسبت 20 مارس» starts a new item (train_v1 gen-00748)
+DATE_THEN_DAY = re.compile(_date(2) + rf"\s*[(،,]?\s*(?:يوم\s+)?[بل]?(?P<day>{_DAY})(?![{AR}])")
 ISO_DATE = re.compile(r"\d{4}-\d{1,2}-\d{1,2}")
 TIME_KIND = {**dict.fromkeys(["الصبح", "الصباح", "صباحا", "صباحاً"], "morning"),
              **dict.fromkeys(["الظهر", "ظهرا", "ظهراً"], "noon"), **dict.fromkeys(["العصر", "عصرا", "عصراً"], "asr"),
@@ -455,7 +456,7 @@ COURTESY_ANSWER = re.compile(r"(الله يعافيك)")
 CLOCK_24 = re.compile(r"(?<!\d)(1[3-9]|2[0-3]|00):([0-5]\d)(?!\d)")
 # a lone digit at the end of a customer line that no time word asks for («التعامل ٥», batch 06 gen-00574)
 STRAY_DIGIT = re.compile(r"(\S+)\s+[0-9٠-٩]\W*$")
-NUMBER_TAKERS = re.compile(rf"^(?:و?(?:الساعة|الساعه|او|أو|ولا|بعد|قبل|لين|الى|إلى|من|لي|يعني|حوالي|تقريبا|عددنا|احنا|حنا|نحن)"
+NUMBER_TAKERS = re.compile(rf"^(?:و?(?:الساعة|الساعه|او|أو|ولا|بعد|قبل|لين|الى|إلى|من|لي|يعني|حوالي|حول|تقريبا|عددنا|احنا|حنا|نحن)"
                            rf"|و?(?:{_DAY})|و?(?:{_REL}))$")
 # rule 29: «الله يحييك» answers «حياك» only, never thanks or a plain request, anywhere in the reply (batch 03)
 YAHYIK = re.compile(r"الله يحييك|الله يحيك")
@@ -773,6 +774,20 @@ def time_word_problems(text: str, known24: dict, hours24: dict, by_customer: fro
     return bad, near
 
 
+def labelled_only(text: str, t: tuple[int, int], these: set[int], others: set[int]) -> bool:
+    """Whether the reply labels the 12-hour time t with a word that fits one of `these` hours (minutes
+    of the day) and none of `others`: «7 الصباح» is the 07:00 slot, «7 المساء» the 19:00 one."""
+    def fits(kind: str, mins: set[int]) -> bool:
+        start, end = TIME_WINDOWS[kind]
+        return any(start <= x < end for m in mins for x in (m, m + 1440))
+    for h, mm, part, word in TIME_WITH_WORD.findall(text.translate(AR_DIGITS)):
+        kind = TIME_KIND[word]
+        if clock12(*spoken_time(int(h), int(mm or 0), part)) == t and kind in TIME_WINDOWS \
+                and fits(kind, these) and not fits(kind, others):
+            return True
+    return False
+
+
 def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
     """The native-review rules as automatic checks. Returns (problems that reject, flags)."""
     meta, msgs = rec["meta"], rec["messages"]
@@ -802,7 +817,8 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
     # slots the tools listed for today that have already passed (the backend lists the whole day)
     now = datetime.fromisoformat(meta["now"])
     now_min = now.hour * 60 + now.minute
-    past_today, other_days = set(), set()
+    # 12-hour time -> minutes of the day; today's 07:00 (past) and 19:00 (to come) share «7» (train_v1 gen-00780)
+    past_today, later_today, other_days = {}, {}, set()
     for m in msgs:
         if m["role"] == "tool" and m.get("name") == "get_available_slots":
             try:
@@ -810,9 +826,10 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
             except ValueError:
                 continue
             for t in res.get("slots") or []:
-                if res.get("date") == str(today) and to_min(t) < now_min:
-                    past_today.add(clock12(*map(int, t.split(":"))))
-                elif res.get("date") != str(today):
+                if res.get("date") == str(today):
+                    side = past_today if to_min(t) < now_min else later_today
+                    side.setdefault(clock12(*map(int, t.split(":"))), set()).add(to_min(t))
+                else:
                     other_days.add(clock12(*map(int, t.split(":"))))
     for i, m in enumerate(msgs):
         if m["role"] == "user":
@@ -889,7 +906,8 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
             problems.append("time not from a tool: " + ", ".join(f"{h}:{mm:02d}" for h, mm in bad_times))
         problems += day_slot_problems(text, today, dated, allowed_customer | (stated & hours))
         # a slot already past today, offered (pilot_v3 gen-00048: 13:00-17:00 offered at 18:31)
-        passed = sorted(({clock12(*t) for t in text_times(text)} & past_today) - other_days - allowed_customer)
+        passed = sorted(t for t in ({clock12(*t) for t in text_times(text)} & past_today.keys()) - other_days - allowed_customer
+                        if t not in later_today or labelled_only(text, t, past_today[t], later_today[t]))
         if passed:
             problems.append("offers a time already past today: " + ", ".join(f"{h}:{mm:02d}" for h, mm in passed)
                             + f" (now {now:%H:%M})")
