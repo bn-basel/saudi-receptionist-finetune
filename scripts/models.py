@@ -125,11 +125,11 @@ class HFModel:
 
     price = (0.0, 0.0)
 
-    def __init__(self, repo_id: str, max_new_tokens: int = 256):
+    def __init__(self, repo_id: str, max_new_tokens: int = 256, adapter: str | None = None):
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
-        self.name = repo_id
+        self.name = repo_id + (f"@{adapter}" if adapter else "")
         self.torch = torch
         self.max_new_tokens = max_new_tokens
         self.tok = AutoTokenizer.from_pretrained(repo_id)
@@ -141,6 +141,9 @@ class HFModel:
             dtype=torch.bfloat16,
             device_map={"": 0},
         )
+        if adapter:  # the fine-tuned LoRA weights on top of the same 4-bit base (scripts/train.py)
+            from peft import PeftModel
+            self.model = PeftModel.from_pretrained(self.model, adapter)
         self.model.eval()
         probe_tool = [{"type": "function", "function": {"name": "t", "description": "d",
                                                          "parameters": {"type": "object", "properties": {}}}}]
@@ -253,8 +256,9 @@ class OpenRouterModel:
 def load_model(spec: str):
     if spec == "oracle":
         return OracleModel()
-    if spec.startswith("hf:"):
-        return HFModel(spec[3:])
+    if spec.startswith("hf:"):  # hf:<repo> or hf:<repo>@<LoRA adapter folder> (Stage 7)
+        repo, _, adapter = spec[3:].partition("@")
+        return HFModel(repo, adapter=adapter or None)
     if spec.startswith("or:"):
         return OpenRouterModel(spec[3:])
     raise ValueError(f"unknown model {spec!r} (use oracle, hf:<repo>, or or:<{'|'.join(COMPETITORS)}>)")

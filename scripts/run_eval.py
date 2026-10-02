@@ -121,7 +121,7 @@ def main() -> None:
     else:
         safe_model = re.sub(r"[^A-Za-z0-9._-]+", "__", args.model.removeprefix("hf:"))
         run = args.run or f"{safe_model}__{args.split}" + ("__long" if args.prompt == "long" else "")
-        out = ROOT / "results" / "stage5" / run
+        out = ROOT / "results" / ("stage7" if "@" in args.model else "stage5") / run  # fine-tuned runs: Stage 7
         out.mkdir(parents=True, exist_ok=True)
         seconds = None
 

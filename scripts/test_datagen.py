@@ -62,7 +62,7 @@ expect("formal «6 المساء» passes", record([USER] + SLOTS + [reply("حي�
 # 1b: exact times
 expect("slot 16:30 written «4 المسا» fails", record([USER] + SLOTS + [reply("عندنا 4 المسا")]), False, reason="time not from a tool")
 expect("slot 16:30 written «4 ونص المسا» passes", record([USER] + SLOTS + [reply("عندنا 4 ونص المسا")]), True)
-expect("slot written «16:30» passes", record([USER] + SLOTS + [reply("عندنا 16:30 أو 18:00")]), True)
+expect("slot written «16:30» fails (24-hour clock, batch 06)", record([USER] + SLOTS + [reply("عندنا 16:30 أو 18:00")]), False, reason="24-hour")
 expect("slot 18:00 written «6 المسا» passes", record([USER] + SLOTS + [reply("عندنا 6 المسا")]), True)
 expect("opening hour in an info reply passes", record([{"role": "user", "content": "متى تفتحون"}, reply("نفتح 4 المسا")]), True)
 expect("opening hour while offering slots fails", record([USER] + SLOTS + [reply("عندنا 4 المسا أو 6 المسا")]), False)
@@ -373,7 +373,8 @@ expect("«الله يعافيك» answering «يعطيك العافية» passes
 expect("«الله يحييك» answering «حياك الله» passes", record([{"role": "user", "content": "حياك الله، ابي احجز"}, reply("الله يحييك، وش الخدمة؟")]), True)
 expect("the customer's own «الله يعافيك» is a courtesy to return (pilot_v3 gen-00005)",
        record([{"role": "user", "content": "ايه هذا، ألغيه الله يعافيك"}, reply("الله يعافيك، تم إلغاء الحجز")]), True)
-expect("«الله يعافيك» later in a reply is not an opening", record([USER, reply("تم الحجز. الله يعافيك ويسعدك")]), True)
+expect("unprompted «الله يعافيك» mid-reply fails (rule 27, batch 06 gen-00378)", record([USER, reply("تم الحجز. الله يعافيك ويسعدك")]),
+       False, reason="الله يعافيك")
 ABSHIR_USER = {"role": "user", "content": "ابشر، اسمي فهد"}
 expect("the customer's «ابشر» answered «أبشر» fails (batch 02 gen-00188)", record([USER, reply("عطني اسمك"), ABSHIR_USER, reply("أبشر، تم")]),
        False, reason="الله يبشرك")
@@ -442,6 +443,20 @@ expect("a customer word mixing scripts «تسلمonmفضلين» fails (batch 05
 expect("«ابي booking بكرة» (separate words) still passes", record([{"role": "user", "content": "ابي booking بكرة"}, reply("تمام")]), True)
 for name, ok in [("teacher rule 39: give the real date before moving with a relative day", "حجزك أصلاً الثلاثاء 26" in teacher_rules("casual", GYM, "هلا")),
                  ("teacher rule: Thursday before a closed Friday is still offered", "Thursday" in teacher_rules("casual", GYM, "هلا"))]:
+    failures += not ok
+    print(f"{'ok  ' if ok else 'FAIL'} {name}")
+# ---- decisions_v12 (batch 06 review) ----
+expect("«تم إلغاء… الله يعافيك» after «اي لغوه» fails (batch 06 gen-00438)",
+       record([USER, reply("تبي ألغيه؟"), {"role": "user", "content": "اي لغوه"}, reply("تم إلغاء حجزك. الله يعافيك، وإذا حبيت تحجز كلمني")]),
+       False, reason="الله يعافيك")
+expect("«10:30» (12-hour) still passes", record([USER] + tool("get_available_slots", {"service_id": "x", "date": "2026-11-06"},
+       {"date": "2026-11-06", "slots": ["10:30"]}) + [reply("عندنا 10:30 الصبح")]), True, GYM)
+expect("a stray «٥» at the end of a customer line fails (batch 06 gen-00574)",
+       record([USER, reply("تمام"), {"role": "user", "content": "بس ابي أضمن ما يتكرر نفس التعامل ٥"}, reply("أبشر")]), False, reason="stray digit")
+for text in ("ابغى الساعه ٩", "يعني ٤ او ٥", "أشوفكم الأحد ٨", "ما يناسبني ابي بالليل يعني بعد 7"):
+    expect(f"customer «{text}» keeps its digit", record([USER, reply("تمام"), {"role": "user", "content": text}, reply("أبشر")]), True, GYM)
+for name, ok in [("teacher rule 40: nearest open day first", "nearest open day" in teacher_rules("casual", GYM, "هلا")),
+                 ("teacher rule 41: «تبيني ألغيه لك؟»", "تبيني ألغيه لك؟" in teacher_rules("casual", GYM, "هلا"))]:
     failures += not ok
     print(f"{'ok  ' if ok else 'FAIL'} {name}")
 # rule 34: the list repair puts 3+ options one per line and changes nothing else

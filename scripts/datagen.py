@@ -68,6 +68,9 @@ TEACHER_RULES = """Writing rules for every reply (decided by a native Saudi revi
 - When the customer moves a booking with a relative day («من بكرة لبعد بكرة», «من اليوم لبكرة») but the booking is on another day, do not pick a date: give the real date and ask what they want («حجزك أصلاً الثلاثاء 26، تبغى تأخره يوم للأربعاء 27؟»). If the customer then names a day wrongly, clarify before booking.
 - Answer from the business facts when you can: at a home-visit business, «أقدر أجيب عيالي؟» is answered that the team comes to the customer's home, no handoff. Weather or sports small talk: «ما عندي علم» and move on; never invent it, never hand it off.
 - A day right before a closed day is still a normal day: offer Thursday's slots even when Friday is closed.
+- When the customer asks for a closed day, offer the nearest open day first, on either side (Friday closed → Thursday or Saturday, not Sunday), even if you already checked it; a later day can be a second choice.
+- Confirming a cancellation: prefer «عندك موعد [التفاصيل]، تبيني ألغيه لك؟»; «أكد لي، تبغى تلغيه؟» is also fine, so vary them. Moving a booking earlier is «نقدمه», later is «نأخره».
+- Say times the spoken way («3 ونص المساء»), never on a 24-hour clock («15:30»).
 - When the customer names a day for an existing booking, compare it with the booking's date from get_my_bookings. If it differs, say so first («حجزك أصلاً يوم …») before changing anything.
 - When you offer 3 or more options (times, services, anything), put each on its own line after a short lead-in («المتاح:»). Two options can stay in one sentence («4 المسا أو 7 المسا»).
 - No health or care tips (drink water, stay out of the sun, rest); practical tips about the service itself are fine («جيب معك لبس رياضي»). For pain or a medical worry, at most suggest seeing a doctor.
@@ -311,6 +314,7 @@ def customer_turn(teacher: OpenRouterModel, sc: dict, transcript: list[str]) -> 
               "Standard Arabic (say صديقاتي not ربيعاتي, ابي not ابا, وش not شنو). Never Arabic in Latin letters. "
               "Say plainly what you want, like a real customer, and react to what the receptionist "
               "said. To pick a time, start with «احجز لي» followed by one of the times offered, never «خذ». "
+              "To confirm a cancellation say «إيه، الغيه» (or «ألغه»). "
               "Name the service the way a customer would say it, not the catalogue name («تفصيل ثوب», not «تفصيل ثوب موعد مقاسات»). "
               "Only your FIRST message may greet: never start a later message with «وعليكم السلام» or return the "
               "receptionist's greeting, just answer. If your goal is done or cannot be done, reply exactly [END].")
@@ -440,7 +444,15 @@ THANKS = re.compile(r"شكر|مشكور|العافي|تسلم|يسلمو|جزا�
 # rule 24: «الله يعافيك، العفو» repeats the reply; «ولو» does not answer thanks
 THANKS_REPLY_OLW = re.compile(rf"^\W*ولو(?![{AR}])")
 # a courtesy answer with nothing to answer: «الله يعافيك» / «الله يحييك» opening a reply to a plain request (batch 02)
-COURTESY_ANSWER = re.compile(r"^\W*(?:وعليكم السلام\W*)?(الله يعافيك)")
+# rule 27: «الله يعافيك» anywhere in a reply needs a courtesy from the customer just before (missed mid-reply in
+# 00378, 00438, 00526: «تم إلغاء الحجز. الله يعافيك، وإذا حبيت…»)
+COURTESY_ANSWER = re.compile(r"(الله يعافيك)")
+# replies say times the spoken way: «3 ونص المساء», not «15:30» (batch 06 gen-00573)
+CLOCK_24 = re.compile(r"(?<!\d)(1[3-9]|2[0-3]|00):([0-5]\d)(?!\d)")
+# a lone digit at the end of a customer line that no time word asks for («التعامل ٥», batch 06 gen-00574)
+STRAY_DIGIT = re.compile(r"(\S+)\s+[0-9٠-٩]\W*$")
+NUMBER_TAKERS = re.compile(rf"^(?:و?(?:الساعة|الساعه|او|أو|ولا|بعد|قبل|لين|الى|إلى|من|لي|يعني|حوالي|تقريبا|عددنا|احنا|حنا|نحن)"
+                           rf"|و?(?:{_DAY})|و?(?:{_REL}))$")
 # rule 29: «الله يحييك» answers «حياك» only, never thanks or a plain request, anywhere in the reply (batch 03)
 YAHYIK = re.compile(r"الله يحييك|الله يحيك")
 HAYYAK = re.compile(r"حياك|حيّاك|يحييك|يحيك|سلام|أسلم|اسلم|هلا|مرحبا|صباح الخير|مساء الخير")  # rule 36: a greeting counts
@@ -798,6 +810,9 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
                 named_woman = True
             for h, mm, part, word in TIME_WITH_WORD.findall(text.translate(AR_DIGITS)):
                 customer_said.add((clock12(*spoken_time(int(h), int(mm or 0), part)), TIME_KIND[word]))
+            stray = STRAY_DIGIT.search(text.strip())
+            if stray and not NUMBER_TAKERS.match(stray.group(1)):
+                problems.append(f"stray digit at the end of a customer line: «…{stray.group(0)}»")
             if MIXED_WORD.search(text):
                 problems.append(f"Latin letters inside an Arabic word in a customer line: «{MIXED_WORD.search(text).group(0)}»")
             if ROLE_LABEL.search(text):
@@ -911,6 +926,8 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
             problems.append(f"promises the manager: «{MANAGER_PROMISE.search(text).group(0)[:30]}»")
         if HUMAN_IDENTITY.search(text):
             problems.append(f"presents itself as a person: «{HUMAN_IDENTITY.search(text).group(0)}» (rule 30)")
+        if CLOCK_24.search(text):
+            problems.append(f"24-hour time «{CLOCK_24.search(text).group(0)}» in a reply (say «3 ونص المساء»)")
         if EASTERN_DIGIT.search(text):
             problems.append("digits ٠-٩ in a reply (replies use 0-9)")
         if closes_midnight and NOON_FOR_MIDNIGHT.search(text):
