@@ -56,7 +56,7 @@ expect("formal first reply with «حياك الله» passes", record([USER, rep
 expect("casual first reply with «هلا» passes", record([USER, reply("هلا والله، وش تبي؟")], "casual"), True)
 expect("formal reply with «حبيبتي» fails", record([USER, reply("حياك الله حبيبتي")], "formal"), False, reason="حبيبتي")
 # rule 11: formal time words are الصباح / المساء
-expect("formal «4 ونص العصر» fails (decisions_v4)", record([USER] + SLOTS + [reply("حياك الله، متاح 4 ونص العصر")], "formal"), False, reason="not time labels")
+expect("formal «4 ونص العصر» fails (decisions_v4)", record([USER] + SLOTS + [reply("حياك الله، متاح 4 ونص العصر")], "formal"), False, reason="prayer time")
 expect("formal «6 المسا» fails (casual word)", record([USER] + SLOTS + [reply("حياك الله، متاح 6 المسا")], "formal"), False, reason="casual time words")
 expect("formal «6 المساء» passes", record([USER] + SLOTS + [reply("حياك الله، متاح 6 المساء")], "formal"), True)
 # 1b: exact times
@@ -151,8 +151,8 @@ NOON = tool("get_available_slots", {"service_id": "yoga", "date": "2026-11-06"},
 # rule 11 (decisions_v4): a clock rule. Morning before 12:00, evening from 12:00, casual «الليل» from 20:00;
 # «الظهر» and «العصر» are not time labels
 expect("noon slot written «12 المساء» passes", record([USER] + NOON + [reply("فيه 12 المساء")], "formal"), True, GYM)
-expect("noon slot written «12 الظهر» fails (not a label)", record([USER] + NOON + [reply("فيه 12 الظهر")], "formal"), False, GYM, reason="not time labels")
-expect("13:30 written «1 ونص العصر» fails (not a label)", record([USER] + NOON + [reply("فيه 1 ونص العصر")]), False, GYM, reason="not time labels")
+expect("noon slot written «12 الظهر» fails (not a label)", record([USER] + NOON + [reply("فيه 12 الظهر")], "formal"), False, GYM, reason="prayer time")
+expect("13:30 written «1 ونص العصر» fails (not a label)", record([USER] + NOON + [reply("فيه 1 ونص العصر")]), False, GYM, reason="prayer time")
 expect("13:30 written «1 ونص المسا» passes (casual)", record([USER] + NOON + [reply("فيه 1 ونص المسا")]), True, GYM)
 expect("noon slot written «12 الصبح» fails", record([USER] + NOON + [reply("فيه 12 الصبح")]), False, GYM, reason="does not fit")
 expect("21:00 written «9 الليل» passes (casual)", record([USER] + NOON + [reply("فيه 9 الليل")]), True, GYM)
@@ -164,8 +164,9 @@ expect("16:30 «4 ونص المساء» passes whatever the prayer times", recor
        prayer={"Asr": "15:40", "Maghrib": "18:30", "Isha": "20:00"}), True, GYM)
 expect("19:00 «7 الليل» fails (decisions_v13: «الليل» only from 8 pm)", record([USER] + EVENING + [reply("فيه 7 الليل")]), False, GYM, reason="does not fit")
 expect("18:00 «6 الليل» fails", record([USER] + EVENING + [reply("فيه 6 الليل")]), False, GYM, reason="does not fit")
-expect("«بعد العصر» for a period the customer asked about passes",
-       record([{"role": "user", "content": "ابي موعد بعد العصر"}] + EVENING + [reply("بعد العصر فيه 4 ونص المسا")]), True, GYM)
+expect("«بعد العصر» even for a period the customer asked about fails (decisions_v15, rule 11 strict)",
+       record([{"role": "user", "content": "ابي موعد بعد العصر"}] + EVENING + [reply("بعد العصر فيه 4 ونص المسا")]), False, GYM,
+       reason="prayer time")
 # rules 12 and 13: the salaam
 SALAM_USER = {"role": "user", "content": "السلام عليكم ابي احجز"}
 expect("first reply without «وعليكم السلام» fails (pilot_v2 gen-00043)", record([SALAM_USER, reply("حياك الله، وش الخدمة؟")], "formal"), False, reason="does not return")
@@ -276,7 +277,8 @@ from datagen import EXAMPLES, teacher_rules  # noqa: E402
 EXAMPLES.update({"formal": [], "casual": []})
 HALL = BUSINESSES["train_hall_1"]
 for name, ok in [("formal teacher rule says «المساء» from 12:00", "«المساء» from 12:00" in teacher_rules("formal", HALL, "x")),
-                 ("teacher rule no longer names prayer times", "Asr" not in teacher_rules("casual", GYM, "هلا")),
+                 ("teacher rules name prayer times only to forbid them",
+                  all("Never name a prayer time" in line for line in teacher_rules("casual", GYM, "هلا").splitlines() if "Asr" in line)),
                  ("hall teacher prompt has the deposit line", "deposit" in teacher_rules("formal", HALL, "x")),
                  ("gym teacher prompt has no deposit line", "deposit to confirm" not in teacher_rules("formal", GYM, "x"))]:
     failures += not ok
@@ -526,8 +528,46 @@ expect("«إيه، الغيه» answering «تقصد ألغي لك الاختب�
        record([USER] + TWO + [reply("تقصد ألغي لك اختبار تحديد مستوى بعد؟"), {"role": "user", "content": "إيه، الغيه"}]
               + cancel("B-2") + [reply("تم الإلغاء")]), True)
 expect("echoing the customer's «5 العصر» still fails (gen-00791)",
-       record([{"role": "user", "content": "ابي 5 العصر"}] + SLOTS + [reply("ما فيه 5 العصر، فيه 4 ونص المسا")]), False, reason="not time labels")
-expect("«بعد العصر» as a period passes", record([{"role": "user", "content": "ابي بعد العصر"}] + SLOTS + [reply("بعد العصر فيه 4 ونص المسا")]), True)
+       record([{"role": "user", "content": "ابي 5 العصر"}] + SLOTS + [reply("ما فيه 5 العصر، فيه 4 ونص المسا")]), False, reason="prayer time")
+# ---- decisions_v15 (batch 09 review) ----
+expect("«7 المغرب» fails (rule 11 strict, gen-00866)", record([USER] + SLOTS + [reply("ما فيه 7 المغرب، فيه 4 ونص المسا")]), False, reason="prayer time")
+expect("«المتاح بعد العصر:» fails", record([USER] + SLOTS + [reply("المتاح بعد العصر: 4 ونص المسا")]), False, reason="prayer time")
+expect("«قبل المغرب» fails", record([USER] + SLOTS + [reply("فيه 4 ونص المسا قبل المغرب")]), False, reason="prayer time")
+expect("«ما نفتح الفجر» fails", record([USER] + SLOTS + [reply("ما نفتح الفجر، فيه 4 ونص المسا")]), False, reason="prayer time")
+expect("«8 العشاء» (a time) fails", record([USER] + SLOTS + [reply("فيه 8 العشاء")]), False, reason="prayer time")
+expect("«العشاء» as dinner passes", record([USER] + SLOTS + [reply("العشاء عندنا من المنيو كامل، وفيه 4 ونص المسا")]), True)
+expect("the service «الحمام المغربي» passes", record([USER] + SLOTS + [reply("الحمام المغربي متاح 4 ونص المسا")]), True)
+AFTER = tool("get_available_slots", {"service_id": "cleaning", "date": "2026-11-06", "after": "15:42"},
+             {"date": "2026-11-06", "slots": ["16:30", "18:00"]})
+expect("«بكرة بعد 3 ونص المسا» from after 15:42 passes (the prayer-word repair)",
+       record([{"role": "user", "content": "ابي بكرة بعد العصر"}] + AFTER + [reply("المتاح بكرة الجمعة بعد 3 ونص المسا: 4 ونص المسا أو 6 المسا")]), True)
+expect("«بعد 4 المسا» (not the after time) still fails",
+       record([{"role": "user", "content": "ابي بكرة بعد العصر"}] + AFTER + [reply("المتاح بكرة الجمعة بعد 4 المسا: 4 ونص المسا")]), False, reason="not")
+from datagen import spoken_clock  # noqa: E402
+for minutes, formal, want in [(15 * 60 + 30, False, "3 ونص المسا"), (15 * 60, True, "3 المساء"), (12 * 60, False, "12 المسا")]:
+    ok = spoken_clock(minutes, formal) == want
+    failures += not ok
+    print(f"{'ok  ' if ok else 'FAIL'} prayer-word repair writes {minutes // 60}:{minutes % 60:02d} as «{want}»")
+# the customer simulator (no API call): a slip is written again
+from datagen import customer_system, simulator_slip  # noqa: E402
+CANCEL_SC = {"kind": "cancel", "goal": "Cancel", "business": GYM,
+             "customer": {"gender": "male", "hindi_digits": False, "typos": False, "english_words": False, "emoji": False}}
+INFO_SC = {**CANCEL_SC, "kind": "info"}
+DONE = ["Customer: ابي الغي حجزي", "Receptionist: تم إلغاء حصة الرياضيات الأربعاء"]
+for name, ok in [
+        ("simulator: «إيه، الغيه» after a done cancellation is a slip (gen-00810)", simulator_slip("إيه، الغيه. شكراً", CANCEL_SC, DONE) is not None),
+        ("simulator: «إيه، الغيه» with nothing to cancel is a slip (gen-00856)", simulator_slip("إيه، الغيه. شكراً", INFO_SC, ["Receptionist: تبين ألغي لك موعد؟"]) is not None),
+        ("simulator: «إيه، الغيه» before the cancellation is fine", simulator_slip("إيه، الغيه", CANCEL_SC, ["Receptionist: تبيني ألغيه لك؟"]) is None),
+        ("simulator: «أبشر» from the customer is a slip (gen-00843)", simulator_slip("أبشر، أبغى غسيل داخلي", INFO_SC, []) is not None),
+        ("simulator: «يعطيك العافية» is fine", simulator_slip("يعطيك العافية", INFO_SC, []) is None),
+        ("simulator: only a cancel customer is told «إيه، الغيه»", "الغيه" in customer_system(CANCEL_SC, [])
+         and "الغيه" not in customer_system(INFO_SC, [])),
+        ("simulator: after a done cancellation it is told not to confirm again", "already done" in customer_system(CANCEL_SC, DONE)),
+        ("teacher rule 11 strict: no prayer time, even as a period", "Never name a prayer time" in teacher_rules("casual", GYM, "هلا")),
+        # batch 10 gen-00918, gen-00964: the teacher copied the example «بعد 3 ونص المسا» whatever its `after` was
+        ("teacher rule 11 gives no clock example to copy", "«بعد 3" not in teacher_rules("casual", GYM, "هلا"))]:
+    failures += not ok
+    print(f"{'ok  ' if ok else 'FAIL'} {name}")
 expect("«بقول لهم» with no handoff call fails (gen-00723)", record([USER, reply("أبشر، بقول لهم إنك تبي تعويض")]), False, reason="without calling handoff")
 expect("«بقولهم» with no handoff call fails", record([USER, reply("أبشر، بقولهم")]), False, reason="without calling handoff")
 expect("«بقول لهم» in the turn that calls handoff passes", record([USER] + H + [reply("أبشر، بقول لهم إنك تبي تعويض")]), True)

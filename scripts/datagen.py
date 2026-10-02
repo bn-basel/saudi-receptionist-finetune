@@ -87,8 +87,11 @@ TEACHER_RULES = """Writing rules for every reply (decided by a native Saudi revi
 # decisions_v4 rule 11: a clock rule, not prayer times (whether 3 pm is «الظهر» or «العصر» depends on the
 # city and the season, and a model cannot get that reliably right)
 TIME_WORD_RULE = ("- Time-of-day words: {morning} before 12:00, {evening} from 12:00 («12 {evening_bare}», «3 {evening_bare}», "
-                  "«8 {evening_bare}»){night}. Never «الظهر» or «العصر» after a time; «بعد العصر» for a period the customer "
-                  "asked about is fine. Midnight is «12 الليل» in both registers, never «12 {evening_bare}» (that is noon).\n")
+                  "«8 {evening_bare}»){night}. Midnight is «12 الليل» in both registers, never «12 {evening_bare}» (that is noon).\n"
+                  "- Never name a prayer time (Fajr, Dhuhr, Asr, Maghrib, Isha) in your replies, not as a time, not as a "
+                  "period, not even when the customer used it. Use clock times: when the customer asks for a prayer "
+                  "period, either just list the times, or say «بعد» with the `after` time of your own get_available_slots "
+                  "call, rounded down to the half hour and written the spoken way.\n")
 REGISTER_RULES = {
     "formal": """- Formal register: your FIRST reply starts with «وعليكم السلام، حياك الله» if the customer greeted with salaam, otherwise «حياك الله». Never use «هلا», «يا قلبي» or «حبيبتي». Time words: «الصباح / المساء» (not الصبح / المسا / الليل). Polite forms like «اسمك الكريم».
 """,
@@ -297,7 +300,16 @@ def sample_scenario(rng: random.Random, businesses: list[dict]) -> dict:
     }
 
 
-def customer_turn(teacher: OpenRouterModel, sc: dict, transcript: list[str]) -> tuple[str | None, float]:
+# The simulator's words for "yes, cancel it" and the receptionist's «أبشر». Quoting «إيه، الغيه» to every
+# customer made it an all-purpose "yes": repeated after a done cancellation (batch 09 gen-00810) and said in an
+# info conversation with nothing to cancel (gen-00856). «أبشر» is the receptionist's word (gen-00747, gen-00843).
+CUSTOMER_CANCEL = re.compile(r"(?<![ء-ي])(?:[أا]لغ[ِ]?يه|[أا]لغ[ِ]?ه|الغوه|ألغوه)(?![ء-ي])")
+CUSTOMER_ABSHIR_START = re.compile(r"^\W*[أا]بشر(?![ء-ي])")
+CANCEL_DONE = re.compile(r"تم إلغاء|تم الإلغاء|تم الغاء|ألغيت|الغيت|انلغى|ملغي")
+
+
+def customer_system(sc: dict, transcript: list[str]) -> str:
+    """The customer simulator's instructions for its next message."""
     c = sc["customer"]
     b = sc["business"]
     style = [f"You are a {'woman' if c['gender'] == 'female' else 'man'} from Saudi Arabia"]
@@ -319,24 +331,54 @@ def customer_turn(teacher: OpenRouterModel, sc: dict, transcript: list[str]) -> 
               "Standard Arabic (say صديقاتي not ربيعاتي, ابي not ابا, وش not شنو). Never Arabic in Latin letters. "
               "Say plainly what you want, like a real customer, and react to what the receptionist "
               "said. To pick a time, start with «احجز لي» followed by one of the times offered, never «خذ». "
-              "To confirm a cancellation say «إيه، الغيه» (or «ألغه»), once: after the receptionist says it is "
-              "cancelled, never repeat it, just thank them or end. "
+              "Never say «أبشر» or «ابشر»: that is the receptionist's word. "
               "Ask only for services this business offers (a women's salon customer never asks for «تفصيل ثوب»). "
               "Name the service the way a customer would say it, not the catalogue name («تفصيل ثوب», not «تفصيل ثوب موعد مقاسات»). "
               "Only your FIRST message may greet: never start a later message with «وعليكم السلام» or return the "
               "receptionist's greeting, just answer. If your goal is done or cannot be done, reply exactly [END].")
+    if sc["kind"] == "cancel" and not cancel_done(transcript):
+        system += " To confirm the cancellation when asked, say «إيه، الغيه» (or «ألغه»)."
+    elif sc["kind"] == "cancel":
+        system += " Your cancellation is already done: do not confirm it again. Thank them or reply [END]."
+    return system
+
+
+def cancel_done(transcript: list[str]) -> bool:
+    return any(line.startswith("Receptionist:") and CANCEL_DONE.search(line) for line in transcript)
+
+
+def simulator_slip(text: str, sc: dict, transcript: list[str]) -> str | None:
+    """Why a simulated customer message must be written again, or None if it is fine."""
+    if CUSTOMER_ABSHIR_START.search(text):
+        return "«أبشر» is the receptionist's word"
+    if CUSTOMER_CANCEL.search(text) and (sc["kind"] != "cancel" or cancel_done(transcript)):
+        return "«الغيه» with nothing to cancel"
+    return None
+
+
+def customer_turn(teacher: OpenRouterModel, sc: dict, transcript: list[str]) -> tuple[str | None, float]:
+    """The simulated customer's next message. A slip is retried once with the reason; if it slips again,
+    the customer ends the conversation."""
+    system = customer_system(sc, transcript)
     convo = "\n".join(transcript) or "(no messages yet: write your first message)"
-    try:
-        r = teacher.client.chat.completions.create(
-            model=teacher.model, max_tokens=300,
-            messages=[{"role": "system", "content": system}, {"role": "user", "content": convo}],
-            extra_body={"provider": {"order": teacher.providers, "only": teacher.providers, "data_collection": "deny"},
-                        "reasoning": {"enabled": False}, "usage": {"include": True}})
-    except Exception:  # never print error text: it can contain request details
-        return None, 0.0
-    usage = {"cost": (r.usage.model_extra or {}).get("cost")} if r.usage else {}
-    text = (r.choices[0].message.content or "").strip().strip('"')
-    return text, cost_usd(usage, teacher.price)
+    spent = 0.0
+    for attempt in range(2):
+        try:
+            r = teacher.client.chat.completions.create(
+                model=teacher.model, max_tokens=300,
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": convo}],
+                extra_body={"provider": {"order": teacher.providers, "only": teacher.providers, "data_collection": "deny"},
+                            "reasoning": {"enabled": False}, "usage": {"include": True}})
+        except Exception:  # never print error text: it can contain request details
+            return None, spent
+        usage = {"cost": (r.usage.model_extra or {}).get("cost")} if r.usage else {}
+        spent += cost_usd(usage, teacher.price)
+        text = (r.choices[0].message.content or "").strip().strip('"')
+        slip = simulator_slip(text, sc, transcript)
+        if slip is None:
+            return text, spent
+        system += f" Your last draft was wrong ({slip}); write a different message."
+    return "[END]", spent
 
 
 def generate_one(idx: int, sc: dict, teacher: OpenRouterModel, spec: tuple) -> tuple[dict | None, list[str], float]:
@@ -482,6 +524,11 @@ EASTERN_DIGIT = re.compile("[٠-٩]")  # replies write numbers with 0-9 only (ba
 OWN_YAATIK = re.compile(r"يعطيك العافي[ةه]")
 # decisions_v14 widened rule 44 to forms of address («يا طيب», «يا الغالية»; batch 08 gen-00728, gen-00778)
 ENDEARMENT = re.compile(rf"(?<![{AR}])[وف]?(حبيبتي|حبيبي|تكفى|تكفين|يا\s+(?:طيب|طيبة|الغالي|الغالية|غالي|غالية))(?![{AR}])")
+# decisions_v15 rule 11, strict: no prayer time in a reply, not even as a period («بعد العصر») or echoing the
+# customer (batch 09 gen-00866 «7 المغرب»). Whole words: «الحمام المغربي» is a service; «العشاء» is also dinner,
+# so it counts only after a clock time
+PRAYER_WORD = re.compile(rf"(?<![{AR}])[وبلف]?(?:ال|ل)(فجر|ظهر|عصر|مغرب)(?![{AR}])|(?<![{AR}])(ظهرا|عصرا)ً?(?![{AR}])")
+ISHA_AFTER_TIME = re.compile(rf"\d\s*(?:ونص|وربع|الا ربع|إلا ربع)?\s*(العشاء|العشا)(?![{AR}])")
 # rule 45: «الخميس عندنا متاح», «6 الصبح متاح» before any slot lookup (batch 08 gen-00754, gen-00775). Only the
 # claim «متاح»; the noun «المتاح» («أشوف لك المتاح») offers to look
 AVAILABLE_CLAIM = re.compile(rf"(?<![{AR}])(?:مو\s+|مب\s+)?متاح(?:ة|ين)?(?![{AR}])")
@@ -763,9 +810,7 @@ def time_word_problems(text: str, known24: dict, hours24: dict, by_customer: fro
             continue
         said = f"«{h}{':%02d' % m if m else ''} {word}»"
         kind = TIME_KIND[word]
-        # not even when echoing the customer's «5 العصر» (decisions_v14, batch 08 gen-00791)
-        if kind not in TIME_WINDOWS:
-            bad.append(f"{said}: «الظهر / العصر» are not time labels (say الصباح / المساء)")
+        if kind not in TIME_WINDOWS:  # «الظهر / العصر»: PRAYER_WORD rejects them anywhere (rule 11, strict)
             continue
         if (clock12(h, m), kind) in by_customer:
             continue
@@ -874,6 +919,7 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
     dated = dated_times(msgs)
     services = " ".join(s["name"] for s in business["services"])
     allowed_tool, allowed_customer, women = set(), set(), business["customers"] == "women only"
+    after_times: set[tuple[int, int]] = set()  # the `after` of each slot search, down to the half hour
     handoff_done, booked, first_reply, first_user, last_user = False, False, True, None, ""
     named_woman = False  # the customer gave a woman's name
     customer_said = set()  # (time, word kind) the customer wrote, e.g. «8 المساء»
@@ -935,6 +981,11 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
                 booked = True
             for tc in m.get("tool_calls") or []:
                 a = tc["function"]["arguments"]
+                # «بعد 3 ونص المسا» for a search after 15:42: the after time, down to the half hour (rule 11, strict)
+                if isinstance(a, dict) and CLOCK.fullmatch(str(a.get("after", ""))):
+                    after_min = to_min(a["after"]) // 30 * 30
+                    allowed_tool.add(clock12(after_min // 60, after_min % 60))
+                    after_times.add(clock12(after_min // 60, after_min % 60))
                 if tc["function"]["name"] == "cancel_booking" and isinstance(a, dict) and \
                         cancel_unnamed(msgs, i, str(a.get("booking_id", ""))):
                     problems.append(f"cancels {a.get('booking_id')}, which the customer did not name or confirm (rule 46)")
@@ -971,7 +1022,7 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
         bad_times = sorted({clock12(*t) for t in text_times(text)} - allowed)
         if bad_times:
             problems.append("time not from a tool: " + ", ".join(f"{h}:{mm:02d}" for h, mm in bad_times))
-        problems += day_slot_problems(text, today, dated, allowed_customer | (stated & hours))
+        problems += day_slot_problems(text, today, dated, allowed_customer | (stated & hours) | after_times)
         # a slot already past today, offered (pilot_v3 gen-00048: 13:00-17:00 offered at 18:31)
         passed = sorted(t for t in ({clock12(*t) for t in text_times(text)} & past_today.keys()) - other_days - allowed_customer
                         if t not in later_today or labelled_only(text, t, past_today[t], later_today[t]))
@@ -1031,6 +1082,9 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
             problems.append("the receptionist says «يعطيك العافية» (rule 42)")
         if ENDEARMENT.search(text):
             problems.append(f"«{ENDEARMENT.search(text).group(1)}» in a reply (rule 44)")
+        prayer = PRAYER_WORD.search(text) or ISHA_AFTER_TIME.search(text.translate(AR_DIGITS))
+        if prayer:
+            problems.append(f"prayer time «{prayer.group(0).strip()}» in a reply (rule 11: clock times only)")
         # rule 45: availability of a day or time claimed before any slot lookup
         if not any(x["role"] == "tool" and x.get("name") == "get_available_slots" for x in msgs[:i]):
             claim45 = next((s for s in re.split(r"[.!؟\n]", text.translate(AR_DIGITS)) if AVAILABLE_CLAIM.search(s)
@@ -1055,9 +1109,8 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
         # rule 15: health or care tips (a word list cannot tell them from practical tips)
         if HEALTH_TIP.search(text):
             flags.append(f"possible health tip «{HEALTH_TIP.search(text).group(0)}»")
-        # rule 34 is a generator rule, not a reject; `repair-lists` can fix a line later
-        if repair_lists(text) != text:
-            flags.append("3+ options in one line (rule 34)")
+        # rule 34 (relaxed, decisions_v15): one option per line is only the teacher's default; slot lists will be
+        # laid out outside the model, so options in one line are neither flagged nor repaired
         # 1f: feminine forms need evidence first
         fem = FEMININE_RE.search(text)
         if not women and fem:
@@ -1461,7 +1514,8 @@ def cmd_repair_emojis(args) -> None:
 
 def cmd_repair_lists(args) -> None:
     """Rule 34 repair on kept conversations: 3 or more options listed in one line go one per line. Only the
-    separators («،» and a leading «و») and line breaks change; that is verified for every reply."""
+    separators («،» and a leading «و») and line breaks change; that is verified for every reply.
+    Retired by decisions_v15 (rule 34 relaxed): kept so the repairs already applied can be reproduced."""
     path = OUT_DIR / f"{args.name}.jsonl"
     recs = [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines()]
     squash = lambda t: re.sub(r"[\s،,]", "", t)
@@ -1544,6 +1598,59 @@ def cmd_repair_closings(args) -> None:
     print(f"{args.name}: {len(repaired)} conversations closing-repaired; left for the founder: {skipped or 'none'}")
 
 
+def spoken_clock(minutes: int, formal: bool) -> str:
+    """15:30 -> «3 ونص المسا» (casual) / «3 ونص المساء» (formal); afternoon and evening times only."""
+    h, m = minutes // 60, minutes % 60
+    return f"{h % 12 or 12}{' ونص' if m == 30 else ''} {'المساء' if formal else 'المسا'}"
+
+
+def cmd_repair_prayer_words(args) -> None:
+    """Rule 11, strict (decisions_v15): in the rows a review list names, «بعد العصر» in a receptionist line
+    becomes «بعد 3 ونص المسا», from the `after` of the slot search before that reply, rounded down to the
+    half hour. Anything else (no `after`, another prayer word or phrase, a count that differs from the list)
+    is left for the founder. Verifies that only «العصر» changed."""
+    listed: dict[str, int] = {}
+    for row in csv.DictReader(open(args.csv_path, encoding="utf-8-sig")):
+        listed[row["id"]] = listed.get(row["id"], 0) + 1
+    path = OUT_DIR / f"{args.name}.jsonl"
+    recs = [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines()]
+    repaired, skipped = [], []
+    for r in recs:
+        if r["id"] not in listed or "prayer word" in r.get("repairs", []):
+            continue
+        formal = r["meta"]["style"]["register"] == "formal"
+        after, done, ok, new_msgs = None, 0, True, []
+        for m in r["messages"]:
+            for tc in m.get("tool_calls") or []:
+                a = tc["function"]["arguments"]
+                if isinstance(a, dict) and CLOCK.fullmatch(str(a.get("after", ""))):
+                    after = to_min(a["after"]) // 30 * 30
+            if m["role"] == "assistant" and m.get("content") and PRAYER_WORD.search(m["content"]):
+                text = m["content"]
+                n = len(re.findall(r"بعد العصر", text))
+                if after is None or n != len(PRAYER_WORD.findall(text)) or after < 12 * 60:
+                    ok = False
+                    break
+                clock = f"بعد {spoken_clock(after, formal)}"
+                new = text.replace("بعد العصر", clock)
+                # exactly reversible: only «العصر» changed, nothing else in the line
+                if clock in text or new.replace(clock, "بعد العصر") != text or PRAYER_WORD.search(new):
+                    ok = False
+                    break
+                done += n
+                m = {**m, "content": new}
+            new_msgs.append(m)
+        # every «بعد العصر» in a listed row (the list counted 38 places; three rows had one more each)
+        if ok and done >= listed[r["id"]]:
+            r["messages"] = new_msgs
+            r["repairs"] = sorted(set(r.get("repairs", [])) | {"prayer word"})
+            repaired.append(r["id"])
+        else:
+            skipped.append(r["id"])
+    path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in recs), encoding="utf-8", newline="\n")
+    print(f"{args.name}: {len(repaired)} conversations prayer-word repaired; left for the founder: {skipped or 'none'}")
+
+
 def cmd_import_review(args) -> None:
     """Attach reviewer verdicts from a filled review CSV (columns id, verdict, note) to the records.
     Only "ok" conversations are used for training; "fix" and "bad" are kept on file, not trained on."""
@@ -1587,7 +1694,8 @@ def cmd_sheet(args) -> None:
         for r in recs:
             w.writerow([r["id"], r["meta"]["business_id"], "/".join(r["meta"]["style"].values()), r["scenario"],
                         "; ".join((["emoji repaired"] if "emoji" in r.get("repairs", []) else [])
-                                  + (["closing repaired"] if "closing" in r.get("repairs", []) else []) + r.get("flags", [])),
+                                  + (["closing repaired"] if "closing" in r.get("repairs", []) else [])
+                                  + (["time-word repaired"] if "prayer word" in r.get("repairs", []) else []) + r.get("flags", [])),
                         render(r), "", ""])
     print(f"wrote {out} ({len(recs)} conversations)")
 
@@ -1617,10 +1725,13 @@ if __name__ == "__main__":
     re_.add_argument("name")
     rc_ = sub.add_parser("repair-closings")
     rc_.add_argument("name")
+    rp = sub.add_parser("repair-prayer-words")
+    rp.add_argument("name")
+    rp.add_argument("csv_path")
     rl = sub.add_parser("repair-lists")
     rl.add_argument("name")
     rl.add_argument("--batch", type=int, help="only this batch of a batched run")
     a = ap.parse_args()
     {"generate": cmd_generate, "sheet": cmd_sheet, "recheck": cmd_recheck, "import-review": cmd_import_review,
      "repair-emojis": cmd_repair_emojis, "repair-lists": cmd_repair_lists,
-     "repair-closings": cmd_repair_closings}[a.cmd](a)
+     "repair-closings": cmd_repair_closings, "repair-prayer-words": cmd_repair_prayer_words}[a.cmd](a)
