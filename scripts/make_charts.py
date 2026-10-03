@@ -13,10 +13,11 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "docs" / "charts"
 FONT = "font-family='Segoe UI, Helvetica, Arial, sans-serif'"
 INK, GRID, MUTED, OURS, API, OPEN = "#1f2328", "#d0d7de", "#656d76", "#1a7f37", "#8c959f", "#bf8700"
-OURS_EARLY = "#7cc58a"  # an earlier fine-tuning run: the same green, lighter
+RUN_GREENS = ["#a8dbb2", "#5fb874", OURS]  # one green per fine-tuning run, darker as the data grows
 RUNS = [  # fine-tuning runs: name, label, chosen checkpoint, conversations trained on
     ("gold_v1", "run 1", 150, 352),
     ("gold_v2", "run 2", 315, 874),
+    ("gold_v3", "run 3", 387, 1086),
 ]
 
 
@@ -41,7 +42,7 @@ def test_scores() -> None:
         ("ALLaM-7B (HUMAIN), prompted", OPEN, "stage5/humain-ai__ALLaM-7B-Instruct-preview__test",
          "stage5/humain-ai__ALLaM-7B-Instruct-preview__test__long"),
         ("Gemma-4-12B, untuned", OPEN, "stage5/google__gemma-4-12B-it__test", "stage5/google__gemma-4-12B-it__test__long"),
-        *[(f"Gemma-4-12B + QLoRA, {label} ({n} conv.)", OURS if k == len(RUNS) - 1 else OURS_EARLY,
+        *[(f"Gemma-4-12B + QLoRA, {label} ({n} conv.)", RUN_GREENS[k - len(RUNS)],
            f"stage7/{run}_ckpt{ck}__test", None) for k, (run, label, ck, n) in enumerate(RUNS)],
         ("Gemini 3.8 Flash (API)", API, "stage5/or__gemini-3.8-flash__test", "stage5/or__gemini-3.8-flash__test__long"),
         ("GPT-5.4 mini (API)", API, "stage5/or__gpt-5.4-mini__test", "stage5/or__gpt-5.4-mini__test__long"),
@@ -57,7 +58,7 @@ def test_scores() -> None:
         body.append(text(x, top + row_h * len(rows) + 16, f"{p}%", 11, "middle", MUTED))
     for i, (label, color, short, long) in enumerate(rows):
         y = top + i * row_h
-        bold = "bold" if color in (OURS, OURS_EARLY) else "normal"
+        bold = "bold" if color in RUN_GREENS else "normal"
         body.append(text(left - 10, y + 17, label, 13, "end", weight=bold))
         if long:
             ls = summary(long)
@@ -83,7 +84,7 @@ def checkpoint_curve() -> None:
         steps = sorted({e["step"] for e in log if "eval_loss" in e})
         points = [(s / per_epoch, summary(f"stage7/{run}_ckpt{s}__dev")["pass_rate"]) for s in steps
                   if (ROOT / "results" / "stage7" / f"{run}_ckpt{s}__dev" / "summary.json").exists()]
-        curves.append((f"{label}: {n} conversations", OURS if k == len(RUNS) - 1 else OURS_EARLY, points))
+        curves.append((f"{label}: {n} conversations", RUN_GREENS[k - len(RUNS)], points))
     refs = [("untuned Gemma", summary("stage5/google__gemma-4-12B-it__dev")["pass_rate"], OPEN),
             ("DeepSeek V4.1 Flash (API)", summary("stage5/or__deepseek-v4.1-flash__dev")["pass_rate"], API)]
     passes = max(p for _, _, pts in curves for p, _ in pts)
@@ -109,12 +110,12 @@ def checkpoint_curve() -> None:
         body.append(f"<path d='{path}' fill='none' stroke='{color}' stroke-width='2.5'/>")
         body += [f"<circle cx='{xs(x):.1f}' cy='{ys(r):.1f}' r='4' fill='{color}'/>" for x, r in points]
     # legend under the plot, so the labels never collide with the reference lines on the right
-    for k, (label, color, _) in enumerate(curves):
-        x = left + 340 * k
-        body.append(f"<line x1='{x}' y1='{top + ph + 56}' x2='{x + 22}' y2='{top + ph + 56}' stroke='{color}' stroke-width='3'/>")
-        body.append(text(x + 28, top + ph + 60, f"fine-tuned Gemma, {label}", 12, color=INK, weight="bold"))
+    for k, (label, color, _) in enumerate(curves):  # one row per run
+        y = top + ph + 56 + 20 * k
+        body.append(f"<line x1='{left}' y1='{y}' x2='{left + 22}' y2='{y}' stroke='{color}' stroke-width='3'/>")
+        body.append(text(left + 28, y + 4, f"fine-tuned Gemma, {label}", 12, color=INK, weight="bold"))
     body.append(text(left + pw / 2, top + ph + 34, "passes over the training data", 12, "middle", MUTED))
-    (OUT / "checkpoint_curve.svg").write_text(svg(w, h + 30, body), encoding="utf-8")
+    (OUT / "checkpoint_curve.svg").write_text(svg(w, h + 30 + 20 * (len(curves) - 1), body), encoding="utf-8")
 
 
 if __name__ == "__main__":
