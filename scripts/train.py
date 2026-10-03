@@ -114,6 +114,22 @@ def build(tok, max_len: int, val_share: float, seed: int) -> tuple[list[dict], l
     return train, val
 
 
+def trained_loss(model, input_ids, labels, num_items_in_batch=None):
+    """The causal-LM loss, with vocabulary scores (logits) built only where the loss looks.
+
+    The score at position t predicts token t+1, so position t is kept when labels[t+1] is trained. The other
+    ~83% of positions (customer text, tool results) are masked out of the loss anyway, so leaving them out
+    changes neither the loss nor the gradients; it only skips a 262k-wide row per position. At ~1,500 tokens
+    that table and its float32 copies were 3-4 GB, enough to push run 2 past 16 GB (gold_v2, 3 Oct).
+    Same reduction as transformers' default: a sum over trained tokens divided by the number of trained
+    tokens in the whole accumulated batch when the Trainer passes it, else a mean."""
+    import torch
+    keep = (labels[0, 1:] != -100).nonzero().squeeze(-1)  # positions t whose next token is trained
+    logits = model(input_ids=input_ids, logits_to_keep=keep).logits[0].float()
+    loss = torch.nn.functional.cross_entropy(logits, labels[0, keep + 1], reduction="sum")
+    return loss / num_items_in_batch if num_items_in_batch is not None else loss / len(keep)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--run", required=True)
@@ -127,6 +143,9 @@ def main() -> None:
     ap.add_argument("--val-share", type=float, default=0.05)
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--resume", action="store_true", help="continue from the run's latest checkpoint")
+    ap.add_argument("--mem-fraction", type=float, default=0.8,
+                    help="cap on the GPU memory PyTorch may hold, cache included (share of the card)")
     args = ap.parse_args()
 
     from transformers import AutoTokenizer
@@ -145,6 +164,10 @@ def main() -> None:
     from transformers import (AutoModelForCausalLM, BitsAndBytesConfig, Trainer, TrainerCallback,
                               TrainingArguments)
 
+    # PyTorch keeps freed blocks cached for reuse; with conversations of every length, run 2's cache grew to
+    # 15 GB while training used 9.8 GB, and Windows began spilling into system memory (gold_v2, 3 Oct). Under
+    # this cap the cache is trimmed first; training itself never needs more than ~10 GB.
+    torch.cuda.set_per_process_memory_fraction(args.mem_fraction)
     model = AutoModelForCausalLM.from_pretrained(
         MODEL, dtype=torch.bfloat16, device_map={"": 0},
         quantization_config=BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",  # as in the benchmark
@@ -165,19 +188,33 @@ def main() -> None:
     class Pace(TrainerCallback):
         """Prints speed and GPU memory, so a slowdown from Windows' system-memory fallback shows at once."""
         def __init__(self):
-            self.t0 = time.time()
+            self.t0, self.start, self.last = time.time(), None, None
 
         def on_log(self, a, state, control, logs=None, **kw):
+            now = time.time()
+            if self.start is None:  # a resumed run starts at its checkpoint's step
+                self.start = state.global_step - (a.logging_steps if state.global_step else 0)
             used = torch.cuda.max_memory_allocated() / 2**30
-            per = (time.time() - self.t0) / max(state.global_step, 1)
+            held = torch.cuda.memory_reserved() / 2**30  # cache included: what Windows counts
+            per = (now - self.t0) / max(state.global_step - self.start, 1)
+            # the average hides a slowdown that creeps in (gold_v2: 11.4 → 16.1 average while steps took ~24 s)
+            recent = (now - self.last[0]) / max(state.global_step - self.last[1], 1) if self.last else per
+            self.last = (now, state.global_step)
             left = per * (state.max_steps - state.global_step) / 60
             line = (f"{datetime.now():%H:%M} step {state.global_step}/{state.max_steps}  {per:.1f}s/step  "
-                    f"~{left:.0f} min left  peak GPU {used:.1f} GB  {logs}")
+                    f"recent {recent:.1f}s/step  ~{left:.0f} min left  peak GPU {used:.1f} GB  held {held:.1f} GB  {logs}")
             print(line, flush=True)
             with open(out / "train.log", "a", encoding="utf-8") as f:  # readable while the run goes on
                 f.write(line + "\n")
 
-    trainer = Trainer(
+    class MaskedLogitsTrainer(Trainer):
+        """Builds vocabulary scores only at trained positions (see trained_loss); same loss and gradients."""
+        def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+            loss = trained_loss(model, inputs["input_ids"].to(model.device), inputs["labels"].to(model.device),
+                                num_items_in_batch)
+            return (loss, {}) if return_outputs else loss  # evaluation reads only the loss
+
+    trainer = MaskedLogitsTrainer(
         model=model,
         args=TrainingArguments(
             output_dir=str(out), per_device_train_batch_size=1, per_device_eval_batch_size=1,
@@ -185,13 +222,14 @@ def main() -> None:
             learning_rate=args.lr, lr_scheduler_type="cosine", warmup_steps=5, optim="paged_adamw_8bit",
             bf16=True, logging_steps=1 if args.max_steps > 0 else 5, eval_strategy="steps",
             eval_steps=args.save_every, save_strategy="steps", save_steps=args.save_every, save_total_limit=None,
-            report_to="none", seed=args.seed, remove_unused_columns=False, dataloader_num_workers=0),
+            report_to="none", seed=args.seed, remove_unused_columns=False, dataloader_num_workers=0,
+            prediction_loss_only=True),  # evaluation needs only the loss, not the logits
         train_dataset=Dataset.from_list([{"input_ids": r["input_ids"], "labels": r["labels"]} for r in train]),
         eval_dataset=Dataset.from_list([{"input_ids": r["input_ids"], "labels": r["labels"]} for r in val]),
         data_collator=collate,
         callbacks=[Pace()],
     )
-    trainer.train()
+    trainer.train(resume_from_checkpoint=args.resume or None)
     trainer.save_model(str(out / "final"))
     (out / "log_history.json").write_text(json.dumps(trainer.state.log_history, indent=1), encoding="utf-8")
     print(f"done: adapters in {out}")

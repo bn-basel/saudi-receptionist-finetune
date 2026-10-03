@@ -62,3 +62,7 @@ Short, plain definitions. Added to as each step introduces new terms.
 | **Epoch / pass** | One time through all the training examples. |
 | **Back-test (of a check)** | Running a new automatic check over data people already reviewed before trusting it: it should catch the rows they rejected and leave the rows they passed alone. |
 | **Regression test** | A test written from a bug that was found, so the same mistake is caught automatically if it ever comes back. |
+| **Logits** | The model's raw score for every word in its vocabulary, at every position. For Gemma 4 that is 262,144 numbers per token, so the full table for a long conversation takes gigabytes. |
+| **Scores only where trained** | Building logits only at the positions the loss mask grades (17% of tokens here), with the same loss and gradients. It cut run 2's peak memory from 13.5 GB to 9.6 GB. |
+| **System-memory fallback (VRAM spill)** | When a Windows GPU runs out of its own memory, it borrows ordinary RAM. Nothing fails, but every step becomes several times slower; a slow step is the warning sign. |
+| **Noise floor** | How much a result changes when you repeat the same computation. A difference is only meaningful if it is bigger than this. |
