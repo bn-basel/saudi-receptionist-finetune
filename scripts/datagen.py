@@ -75,6 +75,7 @@ TEACHER_RULES = """Writing rules for every reply (decided by a native Saudi revi
 - When you offer 3 or more options (times, services, anything), put each on its own line after a short lead-in («المتاح:»). Two options can stay in one sentence («4 المسا أو 7 المسا»).
 - No health advice of any kind, not even "see a doctor". For any symptom, pain, reaction or feeling unwell: say «سلامتك» and call handoff_to_human in that same reply. No judgement on how serious it is, no filler («وأنت أولى بالطمأنينة»). Practical tips about the service itself are fine («جيب معك لبس رياضي»).
 - On any complaint, call handoff_to_human in the same reply that apologises; never write «بحولك للفريق» without the tool call.
+- «سلامتك» only when the customer mentions illness, pain, a reaction, an injury or a sick pet. Any other complaint (a wrong price, a rude staff member, a long wait, a lost booking): «آسفين على اللي صار» plus the handoff. Always apologise in the plural, «آسفين».
 - Never «يعطيك العافية» or «الله يعطيك العافية» yourself. After a booking, end with «… إن شاء الله», «نشوفك على خير», or nothing.
 - Never address the customer with a pet name, an endearment or a compliment: only their name («تم يا سعد») or nothing («تم إلغاء موعدك» ends there). Never plead («تكفى لا تتأخر»): state the policy instead («نحفظ لك الطاولة 15 دقيقة»).
 - Never say a day or time is available («الخميس عندنا متاح», «6 الصبح متاح») before get_available_slots returned it for that day. Check first, then answer from the result.
@@ -1182,6 +1183,21 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
             problems.append("«الله يعينك» as a reply to a request to hurry")
         first_reply = False
     problems += unsaid_closed_days(msgs, today, business) + move_direction_problems(msgs, today)
+    # decisions_v18: a confirmation that names another day, a name the customer never gave (rejects); rule 48 and
+    # two near-misses (flags for the reviewer)
+    problems += confirmation_date_problems(msgs, today) + name_problems(msgs)
+    flags += repeated_slot_calls(msgs)
+    customer_so_far = ""
+    for m in msgs:
+        if m["role"] == "user":
+            customer_so_far += " " + plain_ar(m["content"])
+        elif m["role"] == "assistant" and m.get("content"):
+            if SALLAMTAK.search(m["content"]) and not HEALTH_WORDS.search(customer_so_far):
+                flags.append("«سلامتك» with no illness, pain or injury mentioned (rule 48: «آسفين على اللي صار»)")
+            if SINGULAR_SORRY.search(m["content"]):
+                flags.append(f"«{SINGULAR_SORRY.search(m['content']).group(0)}» (rule 48: the apology is «آسفين»)")
+            if NO_CANCEL.search(m["content"]) and not any(NO_CANCEL_POLICY.search(p) for p in business.get("policies", [])):
+                flags.append(f"«{NO_CANCEL.search(m['content']).group(0)}…»: a cancellation limit the policy does not state")
     return list(dict.fromkeys(problems + address_problems(rec, business))), list(dict.fromkeys(flags))
 
 
@@ -1314,6 +1330,98 @@ def unsaid_closed_days(msgs: list[dict], today: date, business: dict) -> list[st
 # «نقدم لك» (we offer) have no «ل + day» after them
 MOVE = re.compile(rf"(?<![{AR}])(?P<verb>[نتأ]أخر|[نت]اخر|أأخر|[نتأ]قدم)(?:ه|ها|هم)?\s+(?:موعدك\s+|حجزك\s+)?(?:ل|لـ|إلى|الى)"
                   rf"(?P<rest>[^.،؟!\n]*)")
+
+
+# Rule 48 (decisions_v18): «سلامتك» answers illness, pain, a reaction, an injury or a sick pet; other complaints get
+# «آسفين على اللي صار». Stems, since customers misspell («توعقت», focus_v1 gen-00202)
+HEALTH_WORDS = re.compile(rf"(?<![{AR}])[وب]?(?:[أا]لم|آلام)(?![{AR}])|وجع|توجع|تعور|يعور|دوخ|حساسي|تعب|توعك|توعق|حبوب"
+                          r"|مريض|مرض|جرح|حرق|حكة|حكه|التهاب|انتفاخ|ورم|نزيف|صداع|حرار|سخون|كحة|كحه|استفراغ|[اإ]سهال|حمى"
+                          r"|[اإ]صاب|كسر|رضوض|خدش|عض")
+SALLAMTAK = re.compile(rf"(?<![{AR}])[و]?سلامت(?:ك|كم)(?![{AR}])")
+# the singular «آسف / آسفة»; «آسفين» is right and «للأسف» (unfortunately) is another word
+SINGULAR_SORRY = re.compile(rf"(?<![{AR}])[وف]?[آا]سف[ةه]?(?![{AR}])")
+# an invented limit on cancelling (focus_v1 gen-00132 «وأقل من كذا ما نقدر نلغي»); every policy is "free up to N hours"
+# «وبعدها ما نقدر نلغيه مجاناً» restates "free up to N hours" faithfully (train_v1 gen-00034 and 5 more ok rows)
+NO_CANCEL = re.compile(r"ما (?:نقدر|يمدي|نستطيع|يصير|ينفع) (?:ن|ت)?لغ[^\s،.]*(?![^\s،.])(?!\s*مجان)")
+NO_CANCEL_POLICY = re.compile(r"no cancel|cannot cancel|can't cancel|non-refundable", re.IGNORECASE)
+# names a receptionist might put in a customer's mouth: the simulator's names and other common first names
+NAME_WORDS = {norm_word(n.split()[0]) for g in CUSTOMER_NAMES.values() for n in g} | {norm_word(n) for n in [
+    "خالد", "عبدالعزيز", "سلطان", "فيصل", "تركي", "بندر", "نايف", "ماجد", "سارة", "سارا", "ريم", "أمل", "نجود", "منيرة",
+    "لمى", "شهد", "جواهر", "دانة", "عبدالله", "محمد", "أحمد", "علي", "عمر", "يوسف", "إبراهيم", "صالح", "سليمان"]}
+
+
+def name_problems(msgs: list[dict]) -> list[str]:
+    """A customer name the receptionist uses (in create_booking, or «يا سعد») must come from the customer
+    (focus_v1 gen-00224 cancelled a booking with «تم إلغاء موعدك يا سعد» when no name was ever given)."""
+    out, said = [], set()
+    for m in msgs:
+        if m["role"] == "user":
+            said |= {norm_word(w) for w in re.findall(rf"[{AR}]+", m["content"])}
+        for tc in m.get("tool_calls") or []:
+            a = tc["function"]["arguments"]
+            if tc["function"]["name"] == "create_booking" and isinstance(a, dict):
+                first = (re.findall(rf"[{AR}]+", str(a.get("customer_name", ""))) or [""])[0]
+                if first and norm_word(first) not in said and str(a.get("customer_name", "")).strip().lower() not in PLACEHOLDER_NAMES:
+                    out.append(f"create_booking with the name «{a.get('customer_name')}», which the customer never gave")
+        if m["role"] == "assistant" and m.get("content"):
+            for name in re.findall(rf"(?<![{AR}])يا\s+([{AR}]+)", m["content"]):
+                if norm_word(name) in NAME_WORDS and norm_word(name) not in said:
+                    out.append(f"calls the customer «يا {name}», a name the customer never gave")
+    return list(dict.fromkeys(out))
+
+
+OLD_BOOKING = re.compile(r"القديم|السابق|[إا]لغاء|[أا]لغي|ملغي|انلغى|كان حجزك|كان موعدك")
+
+
+def confirmation_date_problems(msgs: list[dict], today: date) -> list[str]:
+    """After create_booking, the confirming reply's weekdays, dates and «اليوم / بكرة» must match the booked date
+    (focus_v1 gen-00228 booked Thursday 1 April and confirmed «الأربعاء 31 مارس»)."""
+    from scoring import dates_in
+    out, booked = [], set()
+    for m in msgs:
+        for tc in m.get("tool_calls") or []:
+            a = tc["function"]["arguments"]
+            if tc["function"]["name"] == "create_booking" and isinstance(a, dict):
+                try:
+                    booked.add(date.fromisoformat(str(a.get("date"))))
+                except ValueError:
+                    pass
+        if m["role"] == "user":
+            booked = set()  # only the reply that confirms this turn's booking is checked
+        if m["role"] != "assistant" or not m.get("content") or not booked:
+            continue
+        # sentences about opening hours, closed days or the old booking name other days on purpose (train_v1
+        # gen-01167 «من الأحد للخميس… والجمعة إجازة», gen-00103 «والحجز القديم يوم الأحد تم إلغاؤه»)
+        t = " . ".join(s for s in re.split(r"[.!؟\n]", plain_ar(m["content"]).translate(AR_DIGITS))
+                       if not (HOURS_WORDS.search(s) or CLOSED_WORDS.search(s) or OLD_BOOKING.search(s)))
+        days = {WEEKDAY[d] for d in re.findall(rf"(?<![{AR}])[وبل]?({_DAY})(?![{AR}])", re.sub(rf"(?<![{AR}])لل", "ال", t))}
+        wrong = [WEEKDAYS_AR[d] for d in days if d not in {b.weekday() for b in booked}]
+        wrong += [f"{d} {mo}" for d, mo in dates_in(t) if (d, mo) not in {(b.day, b.month) for b in booked}]
+        wrong += [r for r in re.findall(rf"(?<![{AR}])[وبل]?({_REL})(?![{AR}])", t)
+                  if today + timedelta(days=RELATIVE[r]) not in booked]
+        if wrong:
+            out.append(f"confirms the booking with {', '.join(dict.fromkeys(str(w) for w in wrong))}, "
+                       f"but it is booked for {', '.join(f'{WEEKDAYS_AR[b.weekday()]} {b:%d/%m}' for b in sorted(booked))}")
+        booked = set()
+    return out
+
+
+def repeated_slot_calls(msgs: list[dict]) -> list[str]:
+    """Two get_available_slots calls for the same service and date in one turn (focus_v1 gen-00279: a second call
+    with a later `after` dropped a real slot). A flag. Widening the search (after X, then the whole day) is how
+    the teacher offers more choice when the customer's period is thin, so it is left alone (29 of 35 repeats)."""
+    out, seen = [], {}
+    for m in msgs:
+        if m["role"] == "user":
+            seen = {}
+        for tc in m.get("tool_calls") or []:
+            a = tc["function"]["arguments"]
+            if tc["function"]["name"] == "get_available_slots" and isinstance(a, dict):
+                key = (a.get("service_id"), a.get("date"))
+                if key in seen and not (seen[key].get("after") and not a.get("after")):
+                    out.append(f"two slot lookups for {key[0]} on {key[1]} in one turn")
+                seen[key] = a
+    return list(dict.fromkeys(out))
 
 
 def move_direction_problems(msgs: list[dict], today: date) -> list[str]:

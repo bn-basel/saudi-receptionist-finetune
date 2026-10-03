@@ -498,7 +498,7 @@ for name, ok in [("teacher rule 43: «سلامتك» and hand off at once", "«�
 # ---- decisions_v14 (batch 08 review) ----
 expect("«يا الغالية» fails (rule 44 widened, gen-00728)", record([USER, reply("تم إلغاء موعدك يا الغالية")]), False, SALON, reason="rule 44")
 expect("«يا طيب» fails (gen-00778)", record([USER, reply("بأي وقت يا طيب")]), False, reason="rule 44")
-expect("the name instead passes", record([USER, reply("تم يا سعد")]), True)
+expect("the name instead passes", record([{"role": "user", "content": "اسمي سعد"}, reply("تم يا سعد")]), True)
 expect("«الخميس عندنا متاح» before any lookup fails (rule 45, gen-00775)",
        record([USER, reply("الخميس عندنا متاح إن شاء الله، كم عددكم؟")]), False, reason="rule 45")
 expect("«6 الصبح متاح» before any lookup fails (gen-00754)", record([USER, reply("طيب، 6 الصبح متاح. أي يوم تبغاه؟")]), False, reason="rule 45")
@@ -607,6 +607,58 @@ for text, ok in [("حجزك أصلاً الأربعاء 11 نوفمبر، تبغ
                  ("حجزك أصلاً الأربعاء 11 نوفمبر، تبغى تأخره للاثنين 9؟", False),     # batch 12 gen-01180: «لل»
                  ("حجزك أصلاً الأربعاء 11 نوفمبر، تبغى أقدمه للاثنين 9؟", True)]:
     expect(f"move wording: «{text[-28:]}»", record([USER] + ONE_BOOKING + [reply(text)]), ok, reason=None if ok else "say «")
+# ---- decisions_v18 (focus set review): tests on the reviewed rows themselves ----
+FOCUS = {json.loads(l)["id"]: json.loads(l) for l in (ROOT / "data" / "train" / "focus_v1.jsonl").read_text(encoding="utf-8").splitlines()}
+
+
+def focus_checks(i: str) -> tuple[list[str], list[str]]:
+    r = FOCUS[f"gen-{i}"]
+    return rule_checks(r, BUSINESSES[r["meta"]["business_id"]])
+
+
+for name, ok in [
+        ("rule 48: «سلامتك» for a price complaint is flagged (focus 00192)",
+         any("سلامتك" in f for f in focus_checks("00192")[1])),
+        ("rule 48: «سلامتك» after «توعقت» (unwell) is not flagged (focus 00202)",
+         not any("سلامتك" in f for f in focus_checks("00202")[1])),
+        ("rule 48: «آسفة» is flagged (focus 00062)", any("آسفين" in f for f in focus_checks("00062")[1])),
+        ("confirmation «الأربعاء 31 مارس» for a Thursday 1 April booking fails (focus 00228)",
+         any("confirms the booking" in p for p in focus_checks("00228")[0])),
+        ("«تم إلغاء موعدك يا سعد» with no name given fails (focus 00224)",
+         any("never gave" in p for p in focus_checks("00224")[0])),
+        ("«ما نقدر نلغي» is flagged when the policy says free cancellation (focus 00132)",
+         any("cancellation limit" in f for f in focus_checks("00132")[1])),
+        ("two slot lookups for the same service and day in one turn are flagged (focus 00279)",
+         any("two slot lookups" in f for f in focus_checks("00279")[1])),
+        ("teacher rule 48: «سلامتك» only for illness, otherwise «آسفين على اللي صار»",
+         "«آسفين على اللي صار»" in teacher_rules("casual", GYM, "هلا"))]:
+    failures += not ok
+    print(f"{'ok  ' if ok else 'FAIL'} {name}")
+TRAIN = {json.loads(l)["id"]: json.loads(l) for l in (ROOT / "data" / "train" / "train_v1.jsonl").read_text(encoding="utf-8").splitlines()}
+
+
+def train_checks(i: str) -> tuple[list[str], list[str]]:
+    r = TRAIN[f"gen-{i}"]
+    return rule_checks(r, BUSINESSES[r["meta"]["business_id"]])
+
+
+for name, ok in [
+        ("«وبعدها ما نقدر نلغيه مجاناً» (the policy restated) is not flagged (train 00238)",
+         not any("cancellation limit" in f for f in train_checks("00238")[1])),
+        ("«وبعدها ما نقدر نلغي» (no «مجاناً») is still flagged (train 00725)",
+         any("cancellation limit" in f for f in train_checks("00725")[1])),
+        ("working hours in a confirmation are not the booking's day (train 01167)",
+         not any("confirms the booking" in p for p in train_checks("01167")[0])),
+        ("the cancelled old booking's day in a confirmation is fine (train 00103)",
+         not any("confirms the booking" in p for p in train_checks("00103")[0])),
+        ("searching after a time, then the whole day, is not flagged (train 00052)",
+         not any("two slot lookups" in f for f in train_checks("00052")[1]))]:
+    failures += not ok
+    print(f"{'ok  ' if ok else 'FAIL'} {name}")
+expect("«للأسف» (unfortunately) is not a singular apology", record([USER] + SLOTS + [reply("للأسف ما فيه، فيه 4 ونص المسا")]), True)
+expect("«يا هلا» is not a name", record([USER, reply("يا هلا، وش تبي؟")]), True)
+expect("«يا نورة» after the customer said «اسمي نورة» passes",
+       record([{"role": "user", "content": "اسمي نوره"}, reply("أبشري يا نورة")]), True)
 from datagen import spoken_clock  # noqa: E402
 for minutes, formal, want in [(15 * 60 + 30, False, "3 ونص المسا"), (15 * 60, True, "3 المساء"), (12 * 60, False, "12 المسا")]:
     ok = spoken_clock(minutes, formal) == want
