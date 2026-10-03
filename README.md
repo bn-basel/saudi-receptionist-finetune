@@ -23,8 +23,8 @@ The goal is to beat both the untuned base model and a strong API baseline on a h
 | 3 | Task spec: businesses, tools, style switches, data format | Done: [docs/TASK_SPEC.md](docs/TASK_SPEC.md) |
 | 4 | Test set: 160 test + 40 dev cases, native-speaker reviewed, frozen | Done: [docs/TEST_SET.md](docs/TEST_SET.md) |
 | 5 | Benchmark harness and baselines | Done: results below |
-| 6 | Training data: generation, automatic checks, review | In progress: about 520 reviewed-ok conversations, batches of 100 |
-| 7 | QLoRA fine-tuning | Run 1 done (89.4% on the test set); more runs as the data grows |
+| 6 | Training data: generation, automatic checks, review | 874 reviewed-ok conversations; 95–97% of each recent batch passes review |
+| 7 | QLoRA fine-tuning | Runs 1 and 2 done: 89.4% → 92.5% on the test set |
 
 Nothing below this line is claimed until it is done and verified. Results, dataset card and model card will be added when they exist.
 
@@ -70,7 +70,7 @@ What the results show:
 
 These scores only check tools and facts. Whether the replies sound like natural Saudi dialect is judged separately, in a blind review by a native speaker.
 
-**Stage 7: first fine-tune (run 1).** Gemma-4-12B-it with QLoRA on 331 reviewed training conversations, 33 minutes on the RTX 5080. Twelve checkpoints were compared on the dev set; one was chosen by a rule fixed in advance (best dev score, ties broken by the lowest held-out loss) and run once on the test set.
+**Stage 7: fine-tuning (runs 1 and 2).** Gemma-4-12B-it with QLoRA on the RTX 5080, the same recipe both times; only the amount of reviewed data changed: 352 conversations in run 1 (33 minutes) and 874 in run 2 (about 80 minutes). For each run, twelve checkpoints were compared on the dev set; one was chosen by a rule fixed in advance (best dev score, ties broken by the lowest held-out loss) and run once on the test set.
 
 ![Test-set scores: fine-tuned Gemma against the untuned model, HUMAIN's ALLaM and three API models](docs/charts/test_scores.svg)
 
@@ -78,19 +78,21 @@ These scores only check tools and facts. Whether the replies sound like natural 
 |---|---|---|
 | ALLaM-7B-Instruct (HUMAIN), prompted | 38.1% short / 41.9% long prompt | 31–46% / 35–50% |
 | Gemma-4-12B-it, untuned | 40.6% short / 44.4% long prompt | 33–48% / 37–52% |
-| **Gemma-4-12B-it + QLoRA (this project)** | **89.4%** | **84–93%** |
+| Gemma-4-12B-it + QLoRA, run 1 (352 conversations) | 89.4% | 84–93% |
+| **Gemma-4-12B-it + QLoRA, run 2 (874 conversations)** | **92.5%** | **87–96%** |
 | Gemini 3.8 Flash (API) | 87.5% | 81–92% |
 | GPT-5.4 mini (API) | 92.5% | 87–96% |
 | DeepSeek V4.1 Flash (API) | 94.4% | 90–97% |
 
-- **Fine-tuning closed the gap that prompting could not.** The untuned model gains 4 points from a fully explained prompt; fine-tuning adds 49. Prices went from 2 to 15 of 16 and bookings from 0 to 23 of 24.
+- **Fine-tuning closed the gap that prompting could not.** The untuned model gains 4 points from a fully explained prompt; fine-tuning adds 52. Prices went from 2 to 16 of 16 and bookings from 0 to 22 of 24.
+- **Level with GPT-5.4 mini, locally and at no cost per reply.** Run 2 passes 148 of 160 cases, the same as GPT-5.4 mini, and 3 fewer than DeepSeek V4.1 Flash, the model Mujawib runs on today.
+- **More data helped, but the test gain alone is not proof.** Against run 1, run 2 fixed 11 test cases and broke 6. On 160 cases that net +5 could still be chance (paired McNemar test, p = 0.33). The steadier signal is the dev curve below: run 2 held 40/40 for its last six checkpoints, where run 1 moved between 32 and 36.
 - **More than twice the score of Saudi Arabia's ALLaM on this task.** ALLaM-7B (HUMAIN) is smaller than Gemma-4-12B and was prompted, not fine-tuned, so this compares a task-trained model with a general one. The fair next comparison is ALLaM fine-tuned on the same data (on the roadmap).
-- **In the range of the API models, locally and at no cost per reply.** The intervals overlap with Gemini 3.8 Flash and GPT-5.4 mini; DeepSeek V4.1 Flash is probably still ahead. On questions nobody can answer, the fine-tuned model hands off every time (12/12, against 4/12 for DeepSeek).
-- **Weak spots, from the training data:** on complaints it apologises and says it will pass them on without calling the handoff tool (6/10), a habit present in its training conversations and now corrected in the generator; with a tool it never saw in training it falls back on the trained procedure (7/10, 9/10 before fine-tuning).
+- **Weak spots left:** closed days (5/8: it checks slots for a day the business is closed instead of saying so), questions nobody can answer (10/12: it searches the services instead of handing off), and complaints (8/10, up from 6/10).
 
 ![Dev-set score after each training checkpoint](docs/charts/checkpoint_curve.svg)
 
-Most of the gain arrives in the first pass over the data; the score levels off around 80–90% after about two passes, and a fourth pass adds nothing. These scores check tools and facts only; whether the replies sound natural is judged separately in the blind dialect review (Stage 8). Raw outputs: [`results/stage7/`](results/stage7/). Charts: `uv run python scripts/make_charts.py`.
+Most of the gain arrives in the first pass over the data. With 2.5 times the data, run 2 keeps improving into the third pass and then holds at 40/40, the ceiling of the dev set, which is why the test set decides. Run 2 needed one engineering change: vocabulary scores are now computed only at the positions the loss grades, which cut peak GPU memory from 13.5 to 9.6 GB with an identical loss. These scores check tools and facts only; whether the replies sound natural is judged separately in the blind dialect review (Stage 8). Raw outputs: [`results/stage7/`](results/stage7/). Charts: `uv run python scripts/make_charts.py`.
 
 **Known limitations so far.** The test messages are synthetic drafts reviewed and edited by one native speaker, so their phrasing is less varied than real customers. The dialect verdicts come from one judge.
 

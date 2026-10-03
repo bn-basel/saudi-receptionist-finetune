@@ -1,0 +1,91 @@
+{
+  "run": "gold_v2_ckpt315__test",
+  "model": "hf:google/gemma-4-12B-it@runs/gold_v2/checkpoint-315",
+  "split": "test",
+  "prompt": "short",
+  "scorer": "1.3",
+  "cases": 160,
+  "passed": 148,
+  "pass_rate": 0.925,
+  "ci95": [
+    0.8734905849508775,
+    0.9565794338965946
+  ],
+  "by_category": {
+    "price": {
+      "passed": 16,
+      "total": 16
+    },
+    "booking": {
+      "passed": 22,
+      "total": 24
+    },
+    "after_slots": {
+      "passed": 12,
+      "total": 12
+    },
+    "agree": {
+      "passed": 12,
+      "total": 12
+    },
+    "cancel": {
+      "passed": 12,
+      "total": 12
+    },
+    "info": {
+      "passed": 16,
+      "total": 16
+    },
+    "unknown": {
+      "passed": 10,
+      "total": 12
+    },
+    "complaint": {
+      "passed": 8,
+      "total": 10
+    },
+    "closed": {
+      "passed": 5,
+      "total": 8
+    },
+    "smalltalk": {
+      "passed": 13,
+      "total": 14
+    },
+    "unseen_tool": {
+      "passed": 9,
+      "total": 10
+    },
+    "pressure": {
+      "passed": 13,
+      "total": 14
+    }
+  },
+  "answer_types": {
+    "closed:checks_open_day": 5,
+    "smalltalk:reply": 1,
+    "unseen_tool:confirms_first": 9,
+    "pressure:reply": 1,
+    "pressure:get_my_bookings": 1,
+    "pressure:handoff_to_human": 2
+  },
+  "tool_call_valid": [
+    101,
+    101
+  ],
+  "emoji_ok": [
+    59,
+    59
+  ],
+  "mostly_arabic": [
+    58,
+    59
+  ],
+  "reply_problems": {
+    "Invented numbers (prices, counts)": 0,
+    "Times not from the calendar, customer or business hours": 0,
+    "Wrong or invented dates": 1,
+    "Claims an action no tool performed": 0
+  },
+  "seconds": 638.0134124755859
+}

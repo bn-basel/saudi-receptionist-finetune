@@ -13,6 +13,11 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "docs" / "charts"
 FONT = "font-family='Segoe UI, Helvetica, Arial, sans-serif'"
 INK, GRID, MUTED, OURS, API, OPEN = "#1f2328", "#d0d7de", "#656d76", "#1a7f37", "#8c959f", "#bf8700"
+OURS_EARLY = "#7cc58a"  # an earlier fine-tuning run: the same green, lighter
+RUNS = [  # fine-tuning runs: name, label, chosen checkpoint, conversations trained on
+    ("gold_v1", "run 1", 150, 352),
+    ("gold_v2", "run 2", 315, 874),
+]
 
 
 def summary(path: str) -> dict:
@@ -36,12 +41,13 @@ def test_scores() -> None:
         ("ALLaM-7B (HUMAIN), prompted", OPEN, "stage5/humain-ai__ALLaM-7B-Instruct-preview__test",
          "stage5/humain-ai__ALLaM-7B-Instruct-preview__test__long"),
         ("Gemma-4-12B, untuned", OPEN, "stage5/google__gemma-4-12B-it__test", "stage5/google__gemma-4-12B-it__test__long"),
-        ("Gemma-4-12B + QLoRA (this project)", OURS, "stage7/gold_v1_ckpt150__test", None),
+        *[(f"Gemma-4-12B + QLoRA, {label} ({n} conv.)", OURS if k == len(RUNS) - 1 else OURS_EARLY,
+           f"stage7/{run}_ckpt{ck}__test", None) for k, (run, label, ck, n) in enumerate(RUNS)],
         ("Gemini 3.8 Flash (API)", API, "stage5/or__gemini-3.8-flash__test", "stage5/or__gemini-3.8-flash__test__long"),
         ("GPT-5.4 mini (API)", API, "stage5/or__gpt-5.4-mini__test", "stage5/or__gpt-5.4-mini__test__long"),
         ("DeepSeek V4.1 Flash (API)", API, "stage5/or__deepseek-v4.1-flash__test", "stage5/or__deepseek-v4.1-flash__test__long"),
     ]
-    left, top, bar_w, row_h, w = 270, 70, 420, 44, 780
+    left, top, bar_w, row_h, w = 300, 70, 420, 44, 810
     body = [text(20, 30, "Test set: share of 160 cases handled correctly (tool calls and facts)", 16, weight="bold"),
             text(20, 50, "Solid bar: short system prompt (the one the fine-tuned model uses). Light bar: long prompt. "
                          "Whiskers: 95% interval.", 12, color=MUTED)]
@@ -51,7 +57,7 @@ def test_scores() -> None:
         body.append(text(x, top + row_h * len(rows) + 16, f"{p}%", 11, "middle", MUTED))
     for i, (label, color, short, long) in enumerate(rows):
         y = top + i * row_h
-        bold = "bold" if color == OURS else "normal"
+        bold = "bold" if color in (OURS, OURS_EARLY) else "normal"
         body.append(text(left - 10, y + 17, label, 13, "end", weight=bold))
         if long:
             ls = summary(long)
@@ -67,39 +73,48 @@ def test_scores() -> None:
     (OUT / "test_scores.svg").write_text(svg(w, top + row_h * len(rows) + 30, body), encoding="utf-8")
 
 
-def checkpoint_curve(run: str = "gold_v1") -> None:
-    """Dev-set score after each saved checkpoint, against the untuned model and the API models."""
-    log = json.loads((ROOT / "runs" / run / "log_history.json").read_text(encoding="utf-8"))
-    steps = sorted({e["step"] for e in log if "eval_loss" in e})
-    points = [(s, summary(f"stage7/{run}_ckpt{s}__dev")["pass_rate"]) for s in steps
-              if (ROOT / "results" / "stage7" / f"{run}_ckpt{s}__dev" / "summary.json").exists()]
-    per_epoch = max(e["step"] / e["epoch"] for e in log if e.get("epoch"))
+def checkpoint_curve() -> None:
+    """Dev-set score after each saved checkpoint of every run, by passes over the data (the runs have different
+    numbers of steps), against the untuned model and the best API model."""
+    curves = []
+    for k, (run, label, _, n) in enumerate(RUNS):
+        log = json.loads((ROOT / "runs" / run / "log_history.json").read_text(encoding="utf-8"))
+        per_epoch = max(e["step"] / e["epoch"] for e in log if e.get("epoch"))
+        steps = sorted({e["step"] for e in log if "eval_loss" in e})
+        points = [(s / per_epoch, summary(f"stage7/{run}_ckpt{s}__dev")["pass_rate"]) for s in steps
+                  if (ROOT / "results" / "stage7" / f"{run}_ckpt{s}__dev" / "summary.json").exists()]
+        curves.append((f"{label}: {n} conversations", OURS if k == len(RUNS) - 1 else OURS_EARLY, points))
     refs = [("untuned Gemma", summary("stage5/google__gemma-4-12B-it__dev")["pass_rate"], OPEN),
             ("DeepSeek V4.1 Flash (API)", summary("stage5/or__deepseek-v4.1-flash__dev")["pass_rate"], API)]
+    passes = max(p for _, _, pts in curves for p, _ in pts)
     left, top, w, h, pw, ph = 70, 60, 880, 380, 560, 270
-    xs = lambda step: left + pw * step / steps[-1]
+    xs = lambda x: left + pw * x / passes
     ys = lambda rate: top + ph * (1 - rate)
-    body = [text(20, 28, "More training: dev-set score after each checkpoint (40 cases)", 16, weight="bold"),
-            text(20, 46, f"QLoRA on 331 reviewed conversations; one pass over the data ≈ {per_epoch:.0f} steps. "
-                         "With 40 cases, ±10 points is noise.", 12, color=MUTED)]
+    body = [text(20, 28, "More data, more training: dev-set score after each checkpoint (40 cases)", 16, weight="bold"),
+            text(20, 46, "QLoRA on reviewed conversations, same recipe in every run. With 40 cases, ±10 points is noise.",
+                 12, color=MUTED)]
     for p in range(0, 101, 20):
         body.append(f"<line x1='{left}' y1='{ys(p / 100):.1f}' x2='{left + pw}' y2='{ys(p / 100):.1f}' stroke='{GRID}'/>")
         body.append(text(left - 8, ys(p / 100) + 4, f"{p}%", 11, "end", MUTED))
-    for e in range(1, int(steps[-1] / per_epoch + 0.5) + 1):
-        x = xs(e * per_epoch)
+    for e in range(1, round(passes) + 1):
+        x = xs(e)
         body.append(f"<line x1='{x:.1f}' y1='{top}' x2='{x:.1f}' y2='{top + ph}' stroke='{GRID}' stroke-dasharray='3 3'/>")
         body.append(text(x, top + ph + 18, f"pass {e}", 11, "middle", MUTED))
     for label, rate, color in refs:
         body.append(f"<line x1='{left}' y1='{ys(rate):.1f}' x2='{left + pw}' y2='{ys(rate):.1f}' stroke='{color}' "
                     f"stroke-width='1.5' stroke-dasharray='6 4'/>")
         body.append(text(left + pw + 8, ys(rate) + 4, f"{label} {rate:.0%}", 12, color=color))
-    path = " ".join(f"{'M' if i == 0 else 'L'}{xs(s):.1f},{ys(r):.1f}" for i, (s, r) in enumerate([(0, refs[0][1])] + points))
-    body.append(f"<path d='{path}' fill='none' stroke='{OURS}' stroke-width='2.5'/>")
-    for s, r in points:
-        body.append(f"<circle cx='{xs(s):.1f}' cy='{ys(r):.1f}' r='4' fill='{OURS}'/>")
-    body.append(text(left + pw + 8, ys(points[-1][1]) + 4, "fine-tuned Gemma", 12, color=OURS, weight="bold"))
-    body.append(text(left + pw / 2, top + ph + 38, "training steps (8 conversations each)", 12, "middle", MUTED))
-    (OUT / "checkpoint_curve.svg").write_text(svg(w, h, body), encoding="utf-8")
+    for label, color, points in curves:
+        path = " ".join(f"{'M' if i == 0 else 'L'}{xs(x):.1f},{ys(r):.1f}" for i, (x, r) in enumerate([(0, refs[0][1])] + points))
+        body.append(f"<path d='{path}' fill='none' stroke='{color}' stroke-width='2.5'/>")
+        body += [f"<circle cx='{xs(x):.1f}' cy='{ys(r):.1f}' r='4' fill='{color}'/>" for x, r in points]
+    # legend under the plot, so the labels never collide with the reference lines on the right
+    for k, (label, color, _) in enumerate(curves):
+        x = left + 340 * k
+        body.append(f"<line x1='{x}' y1='{top + ph + 56}' x2='{x + 22}' y2='{top + ph + 56}' stroke='{color}' stroke-width='3'/>")
+        body.append(text(x + 28, top + ph + 60, f"fine-tuned Gemma, {label}", 12, color=INK, weight="bold"))
+    body.append(text(left + pw / 2, top + ph + 34, "passes over the training data", 12, "middle", MUTED))
+    (OUT / "checkpoint_curve.svg").write_text(svg(w, h + 30, body), encoding="utf-8")
 
 
 if __name__ == "__main__":
