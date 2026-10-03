@@ -146,3 +146,22 @@ One entry per step: the concept in one paragraph, what we did, and what I learne
 - With 40 cases, three cases is noise: checkpoints that tie at 36/40 fail on different cases. The shape of a curve is trustworthy; single differences are not.
 - The model learns the data's habits, good and bad. It hands off every unknown question (12/12, where DeepSeek gets 4/12), but on complaints it apologises and says it will pass it on without calling the tool, because many training complaints did that. Better data on that one behaviour fixes it; more of the same data would not.
 - Fine-tuning narrows as well as teaches: with a tool it never saw in training (`reschedule_booking`), the tuned model fell back on the procedure it was trained on (check slots first) and scored lower than before (9 → 7 of 10).
+
+## Step 7b — Run 2: more data (and a crashed PC)
+
+**The question.** Run 1 trained on 352 conversations. By now I had 874 reviewed ones. Same model, same settings, only more data: does it get better?
+
+**What happened.**
+- The first try was very slow: about 60 seconds a step instead of 12. The card was full, so Windows started borrowing normal RAM. I tried a few quick fixes, stopped and restarted the run three times, and the PC blue-screened during the night. Lesson: a slow step is a warning. Stop and find the cause; don't keep poking a GPU that is already struggling.
+- The real cause: at the end, the model gives a score to every word in its vocabulary (262,144 of them) for every token in the conversation. For one long conversation that is gigabytes. But we only train on about 17% of the tokens (the receptionist's own words). The other 83% of those scores were calculated and then thrown away.
+- The fix: only calculate the scores where the model is actually graded. Same loss, same learning, much less memory. I checked it first: the loss matched to six digits, and the gradients differed by about as much as the old code differs from itself when you run it twice. Peak memory went from 13.5 GB to 9.6 GB.
+- Then a second, smaller problem: memory crept up again during the run. PyTorch keeps old memory blocks in a cache "just in case", and on Windows the card counts everything a program holds, not just what it is using. A cap on that cache fixed it, and the run resumed from its last checkpoint instead of starting over.
+- Dev set: run 2 reached 40/40 after about 2.4 passes and stayed there for six checkpoints in a row. Run 1 never got above 36/40.
+- Test set, run once: **148/160 = 92.5%**, up from 89.4%. That is level with GPT-5.4 mini and 3 cases behind DeepSeek V4.1 Flash.
+
+**What I learned.**
+- More good data helped, but not as much as the dev score suggested. 40/40 on dev turned into 92.5% on test. Dev is small (40 cases) and it was used to pick the checkpoint, so it flatters. That is why the test set exists.
+- A +5 gain is not automatically real. Run 2 fixed 11 test cases and broke 6. A paired test (McNemar) says that could still be chance (p = 0.33). The steadier evidence is the dev curve: flat at the top instead of jumping around.
+- Before trusting "the numbers are a bit different", measure how different they are when nothing changes. That is the noise floor.
+- Most of the GPU memory went to work we threw away. Knowing where the memory goes beat guessing at settings.
+- The weak spots are now clear and specific: closed days (it checks slots instead of saying "we're closed"), questions nobody can answer (it searches instead of handing off) and complaints. That tells me what data to make next, rather than just more of everything.

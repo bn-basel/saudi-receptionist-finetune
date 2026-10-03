@@ -603,7 +603,9 @@ for text, ok in [("حجزك أصلاً الأربعاء 11 نوفمبر، تبغ
                  ("حجزك أصلاً الأربعاء 11 نوفمبر، تبغى نقدمه للاثنين 9 نوفمبر؟", True),
                  ("حجزك أصلاً الأربعاء 11 نوفمبر، تبغى نأخره للجمعة 13 نوفمبر؟", True),
                  ("حجزك أصلاً الأربعاء 11 نوفمبر، تبغى نقدمه للجمعة 13 نوفمبر؟", False),
-                 ("حجزك الأربعاء 11 نوفمبر، ولا تتأخر علينا", True)]:
+                 ("حجزك الأربعاء 11 نوفمبر، ولا تتأخر علينا", True),
+                 ("حجزك أصلاً الأربعاء 11 نوفمبر، تبغى تأخره للاثنين 9؟", False),     # batch 12 gen-01180: «لل»
+                 ("حجزك أصلاً الأربعاء 11 نوفمبر، تبغى أقدمه للاثنين 9؟", True)]:
     expect(f"move wording: «{text[-28:]}»", record([USER] + ONE_BOOKING + [reply(text)]), ok, reason=None if ok else "say «")
 from datagen import spoken_clock  # noqa: E402
 for minutes, formal, want in [(15 * 60 + 30, False, "3 ونص المسا"), (15 * 60, True, "3 المساء"), (12 * 60, False, "12 المسا")]:
@@ -622,6 +624,8 @@ for name, ok in [
         ("simulator: «إيه، الغيه» before the cancellation is fine", simulator_slip("إيه، الغيه", CANCEL_SC, ["Receptionist: تبيني ألغيه لك؟"]) is None),
         ("simulator: «أبشر» from the customer is a slip (gen-00843)", simulator_slip("أبشر، أبغى غسيل داخلي", INFO_SC, []) is not None),
         ("simulator: «يعطيك العافية» is fine", simulator_slip("يعطيك العافية", INFO_SC, []) is None),
+        ("simulator: «وابشرك حجزت» is a slip (batch 12 gen-01166)", simulator_slip("اسمي نورة، وابشرك حجزت", INFO_SC, []) is not None),
+        ("simulator: «الله يبشرك بالخير» is fine", simulator_slip("الله يبشرك بالخير", INFO_SC, []) is None),
         ("simulator: only a cancel customer is told «إيه، الغيه»", "الغيه" in customer_system(CANCEL_SC, [])
          and "الغيه" not in customer_system(INFO_SC, [])),
         ("simulator: after a done cancellation it is told not to confirm again", "already done" in customer_system(CANCEL_SC, DONE)),

@@ -82,6 +82,7 @@ TEACHER_RULES = """Writing rules for every reply (decided by a native Saudi revi
 - On today's date, never offer or book a time that has already passed ("Now" is the current time), even if the tool lists it.
 - Saudi wording, not Modern Standard Arabic: «حجزين», «موعدين», never «حجزان», «موعدان». «أكد لي، تبغى تلغيه؟», never «تأكد لي تبغى نلغيه». «الفريق بيتواصلون معك», never «بيواصلونك».
 - Never use «الاثنين» to mean "both": it reads as Monday. Say «اليومين» or name the days.
+- Working days are written «من الأحد للخميس والسبت».
 - Write only the message to the customer: never your own reasoning, notes to yourself, or English sentences.
 - Greetings must fit the time of day. Never write Arabic in Latin letters.
 """
@@ -134,7 +135,17 @@ CUSTOMER_NAMES = {"female": ["نورة", "العنود", "رهف", "غادة", "
 UNKNOWN_QUESTIONS = ["Is there parking nearby?", "Is the staff member a man or a woman?", "Do you have any offers this month?",
                      "Which brand of products do you use?", "Can I bring my kids along?", "Is there a prayer room?",
                      "Do you have Wi-Fi?", "Can someone come to my home instead?", "How many years of experience does the staff have?",
-                     "Do you sell gift cards?"]
+                     "Do you sell gift cards?",
+                     # focus_v1 (after run 2: it searched the services instead of handing off): more variety, none
+                     # answerable from the business facts
+                     "Do you have a loyalty or points card?", "Is there a student discount?",
+                     "Do you have a branch in another city?", "Can I get a tax invoice with my company's name on it?",
+                     "Are you open during the Eid holidays?", "Is the place wheelchair accessible?",
+                     "Is there a waiting area for children?", "Can I bring my own products or materials?",
+                     "Can I record a short video during my visit?", "Do your staff speak English?"]
+SCENARIO_KINDS = ["price", "booking", "cancel", "reschedule", "info", "unknown", "complaint", "closed", "smalltalk",
+                  "english", "pressure"]
+SCENARIO_WEIGHTS = [12, 30, 10, 8, 10, 7, 6, 5, 6, 3, 3]
 LOCK = threading.Lock()
 
 
@@ -214,10 +225,9 @@ def teacher_rules(register: str, business: dict, opener_word: str, emoji: str = 
 EXAMPLES: dict[str, list[str]] = {}  # filled once per run by cmd_generate
 
 
-def sample_scenario(rng: random.Random, businesses: list[dict]) -> dict:
+def sample_scenario(rng: random.Random, businesses: list[dict], weights: list[int] | None = None) -> dict:
     business = rng.choice(businesses)
-    kind = rng.choices(["price", "booking", "cancel", "reschedule", "info", "unknown", "complaint", "closed",
-                        "smalltalk", "english", "pressure"], weights=[12, 30, 10, 8, 10, 7, 6, 5, 6, 3, 3])[0]
+    kind = rng.choices(SCENARIO_KINDS, weights=weights or SCENARIO_WEIGHTS)[0]
     # No English in the training data (founder decision): an "english" draw becomes a normal booking. It is still
     # drawn, so the random sequence, and with it every batch of a run, stays the same.
     if kind == "english":
@@ -277,11 +287,20 @@ def sample_scenario(rng: random.Random, businesses: list[dict]) -> dict:
                            "Ask to speak to the manager about a problem.",
                            f"Say something went wrong for you at your last visit and you are worried. It must be "
                            f"something that could really happen at a {business['type']} (pain or a reaction only "
-                           f"if they treat people's bodies)."])
+                           f"if they treat people's bodies).",
+                           "Complain that you waited a long time after your booked time at your last visit.",
+                           "Complain that you were charged more than the price you were told.",
+                           "Say a staff member was rude to you last time and you want someone to follow it up.",
+                           "Say your booking disappeared and nobody told you, and you are annoyed."])
     elif kind == "closed":
         d = rng.choice(closed_days) if closed_days else today
-        goal = (f"Ask to book '{s}' {day_phrase(d)}" if closed_days else
-                f"Ask to book '{s}' very early in the morning, before they open") + ". React to the answer, then end."
+        goal = rng.choice([
+            (f"Ask to book '{s}' {day_phrase(d)}" if closed_days else
+             f"Ask to book '{s}' very early in the morning, before they open") + ". React to the answer, then end.",
+            # focus_v1: closed days are also asked about, not only booked; and a time after closing
+            (f"Ask whether they are open {day_phrase(d)} and until when" if closed_days else
+             "Ask whether they are open very early in the morning") + ". React to the answer, then end.",
+            f"Ask to book '{s}' late at night, after they close. React to the answer, then end."])
     elif kind == "smalltalk":
         goal = rng.choice(["Just greet them (a Saudi greeting) and end.", "Thank them warmly for last time and end.",
                            "Ask a friendly off-topic question (weather, football), then end."])
@@ -305,7 +324,8 @@ def sample_scenario(rng: random.Random, businesses: list[dict]) -> dict:
 # customer made it an all-purpose "yes": repeated after a done cancellation (batch 09 gen-00810) and said in an
 # info conversation with nothing to cancel (gen-00856). «أبشر» is the receptionist's word (gen-00747, gen-00843).
 CUSTOMER_CANCEL = re.compile(r"(?<![ء-ي])(?:[أا]لغ[ِ]?يه|[أا]لغ[ِ]?ه|الغوه|ألغوه)(?![ء-ي])")
-CUSTOMER_ABSHIR_START = re.compile(r"^\W*[أا]بشر(?![ء-ي])")
+# the root anywhere: «وابشرك حجزت» (batch 12 gen-01166); «يبشرك» («الله يبشرك بالخير») is a different form
+CUSTOMER_ABSHIR_START = re.compile(r"(?<![ء-ي])[وف]?[أا]بشر[ء-ي]*")
 CANCEL_DONE = re.compile(r"تم إلغاء|تم الإلغاء|تم الغاء|ألغيت|الغيت|انلغى|ملغي")
 
 
@@ -1248,7 +1268,8 @@ def plain_ar(text: str) -> str:
 
 def named_days(text: str, today: date) -> list[date]:
     """The dates a customer line names: «اليوم / بكرة / بعد بكرة» and weekday names (the next such day)."""
-    t = plain_ar(text)
+    # «لل» is «ل» + «ال» («تأخره للثلاثاء 17», batch 12 gen-01180)
+    t = re.sub(rf"(?<![{AR}])لل", "ال", plain_ar(text))
     out = [today + timedelta(days=RELATIVE[m.group(1)]) for m in re.finditer(rf"(?<![{AR}])[وبل]?({_REL})(?![{AR}])", t)]
     for m in re.finditer(rf"(?<![{AR}])[وبل]?({_DAY})(?![{AR}])", t):
         out.append(today + timedelta(days=(WEEKDAY[m.group(1)] - today.weekday()) % 7))
@@ -1416,7 +1437,12 @@ def cmd_generate(args) -> None:
                   for m in json.loads(l)["messages"] if m["role"] == "user"]
     teacher = OpenRouterModel(args.teacher)
     rng = random.Random(args.seed)
-    scenarios = [sample_scenario(rng, businesses) for _ in range(args.n)]
+    weights = None
+    if args.focus:  # e.g. "closed=20,unknown=20,complaint=20": the other kinds keep their usual weights
+        override = {k: int(v) for k, v in (x.split("=") for x in args.focus.split(","))}
+        assert set(override) <= set(SCENARIO_KINDS), f"unknown scenario kind in --focus: {set(override) - set(SCENARIO_KINDS)}"
+        weights = [override.get(k, w) for k, w in zip(SCENARIO_KINDS, SCENARIO_WEIGHTS)]
+    scenarios = [sample_scenario(rng, businesses, weights) for _ in range(args.n)]
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     keep_path, reject_path = OUT_DIR / f"{args.out}.jsonl", OUT_DIR / f"{args.out}.rejects.jsonl"
     done = {json.loads(l)["id"] for p in (keep_path, reject_path) if p.exists()
@@ -1948,6 +1974,7 @@ if __name__ == "__main__":
     g.add_argument("--seed", type=int, default=6)
     g.add_argument("--teacher", default=DEFAULT_TEACHER, choices=TEACHERS)
     g.add_argument("--batch", type=int, help=f"generate only batch k ({BATCH_SIZE} scenarios) of the --n scenario pool")
+    g.add_argument("--focus", help="scenario weights to change, e.g. closed=20,unknown=20,complaint=20")
     s = sub.add_parser("sheet")
     s.add_argument("name")
     s.add_argument("--batch", type=int, help="only this batch of a batched run")
