@@ -68,7 +68,8 @@ TEACHER_RULES = """Writing rules for every reply (decided by a native Saudi revi
 - When the customer moves a booking with a relative day («من بكرة لبعد بكرة», «من اليوم لبكرة») but the booking is on another day, do not pick a date: give the booking's real date and ask what they want («حجزك أصلاً الثلاثاء 26، تبغى تأخره يوم؟»). Name a new date only after get_available_slots returned it, together with its times. If the customer then names a day wrongly, clarify before booking.
 - Answer from the business facts when you can: at a home-visit business, «أقدر أجيب عيالي؟» is answered that the team comes to the customer's home, no handoff. Weather or sports small talk: «ما عندي علم» and move on; never invent it, never hand it off.
 - A day right before a closed day is still a normal day: offer Thursday's slots even when Friday is closed.
-- When the customer asks for a closed day, first say that day is closed («الجمعة إجازة عندنا»), then offer the nearest open day, on either side (Friday closed → Thursday or Saturday, not Sunday), even if you already checked it; a later day can be a second choice. Never offer other days without saying why.
+- When the customer asks for a closed day or a time outside the opening hours (before opening, after closing), your FIRST reply says so («الجمعة إجازة عندنا», «نفتح 9 الصبح»), with no tool call before it: the opening hours above already tell you. In that reply, offer the nearest open day on either side by its name only (Friday closed → «الخميس أو السبت», not Sunday, and no date yet) and ask if they want its times; check slots only after they answer, and give the date once the slot lookup has returned it. Never offer other days without saying why.
+- If the customer asks something that is not about this business's services, prices, times or bookings (parking, wifi, discounts, branches, invoices…), call handoff_to_human straight away. Never search the service list for it.
 - Confirming a cancellation: prefer «عندك موعد [التفاصيل]، تبيني ألغيه لك؟»; «أكد لي، تبغى تلغيه؟» is also fine, so vary them. Moving a booking earlier is «نقدمه», later is «نأخره».
 - Say times the spoken way («3 ونص المساء»), never on a 24-hour clock («15:30»).
 - When the customer names a day for an existing booking, compare it with the booking's date from get_my_bookings. If it differs, say so first («حجزك أصلاً يوم …») before changing anything.
@@ -1185,7 +1186,7 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
     problems += unsaid_closed_days(msgs, today, business) + move_direction_problems(msgs, today)
     # decisions_v18: a confirmation that names another day, a name the customer never gave (rejects); rule 48 and
     # two near-misses (flags for the reviewer)
-    problems += confirmation_date_problems(msgs, today) + name_problems(msgs)
+    problems += confirmation_date_problems(msgs, today) + name_problems(msgs) + first_move_problems(rec, today, business)
     flags += repeated_slot_calls(msgs)
     customer_so_far = ""
     for m in msgs:
@@ -1296,6 +1297,43 @@ EXISTING_BOOKING = re.compile(r"عندي (?:موعد|حجز)|موعدي|حجزي
 # rule 47 is about asking for that day: to book, or whether it is open («كيف الجو عندكم اليوم؟» on a closed Friday
 # is small talk, batch 12 gen-01175)
 BOOK_INTENT = re.compile(r"احجز|حجز|موعد|متاح|فاضي|فاتحين|تفتحون|مفتوحين|دوام|اوقات|أوقات|وقت|ينفع|يمديكم|تجون")
+
+
+def first_move_problems(rec: dict, today: date, business: dict) -> list[str]:
+    """Run 3 learned to search the service list first (test: closed days 5 → 4 of 8, unknown questions 10 → 8 of
+    12), because the data did: all 35 closed-day conversations of train_v1 and 75% of focus_v1 opened with a
+    service search. The right first move after a closed-day request is a reply that says so (or slots for an open
+    day); after a question nobody here can answer, a handoff."""
+    msgs, out = rec["messages"], []
+    for i, m in enumerate(msgs):
+        if m["role"] != "user" or EXISTING_BOOKING.search(m["content"]) or not BOOK_INTENT.search(m["content"]):
+            continue
+        if not any(open_hours(business, d) is None for d in named_days(m["content"], today)):
+            continue
+        first = next((x for x in msgs[i + 1:] if x["role"] == "assistant"), None)
+        calls = (first or {}).get("tool_calls") or []
+        bad = [tc["function"]["name"] for tc in calls if not (
+            tc["function"]["name"] == "get_available_slots" and isinstance(tc["function"]["arguments"], dict)
+            and _open_day(business, tc["function"]["arguments"].get("date")))]
+        if bad:
+            out.append(f"answers a closed-day request with {bad[0]} first (say it is closed first)")
+        break  # the first closed-day request only
+    # Requests before opening or after closing are not checked here: the scenario label says what the customer will
+    # ask eventually, not what the first message asks («ابي احجز تعديل ثوب» rightly gets a service search first;
+    # focus_v2 gen-00002 and 10 more were rejected by a label-based version of this check)
+    if rec.get("scenario") == "unknown":
+        first = next((x for x in msgs if x["role"] == "assistant"), None)
+        names = [tc["function"]["name"] for tc in (first or {}).get("tool_calls") or []]
+        if names and "handoff_to_human" not in names:
+            out.append(f"answers a question nobody here can answer with {names[0]} first (hand off first)")
+    return out
+
+
+def _open_day(business: dict, iso) -> bool:
+    try:
+        return open_hours(business, date.fromisoformat(str(iso))) is not None
+    except ValueError:
+        return False
 
 
 def unsaid_closed_days(msgs: list[dict], today: date, business: dict) -> list[str]:

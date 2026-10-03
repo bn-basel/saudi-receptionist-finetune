@@ -597,6 +597,31 @@ expect("«عندي موعد بكرة» (an existing booking) is not a request fo
        record([{"role": "user", "content": "عندي موعد بكرة وابي اتاكد"}, reply("ما لقيت لك موعد مسجل، عطني اسمك الكريم")]), True, CAR2)
 expect("«كيف الجو عندكم بكرة؟» on a closed day is small talk, not a request (batch 12 gen-01175)",
        record([{"role": "user", "content": "كيف الجو عندكم بكرة؟"}, reply("الجو ما عندي علم فيه، حنا بالخدمة")]), True, CAR2)
+# run 4: the first move (run 3 learned «search_services first» from the data)
+SEARCH = tool("search_services", {"query": "زيت"}, {"services": [{"id": "oil", "name": "تغيير زيت", "price_sar": 90, "duration_min": 30}]})
+SAT = tool("get_available_slots", {"service_id": "oil", "date": "2026-11-07"}, {"date": "2026-11-07", "slots": ["10:00"]})
+expect("a closed-day request answered with a service search first fails (run 3)",
+       record([FRIDAY_ASK] + SEARCH + [reply("بكرة الجمعة إجازة عندنا، تبغى أشوف لك السبت؟")]), False, CAR2, reason="closed-day request")
+expect("a closed-day request answered by «إجازة» first passes",
+       record([FRIDAY_ASK, reply("بكرة الجمعة إجازة عندنا، تبغى أشوف لك السبت؟")]), True, CAR2)
+expect("a closed-day request answered with the open Saturday's slots first passes",
+       record([FRIDAY_ASK] + SAT + [reply("بكرة الجمعة إجازة عندنا، والسبت فيه 10 الصبح")]), True, CAR2)
+EARLY_ASK = {"role": "user", "content": "ابي احجز تغيير زيت بدري قبل تفتحون"}
+for name, ok in [("teacher: offer the open day by name only, the date after the slot lookup (focus_v2 first try)",
+                  "by its name only" in teacher_rules("casual", GYM, "هلا"))]:
+    failures += not ok
+    print(f"{'ok  ' if ok else 'FAIL'} {name}")
+expect("a closed-scenario first message with no time, answered with a service search, passes (focus_v2 gen-00002)",
+       record([{"role": "user", "content": "ابي احجز تغيير زيت"}] + SEARCH + [reply("تغيير الزيت 90 ريال، أي يوم يناسبك؟")], scenario="closed"),
+       True, CAR2)
+expect("a request before opening answered with the hours first passes",
+       record([EARLY_ASK, reply("نفتح 8 الصبح، تبغى أشوف لك أول موعد؟")], scenario="closed"), True, CAR2)
+UNKNOWN_Q = {"role": "user", "content": "عندكم خصم للطلاب؟"}
+HANDOFF_Q = tool("handoff_to_human", {"reason": "يسأل عن خصم الطلاب"}, {"status": "queued", "expected_wait_min": 10})
+expect("an unknown question answered with a service search first fails (run 3)",
+       record([UNKNOWN_Q] + SEARCH + [reply("ما عندي علم، الفريق بيتواصل معك")], scenario="unknown"), False, CAR2, reason="nobody here can answer")
+expect("an unknown question answered with a handoff first passes",
+       record([UNKNOWN_Q] + HANDOFF_Q + [reply("ما عندي علم فيها، والفريق بيتواصلون معك خلال 10 دقايق")], scenario="unknown"), True, CAR2)
 ONE_BOOKING = tool("get_my_bookings", {}, {"bookings": [{"booking_id": "B-1", "service": "حصة", "service_id": "x",
                                                          "date": "2026-11-11", "time": "12:00"}]})
 for text, ok in [("حجزك أصلاً الأربعاء 11 نوفمبر، تبغى نأخره للاثنين 9 نوفمبر؟", False),   # gen-00830

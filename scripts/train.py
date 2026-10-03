@@ -26,7 +26,7 @@ from datagen import OUT_DIR, ROOT, check, train_tools
 from prompt import build_system_prompt, load_spec
 
 MODEL = "google/gemma-4-12B-it"
-SETS = ["pilot_v1", "pilot_v2", "pilot_v3", "train_v1", "focus_v1"]
+SETS = ["pilot_v1", "pilot_v2", "pilot_v3", "train_v1", "focus_v1", "focus_v2"]
 TURN, END = "<|turn>model\n", "<turn|>"
 RESPONSE_OPEN, RESPONSE_CLOSE = "<|tool_response>", "<tool_response|>"
 
