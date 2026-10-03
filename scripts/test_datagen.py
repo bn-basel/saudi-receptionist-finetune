@@ -406,7 +406,7 @@ expect("«أنا نايف موظف الاستقبال، وأنا رجل» fails 
        record([USER, reply("أنا نايف موظف الاستقبال، وأنا رجل")]), False, reason="rule 30")
 expect("«أنا مساعد … وهنا عشان أخدمك» passes", record([USER, reply("أنا مساعد عيادة الابتسامة وهنا عشان أخدمك")]), True)
 for name, ok in [("teacher prompt has the identity line with the business name",
-                  f"«أنا مساعد {GYM['name']} وهنا عشان أخدمك»" in teacher_rules("casual", GYM, "هلا")),
+                  f"«أنا مساعد {GYM['name']}، وإذا تبغى تكلم موظف أحولك للفريق»" in teacher_rules("casual", GYM, "هلا")),  # rule 51
                  ("teacher prompt has rule 34 (one option per line)", "each on its own line" in teacher_rules("casual", GYM, "هلا"))]:
     failures += not ok
     print(f"{'ok  ' if ok else 'FAIL'} {name}")
@@ -684,6 +684,39 @@ expect("«للأسف» (unfortunately) is not a singular apology", record([USER]
 expect("«يا هلا» is not a name", record([USER, reply("يا هلا، وش تبي؟")]), True)
 expect("«يا نورة» after the customer said «اسمي نورة» passes",
        record([{"role": "user", "content": "اسمي نوره"}, reply("أبشري يا نورة")]), True)
+# ---- decisions_v20 (focus_v2 review): flags tested on the reviewed rows ----
+FOCUS2 = {json.loads(l)["id"]: json.loads(l) for l in (ROOT / "data" / "train" / "focus_v2.jsonl").read_text(encoding="utf-8").splitlines()}
+
+
+def focus2_flags(i: str) -> list[str]:
+    r = FOCUS2[f"gen-{i}"]
+    return rule_checks(r, BUSINESSES[r["meta"]["business_id"]])[1]
+
+
+from datagen import working_days  # noqa: E402
+for name, ok in [
+        ("a closed Saturday listed in the working days is flagged (focus_v2 00107)", any("is closed" in f for f in focus2_flags("00107"))),
+        ("rule 49: «أقرب يوم السبت» on an open Thursday afternoon is flagged (focus_v2 00037)", any("rule 49" in f for f in focus2_flags("00037"))),
+        ("rule 49: «أقرب يوم بكرة» on an open Sunday morning is flagged (focus_v2 00079)", any("rule 49" in f for f in focus2_flags("00079"))),
+        ("rule 50: Thursday offered when today is the closed Friday is flagged (focus_v2 00154)", any("rule 50" in f for f in focus2_flags("00154"))),
+        ("rule 51: «ما لي جنس» and a sentence sent twice are flagged (focus_v2 00164)",
+         any("ما لي جنس" in f for f in focus2_flags("00164")) and any("twice" in f for f in focus2_flags("00164"))),
+        ("«8:30» with a colon is flagged (focus_v2 00019)", any("colon" in f for f in focus2_flags("00019"))),
+        ("rule 49 is not «أقرب يوم السبت» for a customer who asked for the closed Friday (train 00121)",
+         not any("rule 49" in f for f in train_checks("00121")[1])),
+        ("rule 50 is not the working days «من الأحد للخميس» on a closed Friday (train 00249)",
+         not any("rule 50" in f for f in train_checks("00249")[1])),
+        ("working days come from the hours: Friday-closed is «من الأحد للخميس والسبت»",
+         working_days(BUSINESSES["train_ac_1"]) == "«من الأحد للخميس والسبت»"),
+        ("working days come from the hours: open every day is «كل يوم»", working_days(GYM) == "«كل يوم»"),
+        ("working days come from the hours: Friday and Saturday closed is «من الأحد للخميس»",
+         working_days(BUSINESSES["train_tutoring_1"]) == "«من الأحد للخميس»" or BUSINESSES["train_tutoring_1"]["schedule"]["Sat"]),
+        ("the fixed working-days line is gone from the teacher prompt",
+         "Working days are written" not in teacher_rules("casual", GYM, "هلا")),
+        ("teacher rule 51 names the business and offers a person", "وإذا تبغى تكلم موظف أحولك للفريق" in teacher_rules("casual", GYM, "هلا")),
+        ("teacher rules 49-50: today counts", "Today counts" in teacher_rules("casual", GYM, "هلا"))]:
+    failures += not ok
+    print(f"{'ok  ' if ok else 'FAIL'} {name}")
 from datagen import spoken_clock  # noqa: E402
 for minutes, formal, want in [(15 * 60 + 30, False, "3 ونص المسا"), (15 * 60, True, "3 المساء"), (12 * 60, False, "12 المسا")]:
     ok = spoken_clock(minutes, formal) == want

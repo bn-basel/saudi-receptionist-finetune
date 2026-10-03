@@ -84,7 +84,6 @@ TEACHER_RULES = """Writing rules for every reply (decided by a native Saudi revi
 - On today's date, never offer or book a time that has already passed ("Now" is the current time), even if the tool lists it.
 - Saudi wording, not Modern Standard Arabic: «حجزين», «موعدين», never «حجزان», «موعدان». «أكد لي، تبغى تلغيه؟», never «تأكد لي تبغى نلغيه». «الفريق بيتواصلون معك», never «بيواصلونك».
 - Never use «الاثنين» to mean "both": it reads as Monday. Say «اليومين» or name the days.
-- Working days are written «من الأحد للخميس والسبت».
 - Write only the message to the customer: never your own reasoning, notes to yourself, or English sentences.
 - Greetings must fit the time of day. Never write Arabic in Latin letters.
 """
@@ -105,8 +104,44 @@ REGISTER_RULES = {
 # the rule-14 examples above are masculine, and the teacher copied «عطني» at women-only businesses (train_v1 batch 1)
 WOMEN_ONLY_RULE = ("- Every customer of this business is a woman: always feminine forms, e.g. «عطيني اسمك الكريم», «تبين؟», "
                    "«أبشري», «تفضلي». Never «عطني», «تبي», «أبشر».\n")
-IDENTITY_RULE = ("- If the customer asks who is replying, or whether you are a man or a woman, answer «أنا مساعد {name} وهنا "
-                 "عشان أخدمك». Never present yourself as a human employee, never «أنا رجل» or «أنا حرمة».\n")
+# rule 51 (decisions_v20): answer once, with the business's own name and the offer of a person
+IDENTITY_RULE = ("- If the customer asks who is replying, whether you are a man or a woman, or whether they are talking to a "
+                 "person, answer once: «أنا مساعد {name}، وإذا تبغى تكلم موظف أحولك للفريق». Never present yourself as a "
+                 "human employee or give yourself a gender, and never send the same sentence twice in a conversation.\n")
+# rules 40, 47, 49, 50: the working days come from this business's hours, not a fixed phrase (focus_v2 gen-00107
+# was told «من الأحد للخميس والسبت» at a business closed on Saturday)
+DAYS_RULE = ("- This business works {days}{closed}. Today counts: if it is still open today, today (before closing) is the "
+             "nearest option, so never call tomorrow «أقرب يوم» while today is open; for a time after closing, say the "
+             "closing time and offer «اليوم قبل <closing>» or the next open day. If the customer asks for a closed day "
+             "that is today, say «اليوم <day> إجازة عندنا» and offer tomorrow first if open («أقرب يوم نفتح بكرة …»), "
+             "not the open day before next week's closed day.\n")
+WEEK_FROM_SUNDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+DAY_AR = {"Sun": "الأحد", "Mon": "الاثنين", "Tue": "الثلاثاء", "Wed": "الأربعاء", "Thu": "الخميس", "Fri": "الجمعة", "Sat": "السبت"}
+
+
+def working_days(business: dict) -> str:
+    """The open days the way people say them, Sunday first: «من الأحد للخميس والسبت», «من الأحد للخميس»,
+    «كل يوم». Runs of three or more open days become «من X لـY»; shorter runs and single days are joined with «و»."""
+    if all(business["schedule"][d] for d in WEEK_FROM_SUNDAY):
+        return "«كل يوم»"
+    runs, run = [], []
+    for d in WEEK_FROM_SUNDAY:
+        if business["schedule"][d]:
+            run.append(d)
+        elif run:
+            runs.append(run)
+            run = []
+    if run:
+        runs.append(run)
+    said = []
+    for r in runs:
+        said += [f"من {DAY_AR[r[0]]} لل{DAY_AR[r[-1]][2:]}"] if len(r) >= 3 else [DAY_AR[d] for d in r]
+    return "«" + said[0] + "".join(f" و{x}" for x in said[1:]) + "»"
+
+
+def closed_days_phrase(business: dict) -> str:
+    closed = [DAY_AR[d] for d in WEEK_FROM_SUNDAY if not business["schedule"][d]]
+    return f" and is closed on {' and '.join(closed)}" if closed else ""
 EMOJI_RULE_OFF ="- No emojis at all, in any message (this replaces the emoji line in the style section above).\n"
 EMOJI_RULE_ON = ("- Emojis (this replaces the emoji line in the style section above): almost every message has none. Only two "
                  "exceptions, one emoji at most: ✅ on the message saying a booking or cancellation is done («تم الحجز»), and "
@@ -210,6 +245,7 @@ def teacher_rules(register: str, business: dict, opener_word: str, emoji: str = 
         # rule 37: «حنا تحت الخدمة» does not stand alone as the whole closing
         rules += CLOSING_RULE.format(closing="بأي وقت تحتاجنا حنا تحت الخدمة" if closing == "حنا تحت الخدمة" else closing)
     rules += IDENTITY_RULE.format(name=business["name"])
+    rules += DAYS_RULE.format(days=working_days(business), closed=closed_days_phrase(business))
     if "home visit" in business["type"]:
         rules += HOME_VISIT_RULE
     if business["customers"] == "women only":
@@ -305,7 +341,11 @@ def sample_scenario(rng: random.Random, businesses: list[dict], weights: list[in
             f"Ask to book '{s}' late at night, after they close. React to the answer, then end."])
     elif kind == "smalltalk":
         goal = rng.choice(["Just greet them (a Saudi greeting) and end.", "Thank them warmly for last time and end.",
-                           "Ask a friendly off-topic question (weather, football), then end."])
+                           "Ask a friendly off-topic question (weather, football), then end.",
+                           # rule 51 examples (decisions_v20)
+                           "Ask whether the one replying is a man or a woman. Accept the answer and end.",
+                           "Ask whether you are talking to a real person or a program, then end.",
+                           "Ask the receptionist's name and whether you can talk to an employee, then end."])
     else:  # pressure
         goal = rng.choice([f"Push for a rough price of '{s}' without them checking.",
                            f"Tell them to book '{s}' tomorrow at a time you choose right away, without checking anything.",
@@ -1187,7 +1227,7 @@ def rule_checks(rec: dict, business: dict) -> tuple[list[str], list[str]]:
     # decisions_v18: a confirmation that names another day, a name the customer never gave (rejects); rule 48 and
     # two near-misses (flags for the reviewer)
     problems += confirmation_date_problems(msgs, today) + name_problems(msgs) + first_move_problems(rec, today, business)
-    flags += repeated_slot_calls(msgs)
+    flags += repeated_slot_calls(msgs) + days_flags(rec, today, business)
     customer_so_far = ""
     for m in msgs:
         if m["role"] == "user":
@@ -1297,6 +1337,84 @@ EXISTING_BOOKING = re.compile(r"عندي (?:موعد|حجز)|موعدي|حجزي
 # rule 47 is about asking for that day: to book, or whether it is open («كيف الجو عندكم اليوم؟» on a closed Friday
 # is small talk, batch 12 gen-01175)
 BOOK_INTENT = re.compile(r"احجز|حجز|موعد|متاح|فاضي|فاتحين|تفتحون|مفتوحين|دوام|اوقات|أوقات|وقت|ينفع|يمديكم|تجون")
+
+
+WEEKDAY_TO_KEY = {0: "Mon", 1: "Tue", 2: "Wed", 3: "Thu", 4: "Fri", 5: "Sat", 6: "Sun"}
+DAY_RANGE = re.compile(rf"من\s+({_DAY})\s+(?:لل|ل|إلى\s+|الى\s+|لين\s+)({_DAY}|{'|'.join(d[2:] for d in WEEKDAY)})")
+TODAY_CUE = re.compile(r"اليوم|الليل[ةه]|الحين|بعد ما (?:تقفلون|تسكرون|تغلقون)|بعد ال[إا]غلاق|بعد الدوام|متأخر|بعد ما يخلص")
+NO_GENDER = re.compile(r"ما لي جنس|ما عندي جنس|ماني رجال ولا|لا رجل ولا")  # rule 51 (focus_v2 gen-00164)
+TWELVE_HOUR_COLON = re.compile(r"(?<!\d)(?:[1-9]|1[0-2]):[0-5]\d(?!\d)")  # «8:30»: say «8 ونص» (focus_v2 gen-00019)
+
+
+def _clauses(text: str) -> list[str]:
+    return [c for c in re.split(r"[.!؟\n،,]", re.sub(rf"(?<![{AR}])لل", "ال", plain_ar(text))) if c.strip()]
+
+
+def _days_in(clause: str) -> set[int]:
+    """Weekdays a clause names, with «من الأحد للخميس» expanded to every day in between (Sunday first)."""
+    days = {WEEKDAY[d] for d in re.findall(rf"(?<![{AR}])[وبل]?({_DAY})(?![{AR}])", clause)}
+    for a, b in DAY_RANGE.findall(clause):
+        b = b if b in WEEKDAY else "ال" + b
+        order = [6, 0, 1, 2, 3, 4, 5]  # Sunday first
+        i, j = order.index(WEEKDAY[a]), order.index(WEEKDAY[b])
+        days |= set(order[i:j + 1]) if i <= j else set()
+    return days
+
+
+def days_flags(rec: dict, today: date, business: dict) -> list[str]:
+    """decisions_v20 flags for the reviewer: a closed day listed or offered; tomorrow called «أقرب» while today is
+    still open (rule 49); the day before next week's closed day offered when the closed day is today (rule 50);
+    rule 51's «ما لي جنس» and a sentence sent twice; a 12-hour time with a colon."""
+    msgs, out = rec["messages"], []
+    closed = {wd for wd, k in WEEKDAY_TO_KEY.items() if not business["schedule"][k]}
+    now = datetime.fromisoformat(rec["meta"]["now"])
+    hours = open_hours(business, today)
+    now_min = now.hour * 60 + now.minute
+    # today has nothing left if a slot lookup for today found no time from now on
+    today_full = any(m["role"] == "tool" and m.get("name") == "get_available_slots"
+                     and f'"date": "{today}"' in m["content"]
+                     and not any(to_min(t) >= now_min for t in json.loads(m["content"]).get("slots") or [])
+                     for m in msgs)
+    still_open = bool(hours) and now_min < min(hours[1], 24 * 60) - 60 and not today_full
+    sentences: dict[str, int] = {}
+    last_user = ""
+    for m in msgs:
+        if m["role"] == "user":
+            last_user = m["content"]
+            continue
+        if m["role"] != "assistant" or not m.get("content"):
+            continue
+        text = m["content"]
+        for c in _clauses(text):
+            if CLOSED_WORDS.search(c):
+                continue
+            listed = _days_in(c) & closed
+            if listed:
+                out.append(f"lists or offers {', '.join(WEEKDAYS_AR[d] for d in sorted(listed))}, a day this business is closed")
+            later = re.search(rf"(?<![{AR}])[وبل]?(?:بعد بكر[ةها]|بكر[ةها]|{_DAY})(?![{AR}])", c)
+            # rule 49 is about a request for today or after closing; «أقرب يوم الخميس» for a customer who asked for
+            # the closed Friday is rule 40, and right (train_v1 gen-00121, gen-00044)
+            if (still_open and TODAY_CUE.search(last_user) and "أقرب" in c and later and "اليوم" not in c
+                    and today.weekday() not in _days_in(c)):
+                out.append("calls a later day «أقرب» while today is still open (rule 49)")
+        if (today.weekday() in closed and BOOK_INTENT.search(last_user)
+                and (WEEKDAYS_AR[today.weekday()] in plain_ar(last_user) or "اليوم" in last_user)):
+            before = (today.weekday() - 1) % 7
+            # an offer, not the working days («دوامنا من الأحد للخميس», train_v1 gen-00249)
+            offered = [c for c in _clauses(text) if not (CLOSED_WORDS.search(c) or HOURS_WORDS.search(c) or DAY_RANGE.search(c))]
+            if any(before in _days_in(c) for c in offered):
+                out.append(f"today is the closed day; offers {WEEKDAYS_AR[before]}, not tomorrow first (rule 50)")
+        if NO_GENDER.search(text):
+            out.append(f"«{NO_GENDER.search(text).group(0)}» (rule 51)")
+        for s in re.split(r"[.!؟\n]", text):
+            s = " ".join(s.split())
+            if len(s.split()) >= 5:
+                sentences[s] = sentences.get(s, 0) + 1
+                if sentences[s] == 2:
+                    out.append(f"the same sentence twice: «{s[:40]}» (rule 51)")
+        if TWELVE_HOUR_COLON.search(text.translate(AR_DIGITS)):
+            out.append(f"time with a colon «{TWELVE_HOUR_COLON.search(text.translate(AR_DIGITS)).group(0)}» (say «8 ونص»)")
+    return list(dict.fromkeys(out))
 
 
 def first_move_problems(rec: dict, today: date, business: dict) -> list[str]:
