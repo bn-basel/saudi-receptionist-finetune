@@ -207,6 +207,19 @@ def main() -> None:
             with open(out / "train.log", "a", encoding="utf-8") as f:  # readable while the run goes on
                 f.write(line + "\n")
 
+    paused = {"at": None}
+
+    class Pause(TrainerCallback):
+        """A file named PAUSE in the run folder stops training cleanly: a checkpoint is saved at the end of the
+        current step and the process exits, so `--resume` continues from there with nothing lost. (Killing the
+        process mid-step left a GPU driver error each time; run 2, 3 Oct.) scripts/pause_training.ps1 makes it."""
+        def on_step_end(self, a, state, control, **kw):
+            if (out / "PAUSE").exists():
+                (out / "PAUSE").unlink()
+                paused["at"] = state.global_step
+                control.should_save = True
+                control.should_training_stop = True
+
     class MaskedLogitsTrainer(Trainer):
         """Builds vocabulary scores only at trained positions (see trained_loss); same loss and gradients."""
         def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
@@ -227,9 +240,12 @@ def main() -> None:
         train_dataset=Dataset.from_list([{"input_ids": r["input_ids"], "labels": r["labels"]} for r in train]),
         eval_dataset=Dataset.from_list([{"input_ids": r["input_ids"], "labels": r["labels"]} for r in val]),
         data_collator=collate,
-        callbacks=[Pace()],
+        callbacks=[Pace(), Pause()],
     )
     trainer.train(resume_from_checkpoint=args.resume or None)
+    if paused["at"] is not None:  # not finished: no "final" adapter; resume with --resume
+        print(f"paused: checkpoint-{paused['at']} saved in {out}; continue with scripts/resume_training.ps1")
+        return
     trainer.save_model(str(out / "final"))
     (out / "log_history.json").write_text(json.dumps(trainer.state.log_history, indent=1), encoding="utf-8")
     print(f"done: adapters in {out}")
