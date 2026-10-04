@@ -32,7 +32,7 @@ The goal is to beat both the untuned base model and a strong API baseline on a h
 | 3 | Task spec: businesses, tools, style switches, data format | Done: [docs/TASK_SPEC.md](docs/TASK_SPEC.md) |
 | 4 | Test set: 160 test + 40 dev cases, native-speaker reviewed, frozen | Done: [docs/TEST_SET.md](docs/TEST_SET.md) |
 | 5 | Benchmark harness and baselines | Done: results below |
-| 6 | Training data: generation, automatic checks, review 1,162 reviewed conversations used in run 4; 95–97% of each recent batch passes review |
+| 6 | Training data: generation, automatic checks, review | 1,162 reviewed conversations used in run 4; 95–97% of each recent batch passes review |
 | 7 | QLoRA fine-tuning | Gemma runs 1–4: 89.4% → 92.5% → 91.9% → **96.9%**; ALLaM-7B on the same data: 81.9% |
 
 Nothing below this line is claimed until it is done and verified. Results, dataset card and model card will be added when they exist.

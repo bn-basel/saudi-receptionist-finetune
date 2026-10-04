@@ -9,9 +9,9 @@ runs on it once. v1 stays frozen and becomes a practice set.
 - **Same size and mix as v1:** 160 test cases in the same 12 categories and counts, so scores mean the same thing.
 - **4 new businesses,** in neither v1 nor the training data, so a score comes from reading the system prompt,
   not from knowing the shop.
-- **Customer messages drafted by Claude** from the style kit below, then checked and fixed by Basel (no writing
-  from scratch). Not by DeepSeek: it wrote the training conversations, and an exam by the same writer would partly
-  test "does it sound like DeepSeek?".
+- **Customer messages drafted by Claude** from the style kit below, then reviewed by the project's AI reviewer
+  chat, which works from Basel's rules (Basel chose not to review line by line). Not by DeepSeek: it wrote the
+  training conversations, and an exam by the same writer would partly test "does it sound like DeepSeek?".
 
 ## Style kit (picked by Basel)
 
@@ -48,8 +48,10 @@ closer than 0.60 to any v1 or dev line; greetings match the time of day; no Arab
 
 ## Freeze
 
-Frozen after Basel's review of the sheet. Each model version is then run on it once.
+Frozen after the AI review of the sheet (AI review: test_v2.filled_v3.csv, 7 lines reworded). Each model version
+is then run on it once. Limitation: drafter and reviewer are both Claude models, so they may share blind spots
+about what sounds natural; no native speaker read every line.
 
 | File | SHA-256 | Frozen on |
 |---|---|---|
-| `data/test/test_v2.jsonl` | not frozen yet | |
+| `data/test/test_v2.jsonl` | `180b3356043e5bce9777ab9e8f1fe318a845801b4adb26ed8a98c4889da17150` | 2026-10-05 |

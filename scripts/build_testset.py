@@ -39,7 +39,7 @@ if V2:
     FILES = {"test": OUT / "test_v2.jsonl"}
     BUSINESS_FILE = ROOT / "spec" / "test_businesses_v2.json"
     DOC = ROOT / "docs" / "TEST_SET_V2.md"
-    PROVENANCE = "synthetic drafts written from a native speaker's style picks, reviewed by a native speaker"
+    PROVENANCE = "synthetic drafts by Claude from a native speaker's style picks, reviewed by an AI reviewer following the native speaker's rules"
 else:
     from testset_drafts import CATEGORIES, NOW
     SHEET = OUT / "sheet_v1.csv"
@@ -514,7 +514,7 @@ def cmd_freeze() -> None:
         if n != 1:
             sys.exit(f"could not find the {path.name} row in {doc.name}")
         print(f"{path.name}: {digest}")
-    doc.write_text(text, encoding="utf-8")
+    doc.write_text(text, encoding="utf-8", newline="\n")
     print(f"recorded in {doc}")
 
 
