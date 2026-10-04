@@ -10,6 +10,9 @@
   freeze   Record the SHA-256 fingerprints of both files in docs/TEST_SET.md.
 
 Run: uv run python scripts/build_testset.py sheet|build|check|freeze
+Add --v2 for test set v2 (docs/TEST_SET_V2.md): drafts from scripts/testset_drafts_v2.py, its own businesses
+(spec/test_businesses_v2.json), sheet_v2.csv, a test split only (test_v2.jsonl). Without it, v1 is built exactly
+as before.
 """
 
 import csv
@@ -24,22 +27,32 @@ from pathlib import Path
 
 from backend import Backend, normalize_ar, resolve_day, to_min
 from prompt import WEEKDAYS_AR, load_spec
-from testset_drafts import CATEGORIES, NOW
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data" / "test"
-SHEET = OUT / "sheet_v1.csv"
-FILES = {"test": OUT / "test_v1.jsonl", "dev": OUT / "dev_v1.jsonl"}
 TEXT_FIELDS = ["customer_1", "assistant_1", "customer_2"]
 INFO_FIELDS = ["id", "split", "category", "business", "style", "situation"]
-PROVENANCE = "synthetic drafts, reviewed and edited by a native speaker"
-
-BUSINESS = {"C": "dental_clinic", "S": "salon", "W": "car_wash", "R": "restaurant"}
-PRAYER = {  # plausible early-October times per city
-    "الرياض": {"Asr": "15:12", "Maghrib": "17:41", "Isha": "19:11"},
-    "جدة": {"Asr": "15:27", "Maghrib": "18:02", "Isha": "19:32"},
-    "الدمام": {"Asr": "14:57", "Maghrib": "17:26", "Isha": "18:56"},
-}
+V2 = "--v2" in sys.argv
+if V2:
+    from testset_drafts_v2 import BUSINESS, CATEGORIES, NOW, PRAYER
+    SHEET = OUT / "sheet_v2.csv"
+    FILES = {"test": OUT / "test_v2.jsonl"}
+    BUSINESS_FILE = ROOT / "spec" / "test_businesses_v2.json"
+    DOC = ROOT / "docs" / "TEST_SET_V2.md"
+    PROVENANCE = "synthetic drafts written from a native speaker's style picks, reviewed by a native speaker"
+else:
+    from testset_drafts import CATEGORIES, NOW
+    SHEET = OUT / "sheet_v1.csv"
+    FILES = {"test": OUT / "test_v1.jsonl", "dev": OUT / "dev_v1.jsonl"}
+    BUSINESS_FILE = None  # spec/businesses.json, through load_spec()
+    DOC = ROOT / "docs" / "TEST_SET.md"
+    PROVENANCE = "synthetic drafts, reviewed and edited by a native speaker"
+    BUSINESS = {"C": "dental_clinic", "S": "salon", "W": "car_wash", "R": "restaurant"}
+    PRAYER = {  # plausible early-October times per city
+        "الرياض": {"Asr": "15:12", "Maghrib": "17:41", "Isha": "19:11"},
+        "جدة": {"Asr": "15:27", "Maghrib": "18:02", "Isha": "19:32"},
+        "الدمام": {"Asr": "14:57", "Maghrib": "17:26", "Isha": "18:56"},
+    }
 STYLES = [dict(register=r, warmth=w, emoji=e)
           for r, w, e in itertools.product(["casual", "formal"], ["warm", "plain"], ["on", "off"])]
 EMOJI = re.compile("[\U0001F300-\U0001FAFF☀-➿‍️]")
@@ -276,6 +289,8 @@ def read_sheet() -> dict:
 
 def assemble():
     businesses, _, tools = load_spec()
+    if BUSINESS_FILE:
+        businesses = json.loads(BUSINESS_FILE.read_text(encoding="utf-8"))
     by_id = {b["id"]: b for b in businesses}
     sheet = read_sheet()
     now_keys = list(NOW)
@@ -354,7 +369,7 @@ def cmd_build() -> None:
     for split, path in FILES.items():
         path.write_text("".join(json.dumps(c, ensure_ascii=False) + "\n" for c in cases if c["split"] == split),
                         encoding="utf-8", newline="\n")  # LF on every OS, so the fingerprint matches git
-    print(f"wrote {FILES['test'].name} and {FILES['dev'].name}\n")
+    print(f"wrote {' and '.join(p.name for p in FILES.values())}\n")
     table = {}
     for c in cases:
         table.setdefault(c["category"], {"test": 0, "dev": 0})[c["split"]] += 1
@@ -466,6 +481,14 @@ def cmd_check() -> None:
     print(f"   customer lines with Hindi digits: {cust_h}, with Arabic digits: {cust_a}")
     print(f"   Arabizi customer lines: {arabizi or 'none'}")
 
+    if V2:
+        print("\n   Highest similarity to test v1 and dev v1 customer lines (a fresh exam should not repeat them)")
+        old = [(json.loads(l)["id"], trigrams(m["content"])) for f in ("test_v1.jsonl", "dev_v1.jsonl")
+               for l in (OUT / f).read_text(encoding="utf-8").splitlines()
+               for m in json.loads(l)["messages"] if m["role"] == "user"]
+        top = sorted(((max(jaccard(g, r) for _, r in old), cid) for cid, _, _, g in grams), reverse=True)
+        print("   " + ", ".join(f"{cid} {s:.2f}" for s, cid in top[:8]))
+
     print("\n5. Greetings against the time of day (R6)")
     bad = []
     for c in cases:
@@ -478,7 +501,7 @@ def cmd_check() -> None:
 
 
 def cmd_freeze() -> None:
-    doc = ROOT / "docs" / "TEST_SET.md"
+    doc = DOC
     text = doc.read_text(encoding="utf-8")
     today = date.today().isoformat()
     for split, path in FILES.items():

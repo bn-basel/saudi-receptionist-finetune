@@ -1,0 +1,99 @@
+[
+  {
+    "id": "padel_club",
+    "name": "نادي مدار للبادل",
+    "type": "padel club",
+    "city": "الرياض",
+    "address": "حي الملقا، طريق أنس بن مالك",
+    "map_link": "https://maps.example.com/madar-padel",
+    "hours": "daily 16:00-23:30",
+    "policies": [
+      "cancel free up to 12 hours before; later cancellations are charged in full",
+      "rackets for rent at the desk: 20 SAR",
+      "payment: mada, Apple Pay (no cash)"
+    ],
+    "services": [
+      {"id": "court_60", "name": "حجز ملعب ساعة", "price_sar": 200, "duration_min": 60, "short_name": "ملعب ساعة"},
+      {"id": "court_90", "name": "حجز ملعب ساعة ونص", "price_sar": 280, "duration_min": 90, "short_name": "ملعب ساعة ونص"},
+      {"id": "coach", "name": "حصة مع مدرب", "price_sar": 250, "duration_min": 60, "short_name": "حصة المدرب"},
+      {"id": "kids_class", "name": "حصة أطفال", "price_sar": 150, "duration_min": 45, "short_name": "حصة الأطفال"}
+    ],
+    "assistant": {"name": "سلطان", "gender": "male"},
+    "customers": "unknown",
+    "schedule": {"Mon": "16:00-23:30", "Tue": "16:00-23:30", "Wed": "16:00-23:30", "Thu": "16:00-23:30",
+                 "Fri": "16:00-23:30", "Sat": "16:00-23:30", "Sun": "16:00-23:30"}
+  },
+  {
+    "id": "nutrition_clinic",
+    "name": "عيادة توازن للتغذية العلاجية",
+    "type": "nutrition clinic",
+    "city": "جدة",
+    "address": "حي الروضة، شارع الأمير سلطان",
+    "map_link": "https://maps.example.com/tawazun-nutrition",
+    "hours": "Sun-Thu 09:00-17:00; Sat 10:00-14:00; Fri closed",
+    "policies": [
+      "cancel or reschedule free up to 24 hours before",
+      "payment: cash, mada, Tabby",
+      "insurance: not accepted"
+    ],
+    "services": [
+      {"id": "first_consult", "name": "الاستشارة الأولى", "price_sar": 350, "duration_min": 60, "short_name": "الاستشارة الأولى"},
+      {"id": "follow_up", "name": "جلسة متابعة", "price_sar": 150, "duration_min": 30, "short_name": "المتابعة"},
+      {"id": "body_analysis", "name": "تحليل مكونات الجسم", "price_sar": 80, "duration_min": 15, "short_name": "تحليل الجسم"},
+      {"id": "meal_plan", "name": "إعداد جدول غذائي", "price_sar": 200, "duration_min": 30, "short_name": "الجدول الغذائي"}
+    ],
+    "assistant": {"name": "لمى", "gender": "female"},
+    "customers": "unknown",
+    "schedule": {"Mon": "09:00-17:00", "Tue": "09:00-17:00", "Wed": "09:00-17:00", "Thu": "09:00-17:00",
+                 "Fri": null, "Sat": "10:00-14:00", "Sun": "09:00-17:00"}
+  },
+  {
+    "id": "henna_studio",
+    "name": "مشغل نقشة للحناء",
+    "type": "henna studio",
+    "city": "الدمام",
+    "address": "حي الفيصلية، شارع الملك سعود",
+    "map_link": "https://maps.example.com/naqsha-henna",
+    "hours": "Sat-Mon and Wed-Thu 13:00-22:00; Fri 16:00-23:00; Tue closed",
+    "policies": [
+      "women and children only",
+      "no home visits: all appointments are at the studio",
+      "cancel free up to 3 hours before",
+      "payment: cash, mada, STC Pay"
+    ],
+    "services": [
+      {"id": "henna_hands", "name": "حناء يدين بسيط", "price_sar": 80, "duration_min": 30, "short_name": "حناء اليدين"},
+      {"id": "henna_hands_feet", "name": "حناء يدين ورجلين", "price_sar": 180, "duration_min": 60, "short_name": "حناء اليدين والرجلين"},
+      {"id": "bridal_henna", "name": "حناء عروس", "price_sar": 600, "duration_min": 150, "short_name": "حناء العروس"},
+      {"id": "kids_henna", "name": "حناء أطفال", "price_sar": 30, "duration_min": 15, "short_name": "حناء الأطفال"}
+    ],
+    "assistant": {"name": "هيا", "gender": "female"},
+    "customers": "women only",
+    "schedule": {"Mon": "13:00-22:00", "Tue": null, "Wed": "13:00-22:00", "Thu": "13:00-22:00",
+                 "Fri": "16:00-23:00", "Sat": "13:00-22:00", "Sun": "13:00-22:00"}
+  },
+  {
+    "id": "phone_repair",
+    "name": "مركز سريع لصيانة الجوالات",
+    "type": "phone repair shop",
+    "city": "المدينة المنورة",
+    "address": "حي العزيزية، طريق الملك عبدالله",
+    "map_link": "https://maps.example.com/saree-phone-repair",
+    "hours": "Sat-Thu 11:00-23:00; Fri 16:00-23:00",
+    "policies": [
+      "3-month warranty on parts and repairs",
+      "back up your data before handing in the phone; the shop is not responsible for lost data",
+      "payment: cash, mada, Apple Pay"
+    ],
+    "services": [
+      {"id": "screen", "name": "تغيير شاشة", "price_sar": 450, "duration_min": 60, "short_name": "تغيير الشاشة"},
+      {"id": "battery", "name": "تغيير بطارية", "price_sar": 220, "duration_min": 30, "short_name": "تغيير البطارية"},
+      {"id": "charging_port", "name": "تصليح منفذ الشحن", "price_sar": 180, "duration_min": 45, "short_name": "منفذ الشحن"},
+      {"id": "checkup", "name": "فحص الجهاز", "price_sar": 50, "duration_min": 15, "short_name": "الفحص"}
+    ],
+    "assistant": {"name": "عبدالرحمن", "gender": "male"},
+    "customers": "unknown",
+    "schedule": {"Mon": "11:00-23:00", "Tue": "11:00-23:00", "Wed": "11:00-23:00", "Thu": "11:00-23:00",
+                 "Fri": "16:00-23:00", "Sat": "11:00-23:00", "Sun": "11:00-23:00"}
+  }
+]

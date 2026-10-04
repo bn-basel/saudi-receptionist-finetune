@@ -21,7 +21,8 @@ from prompt import build_system_prompt, load_spec
 from scoring import SCORER_VERSION, score_case, validity, wilson
 
 ROOT = Path(__file__).resolve().parent.parent
-SPLITS = {"test": ROOT / "data" / "test" / "test_v1.jsonl", "dev": ROOT / "data" / "test" / "dev_v1.jsonl"}
+SPLITS = {"test": ROOT / "data" / "test" / "test_v1.jsonl", "dev": ROOT / "data" / "test" / "dev_v1.jsonl",
+          "test_v2": ROOT / "data" / "test" / "test_v2.jsonl"}  # v2: a fresh final exam (docs/TEST_SET_V2.md)
 
 
 def load_cases(split: str) -> list[dict]:
@@ -100,7 +101,7 @@ def summarize(rows: list[dict], run: str, model: str, split: str, seconds: float
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--model")
-    ap.add_argument("--split", choices=["dev", "test"], default="dev")
+    ap.add_argument("--split", choices=list(SPLITS), default="dev")
     ap.add_argument("--run", help="run name (default: model + split)")
     ap.add_argument("--limit", type=int, help="only the first N cases (for a quick try)")
     ap.add_argument("--rescore", help="re-score an existing run folder without calling the model")
@@ -109,6 +110,7 @@ def main() -> None:
     args = ap.parse_args()
 
     businesses, styles, tools = load_spec()
+    businesses += json.loads((ROOT / "spec" / "test_businesses_v2.json").read_text(encoding="utf-8"))  # test v2's shops
     unseen = json.loads((ROOT / "spec" / "tools_unseen.json").read_text(encoding="utf-8"))
     spec = ({b["id"]: b for b in businesses}, styles, tools, unseen)
 
