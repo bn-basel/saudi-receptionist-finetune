@@ -1,0 +1,87 @@
+{
+  "run": "allam_v1_ckpt92__dev",
+  "model": "hf:humain-ai/ALLaM-7B-Instruct-preview@runs/allam_v1/checkpoint-92",
+  "split": "dev",
+  "prompt": "short",
+  "scorer": "1.3",
+  "cases": 40,
+  "passed": 29,
+  "pass_rate": 0.725,
+  "ci95": [
+    0.5716474916687543,
+    0.8389214656685692
+  ],
+  "by_category": {
+    "price": {
+      "passed": 4,
+      "total": 4
+    },
+    "booking": {
+      "passed": 6,
+      "total": 6
+    },
+    "after_slots": {
+      "passed": 1,
+      "total": 3
+    },
+    "agree": {
+      "passed": 2,
+      "total": 3
+    },
+    "cancel": {
+      "passed": 3,
+      "total": 3
+    },
+    "info": {
+      "passed": 0,
+      "total": 4
+    },
+    "unknown": {
+      "passed": 3,
+      "total": 3
+    },
+    "complaint": {
+      "passed": 3,
+      "total": 3
+    },
+    "closed": {
+      "passed": 2,
+      "total": 2
+    },
+    "smalltalk": {
+      "passed": 1,
+      "total": 3
+    },
+    "unseen_tool": {
+      "passed": 1,
+      "total": 3
+    },
+    "pressure": {
+      "passed": 3,
+      "total": 3
+    }
+  },
+  "answer_types": {
+    "closed:checks_open_day": 2,
+    "unseen_tool:uses_new_tool": 1
+  },
+  "tool_call_valid": [
+    35,
+    35
+  ],
+  "emoji_ok": [
+    5,
+    5
+  ],
+  "mostly_arabic": [
+    5,
+    5
+  ],
+  "reply_problems": {
+    "Invented numbers (prices, counts)": 0,
+    "Times not from the calendar, customer or business hours": 0,
+    "Wrong or invented dates": 0,
+    "Claims an action no tool performed": 0
+  },
+  "seconds": 84.32298040390015
+}

@@ -119,6 +119,18 @@ def parse_text_tool_calls(text: str) -> tuple[str | None, list[dict]]:
     return rest or None, calls
 
 
+def uses_text_tools(tok) -> bool:
+    """True when the model's chat template has no tool support, so tools have to be described in text."""
+    probe_tool = [{"type": "function", "function": {"name": "t", "description": "d",
+                                                     "parameters": {"type": "object", "properties": {}}}}]
+    try:
+        rendered = tok.apply_chat_template([{"role": "user", "content": "x"}], tools=probe_tool,
+                                           tokenize=False, add_generation_prompt=True)
+        return '"t"' not in rendered and "t{" not in rendered  # template silently dropped the tools
+    except Exception:
+        return True
+
+
 class HFModel:
     """Local model in 4-bit NF4, greedy decoding, thinking switched off. Uses the model's own
     tool format when its chat template has one, otherwise describes the tools in text."""
@@ -145,14 +157,7 @@ class HFModel:
             from peft import PeftModel
             self.model = PeftModel.from_pretrained(self.model, adapter)
         self.model.eval()
-        probe_tool = [{"type": "function", "function": {"name": "t", "description": "d",
-                                                         "parameters": {"type": "object", "properties": {}}}}]
-        try:
-            rendered = self.tok.apply_chat_template([{"role": "user", "content": "x"}], tools=probe_tool,
-                                                    tokenize=False, add_generation_prompt=True)
-            self.text_tools = '"t"' not in rendered and "t{" not in rendered  # template silently dropped the tools
-        except Exception:
-            self.text_tools = True
+        self.text_tools = uses_text_tools(self.tok)
 
     def step(self, case: dict, system_prompt: str, tools: list[dict]) -> dict:
         if self.text_tools:

@@ -1,14 +1,20 @@
-"""Stage 7: QLoRA fine-tuning of Gemma-4-12B-it on the reviewed training conversations.
+"""Stage 7: QLoRA fine-tuning on the reviewed training conversations (Gemma-4-12B-it, or ALLaM-7B with --model allam).
 
-Each conversation is rendered exactly as the benchmark renders it (scripts/models.py HFModel.step): the short
-system prompt, the conversation, and the training copy of the tools, through Gemma's own chat template with
+Each conversation is rendered exactly as the benchmark renders it (scripts/models.py HFModel). For Gemma: the
+short system prompt, the conversation, and the training copy of the tools, through Gemma's own chat template with
 thinking off. The loss covers only what the receptionist writes: its replies, its tool calls, and the two
 tokens that end a turn (<|tool_response> after a tool call, <turn|> after a reply). The tool results inside
 its turn and everything the customer writes are masked out.
 
+ALLaM's chat template has no tool support, so its conversations use the benchmark's text format
+(models.text_tool_messages): the tools are described in the system prompt, a call is a line
+<tool_call>{...}</tool_call>, and a tool result comes back as a user turn. Training on that format is what gives
+ALLaM tool calling; the loss covers each assistant turn and its closing </s>.
+
     uv run python scripts/train.py --run gold_v1 --dry-run        # build and measure the data only
     uv run python scripts/train.py --run gold_v1 --max-steps 3    # smoke test: memory and speed
     uv run python scripts/train.py --run gold_v1                  # the real run, checkpoints in runs/gold_v1/
+    uv run python scripts/train.py --run allam_v1 --model allam   # the same data on HUMAIN's ALLaM-7B
 
 Gold data: conversations the review marked ok that also pass today's automatic checks (older pilot rows that
 use «الظهر / العصر» as time labels stay ok in the review but follow an older convention, so they are left out).
@@ -23,9 +29,11 @@ from datetime import datetime
 from pathlib import Path
 
 from datagen import OUT_DIR, ROOT, check, train_tools
+from models import text_tool_messages, uses_text_tools
 from prompt import build_system_prompt, load_spec
 
-MODEL = "google/gemma-4-12B-it"
+MODELS = {"gemma": "google/gemma-4-12B-it", "allam": "humain-ai/ALLaM-7B-Instruct-preview"}
+GOLD_TOKENIZER = MODELS["gemma"]  # the data checks measure length with Gemma's template: every model gets the same gold set
 SETS = ["pilot_v1", "pilot_v2", "pilot_v3", "train_v1", "focus_v1", "focus_v2"]
 TURN, END = "<|turn>model\n", "<turn|>"
 RESPONSE_OPEN, RESPONSE_CLOSE = "<|tool_response>", "<tool_response|>"
@@ -54,13 +62,33 @@ def gold_conversations(tok) -> list[dict]:
     return out
 
 
-def render(rec: dict, tok, businesses: dict, styles: dict, tools: list[dict]) -> str:
+def render(rec: dict, tok, businesses: dict, styles: dict, tools: list[dict], text_tools: bool) -> tuple[str, list]:
+    """The conversation as the benchmark would show it to this model, and the character spans the model learns."""
     meta = rec["meta"]
     system = build_system_prompt(businesses[meta["business_id"]], styles, meta["style"],
                                  datetime.fromisoformat(meta["now"]), meta["prayer_times"], "short")
     order = [next(t for t in tools if t["function"]["name"] == n) for n in meta["tools"]]
-    messages = [{"role": "system", "content": system}] + rec["messages"]
-    return tok.apply_chat_template(messages, tools=order, tokenize=False, enable_thinking=False)
+    if not text_tools:
+        messages = [{"role": "system", "content": system}] + rec["messages"]
+        text = tok.apply_chat_template(messages, tools=order, tokenize=False, enable_thinking=False)
+        return text, trained_spans(text)
+    messages = text_tool_messages(system, rec["messages"], order)
+    text = tok.apply_chat_template(messages, tokenize=False)
+    return text, assistant_spans(messages, tok, text)
+
+
+def assistant_spans(messages: list[dict], tok, text: str) -> list[tuple[int, int]]:
+    """For a template without tool support: each assistant turn is what the template adds after the generation
+    prompt (the prompt the benchmark gives the model at that point), up to and including its end-of-turn token."""
+    spans = []
+    for i, m in enumerate(messages):
+        if m["role"] != "assistant":
+            continue
+        prompt = tok.apply_chat_template(messages[:i], add_generation_prompt=True, tokenize=False)
+        upto = tok.apply_chat_template(messages[: i + 1], tokenize=False)
+        assert upto.startswith(prompt) and text.startswith(upto), "the template does not render prefixes consistently"
+        spans.append((len(prompt), len(upto)))
+    return spans
 
 
 def trained_spans(text: str) -> list[tuple[int, int]]:
@@ -82,9 +110,8 @@ def trained_spans(text: str) -> list[tuple[int, int]]:
     return spans
 
 
-def encode(text: str, tok) -> dict:
+def encode(text: str, spans: list[tuple[int, int]], tok) -> dict:
     enc = tok(text, add_special_tokens=False, return_offsets_mapping=True)
-    spans = trained_spans(text)
     labels = []
     for tid, (a, b) in zip(enc["input_ids"], enc["offset_mapping"]):
         inside = any(s <= a and b <= e for s, e in spans) and b > a
@@ -92,20 +119,33 @@ def encode(text: str, tok) -> dict:
     return {"input_ids": enc["input_ids"], "labels": labels}
 
 
-def build(tok, max_len: int, val_share: float, seed: int) -> tuple[list[dict], list[dict]]:
+def build(tok, max_len: int, val_share: float, seed: int, split_from: str | None = None) -> tuple[list[dict], list[dict]]:
+    """split_from: train and validate on exactly the conversations another run used (runs/<run>/data.json), so a
+    second model is compared on identical data however long its own rendering is."""
+    from transformers import AutoTokenizer
     businesses = {b["id"]: b for b in json.loads((ROOT / "spec" / "train_businesses.json").read_text(encoding="utf-8"))}
     _, styles, tools = load_spec()
     tools = train_tools(tools)
+    text_tools = uses_text_tools(tok)
+    gold_tok = tok if tok.name_or_path == GOLD_TOKENIZER else AutoTokenizer.from_pretrained(GOLD_TOKENIZER)
     rows, too_long = [], 0
-    for rec in gold_conversations(tok):
-        ex = encode(render(rec, tok, businesses, styles, tools), tok)
+    for rec in gold_conversations(gold_tok):
+        ex = encode(*render(rec, tok, businesses, styles, tools, text_tools), tok)
         if len(ex["input_ids"]) > max_len:
             too_long += 1
             continue
         rows.append({"id": f"{rec['set']}/{rec['id']}", **ex})
-    random.Random(seed).shuffle(rows)
-    n_val = max(1, round(len(rows) * val_share))
-    val, train = rows[:n_val], rows[n_val:]
+    if split_from:
+        ref = json.loads((ROOT / "runs" / split_from / "data.json").read_text(encoding="utf-8"))
+        by_id = {r["id"]: r for r in rows}
+        missing = [i for i in ref["train"] + ref["validation"] if i not in by_id]
+        assert not missing, f"{len(missing)} of {split_from}'s conversations are missing here (raise --max-len?)"
+        train, val = [by_id[i] for i in ref["train"]], [by_id[i] for i in ref["validation"]]
+        rows = train + val
+    else:
+        random.Random(seed).shuffle(rows)
+        n_val = max(1, round(len(rows) * val_share))
+        val, train = rows[:n_val], rows[n_val:]
     lens = sorted(len(r["input_ids"]) for r in rows)
     trained = sum(sum(1 for x in r["labels"] if x != -100) for r in rows)
     print(f"examples: {len(rows)} (train {len(train)}, validation {len(val)}); dropped over {max_len} tokens: {too_long}")
@@ -133,6 +173,7 @@ def trained_loss(model, input_ids, labels, num_items_in_batch=None):
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--run", required=True)
+    ap.add_argument("--model", choices=MODELS, default="gemma")
     ap.add_argument("--max-len", type=int, default=1536)
     ap.add_argument("--epochs", type=float, default=3)
     ap.add_argument("--lr", type=float, default=2e-4)
@@ -142,6 +183,7 @@ def main() -> None:
     ap.add_argument("--max-steps", type=int, default=-1, help="stop early (smoke test)")
     ap.add_argument("--val-share", type=float, default=0.05)
     ap.add_argument("--seed", type=int, default=7)
+    ap.add_argument("--split-from", help="use exactly the train/validation conversations of this earlier run")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--resume", action="store_true", help="continue from the run's latest checkpoint")
     ap.add_argument("--mem-fraction", type=float, default=0.8,
@@ -149,8 +191,8 @@ def main() -> None:
     args = ap.parse_args()
 
     from transformers import AutoTokenizer
-    tok = AutoTokenizer.from_pretrained(MODEL)
-    train, val = build(tok, args.max_len, args.val_share, args.seed)
+    tok = AutoTokenizer.from_pretrained(MODELS[args.model])
+    train, val = build(tok, args.max_len, args.val_share, args.seed, args.split_from)
     out = ROOT / "runs" / args.run
     out.mkdir(parents=True, exist_ok=True)
     (out / "data.json").write_text(json.dumps({"train": [r["id"] for r in train], "validation": [r["id"] for r in val],
@@ -169,7 +211,7 @@ def main() -> None:
     # this cap the cache is trimmed first; training itself never needs more than ~10 GB.
     torch.cuda.set_per_process_memory_fraction(args.mem_fraction)
     model = AutoModelForCausalLM.from_pretrained(
-        MODEL, dtype=torch.bfloat16, device_map={"": 0},
+        MODELS[args.model], dtype=torch.bfloat16, device_map={"": 0},
         quantization_config=BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",  # as in the benchmark
                                                bnb_4bit_use_double_quant=True, bnb_4bit_compute_dtype=torch.bfloat16))
     # Not prepare_model_for_kbit_training: it casts every non-4-bit weight to float32, including Gemma's

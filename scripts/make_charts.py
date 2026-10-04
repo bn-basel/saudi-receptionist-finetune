@@ -28,8 +28,10 @@ PALETTE = {
     # kinds of invented facts
     "numbers": ("#cf222e", "#f85149"), "times": ("#bc4c00", "#db6d28"), "dates": ("#8250df", "#a371f7"),
     "actions": ("#0969da", "#4493f8"),
+    "allam": ("#0e7c86", "#2bb3c0"),  # ALLaM fine-tuned on the same data
 }
 RUN_COLOURS = ["r1", "r2", "r3", "ours"]
+ALLAM_RUN = ("allam_v1", 414)  # HUMAIN's ALLaM-7B, fine-tuned on exactly run 4's conversations
 RUNS = [  # fine-tuning runs: name, label, chosen checkpoint, conversations trained on, what changed (two lines)
     ("gold_v1", "run 1", 150, 352, ("first reviewed", "conversations")),
     ("gold_v2", "run 2", 315, 874, ("more of the", "same data")),
@@ -77,7 +79,7 @@ def save(name: str, title: str, width: float, height: float, body: list[str]) ->
         f"<svg xmlns='http://www.w3.org/2000/svg' width='{width:.0f}' height='{height:.0f}' "
         f"viewBox='0 0 {width:.0f} {height:.0f}' role='img'><title>{escape(title)}</title>{style()}"
         f"<rect x='0.5' y='0.5' width='{width - 1:.0f}' height='{height - 1:.0f}' rx='12' class='f-bg s-grid'/>"
-        + "".join(body) + "</svg>\n", encoding="utf-8")
+        + "".join(body) + "</svg>\n", encoding="utf-8", newline="\n")
 
 
 def text(x, y, s, size=13, anchor="start", colour="ink", weight="normal") -> str:
@@ -107,6 +109,8 @@ def test_scores() -> None:
              "conversations, one RTX 5080")]
     notes = {"DeepSeek V4.1 Flash (API)": "the model Mujawib runs on today", "ALLaM-7B (HUMAIN), prompted":
              "Saudi Arabia's open model", "Gemma-4-12B, untuned": "the same model before fine-tuning"}
+    rows.append(("ALLaM-7B + QLoRA (this project)", "allam", run_path(*ALLAM_RUN), None,
+                 "HUMAIN's model, same data, tool calling added"))
     rows += [(label, colour, path, f"{path}__long", notes.get(label, "commercial API")) for label, colour, path in BASELINES]
     rows.sort(key=lambda r: -summary(r[2])["pass_rate"])
     left, top, bar_w, row_h, w = 320, 112, 440, 58, 880
@@ -122,9 +126,9 @@ def test_scores() -> None:
         body.append(text(x, top + row_h * len(rows) + 6, f"{p}%", 11, "middle", "muted"))
     for i, (label, colour, short, long, note) in enumerate(rows):
         y = top + i * row_h
-        weight = "bold" if colour == "ours" else "normal"
+        weight = "bold" if colour in ("ours", "allam") else "normal"
         body += [text(left - 14, y + 13, label, 14, "end", weight=weight),
-                 text(left - 14, y + 30, note, 11.5, "end", "ours" if colour == "ours" else "muted")]
+                 text(left - 14, y + 30, note, 11.5, "end", colour if colour in ("ours", "allam") else "muted")]
         s = summary(short)
         body.append(rect(left, y, bar_w, 20, "grid", 4))
         body.append(rect(left, y, bar_w * s["pass_rate"], 20, colour, 4))
@@ -184,6 +188,7 @@ def category_heatmap() -> None:
         ("Gemma-4-12B fine-tuned (this project)",
          [(f"{label.capitalize()}: {n:,} conv.", run_path(run, ck), k == len(RUNS) - 1)
           for k, (run, label, ck, n, _) in enumerate(RUNS)]),
+        ("ALLaM-7B fine-tuned (this project)", [("Same data as run 4", run_path(*ALLAM_RUN), False)]),
         ("API models", [(label.replace(" (API)", ""), path, False) for label, _, path in BASELINES[2:]]),
     ]
     left, top, cw, ch, gap = 236, 116, 63, 30, 4
@@ -236,6 +241,7 @@ def invented_facts() -> None:
     rows = [(BASELINES[0][0], BASELINES[0][2], "open"), (BASELINES[1][0], BASELINES[1][2], "open")]
     rows += [(f"Fine-tuned Gemma, {label}", run_path(run, ck), RUN_COLOURS[k - len(RUNS)])
              for k, (run, label, ck, _, _) in enumerate(RUNS)]
+    rows.append(("Fine-tuned ALLaM (same data)", run_path(*ALLAM_RUN), "allam"))
     rows += [(label, path, "api") for label, _, path in BASELINES[2:]]
     counts = [[summary(path)["reply_problems"][key] for key, _, _ in INVENTED] for _, path, _ in rows]
     biggest = max(sum(c) for c in counts)
@@ -262,7 +268,7 @@ def invented_facts() -> None:
         total = sum(c)
         body.append(text(x + 10, y + 16, total if total else "0: none", 13.5, colour="ink" if total else "ours",
                          weight="bold"))
-        if i in (1, 5):  # separate the prompted models, the fine-tuned runs and the API models
+        if i in (1, 6):  # separate the prompted models, the fine-tuned runs and the API models
             body.append(line(24, y + row_h - 4, w - 24, y + row_h - 4, "grid"))
     save("invented_facts", "Replies with invented facts or actions, per model", w, top + row_h * len(rows) + 14, body)
 

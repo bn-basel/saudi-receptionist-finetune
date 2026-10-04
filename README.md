@@ -19,6 +19,7 @@ The goal is to beat both the untuned base model and a strong API baseline on a h
 
 - **96.9% on 160 held-out cases**, level with DeepSeek V4.1 Flash, the API model Mujawib runs on today, from a 12B model on one RTX 5080.
 - **No made-up prices, times, dates or actions** in any reply (untuned: 23).
+- **HUMAIN's ALLaM-7B learned tool calling** from the same data: 38.1% → 81.9%, with 125 of 126 tool calls well-formed.
 - **The data mattered more than the amount of it.** Details in [Stage 7](#findings-so-far) below.
 
 ## Status
@@ -32,7 +33,7 @@ The goal is to beat both the untuned base model and a strong API baseline on a h
 | 4 | Test set: 160 test + 40 dev cases, native-speaker reviewed, frozen | Done: [docs/TEST_SET.md](docs/TEST_SET.md) |
 | 5 | Benchmark harness and baselines | Done: results below |
 | 6 | Training data: generation, automatic checks, review 1,162 reviewed conversations used in run 4; 95–97% of each recent batch passes review |
-| 7 | QLoRA fine-tuning | Runs 1–4 done: 89.4% → 92.5% → 91.9% → **96.9%** on the test set |
+| 7 | QLoRA fine-tuning | Gemma runs 1–4: 89.4% → 92.5% → 91.9% → **96.9%**; ALLaM-7B on the same data: 81.9% |
 
 Nothing below this line is claimed until it is done and verified. Results, dataset card and model card will be added when they exist.
 
@@ -94,7 +95,8 @@ For each run, twelve checkpoints were compared on the dev set and one was chosen
 - **Level with the best API model, on one consumer GPU, at no cost per reply.** Run 4 passes 155 of 160 cases (95% CI 93–99%), with no invented prices, times, dates or actions. DeepSeek V4.1 Flash, the model Mujawib runs on today, passes 151; the difference is within chance (paired McNemar test: 9 cases won, 5 lost, p = 0.42).
 - **Fine-tuning closed the gap that prompting could not.** The untuned model gains 4 points from a fully explained prompt; fine-tuning adds 56.
 - **The data's habits become the model's habits.** Adding more conversations about the weak spots (run 3) made two of them worse: in every closed-day conversation the teacher searched the service list before saying the day was closed, and the model learned that first move. Reviews passed those conversations because they read well as a whole. Removing them and adding conversations that open the right way (run 4) took unknown questions from 8 to 12 of 12 and closed days from 4 to 6 of 8 (run 3 → run 4: 10 cases won, 2 lost, p = 0.04). It also nudged complaints from 10 to 8 of 10: the model sometimes replies where it should hand off.
-- **More than twice the score of Saudi Arabia's ALLaM on this task.** ALLaM-7B (HUMAIN) is smaller than Gemma-4-12B and was prompted, not fine-tuned, so this compares a task-trained model with a general one. The fair next comparison is ALLaM fine-tuned on the same data (on the roadmap).
+- **Fine-tuning gave HUMAIN's ALLaM tool calling.** ALLaM-7B's chat template has no tool format, so its conversations were written with tool calls as text lines (`<tool_call>{...}</tool_call>`), and it was trained on exactly run 4's conversations with the same recipe (dev: 37/40 at checkpoint 414). On the test set it went from 38.1% to **81.9%** (95% CI 75–87%; 91 cases won, 21 lost), with 125 of 126 tool calls well-formed and no invented prices, times, dates or actions. To deploy it, a server needs the same template and a small parser for those lines.
+- **On identical data, Gemma-4-12B stays well ahead of ALLaM-7B** (96.9% vs 81.9%; 26 cases won, 2 lost). ALLaM's main weakness runs the opposite way from Gemma's: it reaches for a tool when it should just answer. It hands questions about opening hours, location and payment, which the system prompt answers, to a person (business info: 6 of 16, down from 12 untuned), and searches the service list during small talk. ALLaM is also the smaller model (7B against 12B), so this compares the two models as they come, not their makers.
 
 ![Cases passed per category, per model](docs/charts/categories.svg)
 
@@ -119,7 +121,6 @@ This is a comparison study as much as a fine-tune. The question is not only "did
 | 7 | QLoRA training on the RTX 5080, as a data comparison: **A** generated conversations only, **B** the same plus about 20% filtered human-written Saudi dialogues ([Voho](docs/DATA_SOURCES.md), no tools), and later **C** "dialect-first": training on Najdi web text before the task data. Compared on tool accuracy and blind dialect review |
 | 8 | Evaluation: automatic tool-call checks, blind A/B dialect review, confidence intervals, cost and speed per reply |
 | 9 | Publish: results table and charts (model vs model, short vs long prompt, before vs after fine-tuning), raw outputs per model, side-by-side conversation gallery, dataset card, model card with honest limitations |
-| Later | ALLaM-7B (HUMAIN) fine-tuned on the same data, for a like-for-like comparison with Saudi Arabia's own model |
 | Later | The same data on a larger model trained on rented cloud GPUs, to compare what model size buys; other regional dialects, each with its own test set |
 
 Fairness rules for the comparison: every model sees the same test cases, tools and system-prompt format. Prompt-only competitors are tested with the short prompt the fine-tuned model uses **and** with a longer, fully explained version, and both results are reported. Prompts are tuned only on the dev set and frozen before any test result exists. Each API's terms are checked before its outputs are published.

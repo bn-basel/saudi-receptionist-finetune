@@ -16,5 +16,9 @@ Write-Host "Resuming $Run from $($last.Name) (epochs $($a.epochs), checkpoint ev
 Write-Host "Progress is in runs\$Run\train.log. To pause again: .\scripts\pause_training.ps1 $Run"
 $env:PYTHONIOENCODING = "utf-8"
 Set-Location $root
+$extra = @()  # settings added later; older runs (Gemma, own split) have neither
+if ($a.model) { $extra += @("--model", $a.model) }
+if ($a.split_from) { $extra += @("--split-from", $a.split_from) }
 uv run python scripts/train.py --run $Run --epochs $a.epochs --save-every $a.save_every --max-len $a.max_len `
-    --lr $a.lr --rank $a.rank --accum $a.accum --val-share $a.val_share --seed $a.seed --mem-fraction $a.mem_fraction --resume
+    --lr $a.lr --rank $a.rank --accum $a.accum --val-share $a.val_share --seed $a.seed --mem-fraction $a.mem_fraction `
+    @extra --resume
