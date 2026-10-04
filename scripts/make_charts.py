@@ -13,11 +13,12 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "docs" / "charts"
 FONT = "font-family='Segoe UI, Helvetica, Arial, sans-serif'"
 INK, GRID, MUTED, OURS, API, OPEN = "#1f2328", "#d0d7de", "#656d76", "#1a7f37", "#8c959f", "#bf8700"
-RUN_GREENS = ["#a8dbb2", "#5fb874", OURS]  # one green per fine-tuning run, darker as the data grows
+RUN_GREENS = ["#c6e8cd", "#8fd19e", "#4fae66", OURS]  # one green per fine-tuning run, darker as the data grows
 RUNS = [  # fine-tuning runs: name, label, chosen checkpoint, conversations trained on
     ("gold_v1", "run 1", 150, 352),
     ("gold_v2", "run 2", 315, 874),
     ("gold_v3", "run 3", 387, 1086),
+    ("gold_v4", "run 4", 414, 1162),
 ]
 
 
