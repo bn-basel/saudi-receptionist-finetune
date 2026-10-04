@@ -13,6 +13,14 @@ Fine-tuning a small open model (Gemma-4-12B) with QLoRA on one consumer GPU (RTX
 
 The goal is to beat both the untuned base model and a strong API baseline on a held-out test set, judged by a blind A/B dialect review from a native speaker plus automatic tool-call checks.
 
+## Results at a glance
+
+![Test-set scores: the fine-tuned model against the untuned model, HUMAIN's ALLaM and three API models](docs/charts/test_scores.svg)
+
+- **96.9% on 160 held-out cases**, level with DeepSeek V4.1 Flash, the API model Mujawib runs on today, from a 12B model on one RTX 5080.
+- **No made-up prices, times, dates or actions** in any reply (untuned: 23).
+- **The data mattered more than the amount of it.** Details in [Stage 7](#findings-so-far) below.
+
 ## Status
 
 | Stage | What | Status |
@@ -23,7 +31,7 @@ The goal is to beat both the untuned base model and a strong API baseline on a h
 | 3 | Task spec: businesses, tools, style switches, data format | Done: [docs/TASK_SPEC.md](docs/TASK_SPEC.md) |
 | 4 | Test set: 160 test + 40 dev cases, native-speaker reviewed, frozen | Done: [docs/TEST_SET.md](docs/TEST_SET.md) |
 | 5 | Benchmark harness and baselines | Done: results below |
-| 6 | Training data: generation, automatic checks, review | 874 reviewed-ok conversations; 95–97% of each recent batch passes review |
+| 6 | Training data: generation, automatic checks, review 1,162 reviewed conversations used in run 4; 95–97% of each recent batch passes review |
 | 7 | QLoRA fine-tuning | Runs 1–4 done: 89.4% → 92.5% → 91.9% → **96.9%** on the test set |
 
 Nothing below this line is claimed until it is done and verified. Results, dataset card and model card will be added when they exist.
@@ -81,24 +89,20 @@ These scores only check tools and facts. Whether the replies sound like natural 
 
 For each run, twelve checkpoints were compared on the dev set and one was chosen by a rule fixed in advance (best dev score, ties broken by the lowest held-out loss), then run once on the test set.
 
-![Test-set scores: fine-tuned Gemma against the untuned model, HUMAIN's ALLaM and three API models](docs/charts/test_scores.svg)
+![Test score per run, against DeepSeek V4.1 Flash](docs/charts/runs.svg)
 
-| Model | Test score (160 cases) | 95% CI |
-|---|---|---|
-| ALLaM-7B-Instruct (HUMAIN), prompted | 38.1% short / 41.9% long prompt | 31–46% / 35–50% |
-| Gemma-4-12B-it, untuned | 40.6% short / 44.4% long prompt | 33–48% / 37–52% |
-| **Gemma-4-12B-it + QLoRA, run 4 (this project)** | **96.9%** | **93–99%** |
-| Gemini 3.8 Flash (API) | 87.5% | 81–92% |
-| GPT-5.4 mini (API) | 92.5% | 87–96% |
-| DeepSeek V4.1 Flash (API) | 94.4% | 90–97% |
-
-- **Level with the best API model, on one consumer GPU, at no cost per reply.** Run 4 passes 155 of 160 cases, with no invented prices, times, dates or actions. DeepSeek V4.1 Flash, the model Mujawib runs on today, passes 151; the difference is within chance (paired McNemar test: 9 cases won, 5 lost, p = 0.42).
+- **Level with the best API model, on one consumer GPU, at no cost per reply.** Run 4 passes 155 of 160 cases (95% CI 93–99%), with no invented prices, times, dates or actions. DeepSeek V4.1 Flash, the model Mujawib runs on today, passes 151; the difference is within chance (paired McNemar test: 9 cases won, 5 lost, p = 0.42).
 - **Fine-tuning closed the gap that prompting could not.** The untuned model gains 4 points from a fully explained prompt; fine-tuning adds 56.
 - **The data's habits become the model's habits.** Adding more conversations about the weak spots (run 3) made two of them worse: in every closed-day conversation the teacher searched the service list before saying the day was closed, and the model learned that first move. Reviews passed those conversations because they read well as a whole. Removing them and adding conversations that open the right way (run 4) took unknown questions from 8 to 12 of 12 and closed days from 4 to 6 of 8 (run 3 → run 4: 10 cases won, 2 lost, p = 0.04). It also nudged complaints from 10 to 8 of 10: the model sometimes replies where it should hand off.
 - **More than twice the score of Saudi Arabia's ALLaM on this task.** ALLaM-7B (HUMAIN) is smaller than Gemma-4-12B and was prompted, not fine-tuned, so this compares a task-trained model with a general one. The fair next comparison is ALLaM fine-tuned on the same data (on the roadmap).
+
+![Cases passed per category, per model](docs/charts/categories.svg)
+
+![Replies with invented facts or actions, per model](docs/charts/invented_facts.svg)
+
 - **A caveat on 96.9%.** Run 4's fix was chosen by reading run 3's test failures, so this test set is no longer fully independent and the score is probably slightly optimistic. A fresh test set would give the unbiased number.
 
-![Dev-set score after each training checkpoint](docs/charts/checkpoint_curve.svg)
+![Dev-set score after each training checkpoint, one panel per run](docs/charts/checkpoint_curve.svg)
 
 Most of the gain arrives in the first pass over the data. Runs 2 and 3 reach 40/40, the ceiling of the dev set, which is why the test set decides; run 4 settles at 38/40 on dev while scoring highest on test, a reminder that 40 cases is a small sample. Run 2 needed one engineering change: vocabulary scores are now computed only at the positions the loss grades, which cut peak GPU memory from 13.5 to 9.6 GB with an identical loss. These scores check tools and facts only; whether the replies sound natural is judged separately in the blind dialect review (Stage 8). Raw outputs: [`results/stage7/`](results/stage7/). Charts: `uv run python scripts/make_charts.py`.
 

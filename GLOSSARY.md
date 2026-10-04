@@ -66,3 +66,6 @@ Short, plain definitions. Added to as each step introduces new terms.
 | **Scores only where trained** | Building logits only at the positions the loss mask grades (17% of tokens here), with the same loss and gradients. It cut run 2's peak memory from 13.5 GB to 9.6 GB. |
 | **System-memory fallback (VRAM spill)** | When a Windows GPU runs out of its own memory, it borrows ordinary RAM. Nothing fails, but every step becomes several times slower; a slow step is the warning sign. |
 | **Noise floor** | How much a result changes when you repeat the same computation. A difference is only meaningful if it is bigger than this. |
+| **Test leakage** | When the test set influences a decision (for example, choosing a fix by reading test failures). The test then stops being a fresh exam, and its score is a little too good. |
+| **First move** | The receptionist's first action after a customer message: a reply, a tool call or a handoff. Grading whole conversations can miss a wrong first move that is fixed later in the conversation. |
+| **Small multiples** | A chart split into several small panels, one per series, with the same axes, so lines don't pile on top of each other. |

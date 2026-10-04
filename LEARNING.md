@@ -165,3 +165,32 @@ One entry per step: the concept in one paragraph, what we did, and what I learne
 - Before trusting "the numbers are a bit different", measure how different they are when nothing changes. That is the noise floor.
 - Most of the GPU memory went to work we threw away. Knowing where the memory goes beat guessing at settings.
 - The weak spots are now clear and specific: closed days (it checks slots instead of saying "we're closed"), questions nobody can answer (it searches instead of handing off) and complaints. That tells me what data to make next, rather than just more of everything.
+
+## Step 7c — Runs 3 and 4: when more data made it worse
+
+**The question.** After run 2, the weak spots were clear: closed days, questions nobody can answer, and complaints. So: make data aimed at exactly those, and train again.
+
+**Run 3 (91.9%).**
+- Generated 229 extra conversations focused on the three weak spots (focus_v1). Reviewed them like the others: 213 passed.
+- Complaints got fixed: 8 → 10 of 10.
+- But closed days went 5 → 4 of 8, and unknown questions 10 → 8 of 12. Worse, after adding data *about* them.
+- Why? I counted the first move in the training data. In every closed-day conversation (35 of 35 in train_v1, 75% in focus_v1), the teacher searched the service list *before* saying "we're closed". In 31% of the unknown-question ones it searched instead of handing off. The model learned that first move very well.
+- The reviews passed these conversations because each one read fine as a whole: by the end, the receptionist did say "we're closed". Nobody was grading the first step on its own.
+
+**Run 4 (96.9%).**
+- Removed the 82 conversations that opened with the wrong move.
+- Added a teacher rule and an automatic check: on a closed day, the first reply says so, with no tool call; a question nobody can answer goes straight to a person.
+- Generated 158 new conversations (focus_v2), and 134 passed review. Same model, same settings as before.
+- Result: 155/160. Unknown questions 12/12, closed days 6/8, nothing invented. DeepSeek V4.1 Flash scores 151.
+- Small overcorrection: complaints went 10 → 8, because the model now sometimes replies where it should hand off.
+
+**Is it real?** Run 3 → 4: 10 cases fixed, 2 broken, p = 0.04 (McNemar). The first change in this project that is clearly bigger than the noise. Against DeepSeek: 9 won, 5 lost, p = 0.42. So: **level with**, not **better than**.
+
+**But: test leakage.** I chose the run 4 fix by reading run 3's *test* failures. That means the test set helped me make a decision, so it's not a completely fresh exam anymore. The 96.9% is probably a bit optimistic. The fix is a new test set (test_v2) that nobody has looked at, scored once.
+
+**What I learned.**
+- The data's habits become the model's habits, including the ones nobody meant to teach. "More data about X" can make X worse if that data does X slightly wrong.
+- Count *what the data does*, not only whether each example looks fine. A five-line script that counted first moves found the problem that hundreds of reviews missed.
+- Taking bad examples out helped as much as adding good ones. Run 4 has only 76 more conversations than run 3, and a much better score.
+- Looking at test failures to choose a fix quietly turns the test set into a dev set. Use it, but say so, and get a fresh test set for the final number.
+- A small fix can push too far the other way (complaints). Always check the categories you didn't touch.
