@@ -65,7 +65,7 @@ INVENTED = [  # key in summary.json reply_problems, legend label, colour
 GREETING = [  # the greeting experiment: Gemma run 4 on test v1, with only the customer's opening changed
     ("Test v1, as written", "2 of 160 first messages greet", "stage7/gold_v4_ckpt414__test"),
     ("v1 + a greeting", "the same 160 cases, opening with as-salamu alaykum", "stage7/gold_v4_ckpt414__v1_greeted"),
-    ("v1 + greeting and comma", "comma as in training: not the cause", "stage7/gold_v4_ckpt414__v1_greeted_comma"),
+    ("v1 + greeting and comma", "with a comma: no real difference", "stage7/gold_v4_ckpt414__v1_greeted_comma"),
     ("Test v2", "154 of 160 first messages greet", "stage7/gold_v4_ckpt414__test_v2"),
 ]
 

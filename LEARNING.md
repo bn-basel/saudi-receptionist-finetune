@@ -205,11 +205,11 @@ One entry per step: the concept in one paragraph, what we did, and what I learne
 
 **Finding the cause without spoiling v2.** v2's first messages almost all greet («السلام عليكم»); v1's almost never did. Instead of reading v2's answers (that would use it up), I made a practice copy of v1 with only a greeting added. Gemma dropped from 96.9% to 73.1%, failing the same categories. One change, same drop: the greeting is the cause. (A comma was a second suspect; adding it changed nothing.)
 
-**Why the greeting breaks Gemma.** In the training data, every first reply that greets back («وعليكم السلام») is a text reply, and no tool call ever comes with a greeting. So greeting back puts Gemma into "chat" mode: it greets, then answers from memory and invents the price.
+**Why the greeting breaks Gemma: still open.** My first explanation was "the training data always opens «السلام عليكم،» with a comma". That was my counting mistake: the script checked for «السلام عليكم» and I labelled it "with a comma" without looking (really: 594 with, 557 without). The training data actually does the right thing: all 142 greeted price questions start with a search, and the greeting back comes after the search. So Gemma learned the pattern on the 40 training businesses but doesn't carry it over to new ones when a greeting is present, and ALLaM does. A lesson about my own work: check a count before building a story on it.
 
 **What I learned.**
 - An exam that doesn't look like real customers can hide a big weakness. v1's messages were neat; real ones greet.
 - Change one thing at a time. If you change two, you can't tell which one did it (confounding).
 - Diagnose on a practice set, not on the final exam.
-- Habits hide in details nobody reviews: how every training conversation opens, whether a tool call ever comes with a greeting. Counting across the whole dataset finds them; reading one conversation at a time doesn't.
+- Check a count before building a story on it. My first two explanations for the greeting problem sounded convincing and were both wrong; the data said so as soon as I counted properly.
 - The same data can teach two models differently. ALLaM generalised better than Gemma here.

@@ -24,8 +24,8 @@ The goal is to beat both the untuned base model and a strong API baseline on a h
 - **Fine-tuned Gemma scored 96.9% on the first test set but 75.6% on the fresh one.** A controlled experiment found
   why: when a customer opens with «السلام عليكم», it greets back and then answers from memory instead of calling a
   tool. The first test set's messages almost never greeted; real customers almost always do.
-- **Two lessons:** a model's habits come from its data, down to details no review notices, and only a fresh exam shows
-  how well a model really generalises.
+- **The lesson:** a model can ace one exam and stumble on a slightly different one. Only a fresh exam, written like
+  real customers write, shows how well it really generalises.
 
 ![Every model on test v1 and the fresh test v2](docs/charts/v1_vs_v2.svg)
 
@@ -121,7 +121,7 @@ For each run, twelve checkpoints were compared on the dev set and one was chosen
 | ALLaM-7B-Instruct, untuned | 38.1% | 40.0% (33–48%) | 33 |
 
 - **The API and untuned models score about the same on both exams; only fine-tuned Gemma fell**, by 21 points, in three categories: prices (16 → 7 of 16), unknown questions (12 → 0 of 12) and complaints (8 → 1 of 10).
-- **A greeting caused it.** 154 of the 160 v2 messages open with a greeting, as real customers' do; only 2 of the 160 v1 messages did. On the same v1 cases with «السلام عليكم» added and nothing else changed, Gemma run 4 drops from 96.9% to 73.1%, failing the same three categories. The model greets back («وعليكم السلام، هلا والله») and then answers from memory, inventing the price. In its training data, a first turn that greets back is always a text reply, and a first turn that calls a tool never greets back, so greeting back switches it into "reply" mode. A comma was a suspect too (1,151 of the 1,153 training conversations open «السلام عليكم،»), but with the comma it still scores 76.9%. This was diagnosed on a practice copy of v1, without reading any v2 answer.
+- **A greeting caused it.** 154 of the 160 v2 messages open with a greeting, as real customers' do; only 2 of the 160 v1 messages did. On the same v1 cases with «السلام عليكم» added and nothing else changed, Gemma run 4 drops from 96.9% to 73.1%, failing the same three categories. The model greets back («وعليكم السلام، هلا والله») and then answers from memory, inventing the price. Adding a comma after the greeting changes little (76.9%). This was diagnosed on a practice copy of v1, without reading any v2 answer. *Why* is still open: the training data does the right thing (all 142 greeted price questions start with a search, and the greeting back comes after it), so Gemma learned the pattern for the 40 training businesses but does not carry it over to new ones when a greeting is present. ALLaM, trained on the same data, does.
 - **Fine-tuned ALLaM is level with the API models** (against DeepSeek: 9 cases won, 17 lost, p = 0.17; GPT-5.4 mini p = 0.36; Gemini p = 1) **and clearly ahead of fine-tuned Gemma on v2** (32 won, 13 lost, p = 0.007), after the same training on the same data. It is the best of the seven on unknown questions (9 of 12; DeepSeek 2, Gemini 0). Its weak spot is business info (11 of 16): it hands questions the system prompt answers to a person.
 - **Fine-tuning closed the gap that prompting could not.** On the fresh exam it adds 47 points to ALLaM and 32 to Gemma; a fully explained prompt adds about 4.
 - **What test v1 got wrong about Gemma.** Its 96.9% held only for messages without a greeting, and run 4's fix had been chosen from v1's failures. v1 is now a practice set; the fresh exam is the number to trust.
