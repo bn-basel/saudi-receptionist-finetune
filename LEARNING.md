@@ -194,3 +194,22 @@ One entry per step: the concept in one paragraph, what we did, and what I learne
 - Taking bad examples out helped as much as adding good ones. Run 4 has only 76 more conversations than run 3, and a much better score.
 - Looking at test failures to choose a fix quietly turns the test set into a dev set. Use it, but say so, and get a fresh test set for the final number.
 - A small fix can push too far the other way (complaints). Always check the categories you didn't touch.
+
+## Step 7d — ALLaM, a fresh exam, and one greeting
+
+**ALLaM gets tool calling.** HUMAIN's ALLaM-7B has no tool format of its own. A model can only write text anyway, so "tool calling" just means the model writes a call in an agreed format and a few lines of code read it. I trained ALLaM on exactly the same 1,153 conversations as Gemma run 4, with tool calls written as `<tool_call>{...}</tool_call>` lines. Before: 38.1% on test v1. After: 81.9%, with 125 of 126 calls well-formed.
+
+**Why a fresh exam (test v2).** Test v1 had been used to choose run 4's fix, so it flattered run 4. Test v2: 160 new cases, same 12 categories and counts, 4 new kinds of business, written from my style picks (customers greet first, «ابي / ودي / بغيت», spelling slips). An AI reviewer checked it against my rules. Before freezing, an "oracle" that always gives the right answer has to score 160/160, or some cases are broken, not hard. The oracle can't see whether a conversation makes sense, though: the reviewer once changed a line to mention a booking the customer didn't have, and the oracle still scored 160/160.
+
+**The surprise.** On v2, the API models and the untuned models scored about the same as on v1. Fine-tuned Gemma fell from 96.9% to 75.6%. Fine-tuned ALLaM went *up*, from 81.9% to 87.5%, level with the API models.
+
+**Finding the cause without spoiling v2.** v2's first messages almost all greet («السلام عليكم»); v1's almost never did. Instead of reading v2's answers (that would use it up), I made a practice copy of v1 with only a greeting added. Gemma dropped from 96.9% to 73.1%, failing the same categories. One change, same drop: the greeting is the cause. (A comma was a second suspect; adding it changed nothing.)
+
+**Why the greeting breaks Gemma.** In the training data, every first reply that greets back («وعليكم السلام») is a text reply, and no tool call ever comes with a greeting. So greeting back puts Gemma into "chat" mode: it greets, then answers from memory and invents the price.
+
+**What I learned.**
+- An exam that doesn't look like real customers can hide a big weakness. v1's messages were neat; real ones greet.
+- Change one thing at a time. If you change two, you can't tell which one did it (confounding).
+- Diagnose on a practice set, not on the final exam.
+- Habits hide in details nobody reviews: how every training conversation opens, whether a tool call ever comes with a greeting. Counting across the whole dataset finds them; reading one conversation at a time doesn't.
+- The same data can teach two models differently. ALLaM generalised better than Gemma here.

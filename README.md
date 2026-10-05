@@ -6,7 +6,7 @@ I'm the founder of Mujawib, an AI agent receptionist for Saudi businesses. Today
 
 ## What it does
 
-Fine-tuning a small open model (Gemma-4-12B) with QLoRA on one consumer GPU (RTX 5080, 16 GB) so that it:
+Fine-tuning small open models (Google's Gemma-4-12B and HUMAIN's ALLaM-7B) with QLoRA on one consumer GPU (RTX 5080, 16 GB) so that they:
 
 1. writes natural Saudi dialect the way a friendly receptionist texts on WhatsApp, and
 2. calls tools correctly (price lookup, available times, booking) in the same conversation.
@@ -15,12 +15,19 @@ The goal is to beat both the untuned base model and a strong API baseline on a h
 
 ## Results at a glance
 
-![Test-set scores: the fine-tuned model against the untuned model, HUMAIN's ALLaM and three API models](docs/charts/test_scores.svg)
+![Test v2 scores: two fine-tuned models against their untuned versions and three API models](docs/charts/test_scores.svg)
 
-- **96.9% on 160 held-out cases**, level with DeepSeek V4.1 Flash, the API model Mujawib runs on today, from a 12B model on one RTX 5080.
-- **No made-up prices, times, dates or actions** in any reply (untuned: 23).
-- **HUMAIN's ALLaM-7B learned tool calling** from the same data: 38.1% → 81.9%, with 125 of 126 tool calls well-formed.
-- **The data mattered more than the amount of it.** Details in [Stage 7](#findings-so-far) below.
+- **On a fresh exam, HUMAIN's ALLaM-7B, fine-tuned on one RTX 5080, is level with three commercial API models:**
+  87.5% against 88.1–92.5%, differences within chance. Untuned it scores 40.0% and has no tool calling; fine-tuning
+  gave it both.
+- **Made-up prices, times, dates and actions fell from 33 to 2.**
+- **Fine-tuned Gemma scored 96.9% on the first test set but 75.6% on the fresh one.** A controlled experiment found
+  why: when a customer opens with «السلام عليكم», it greets back and then answers from memory instead of calling a
+  tool. The first test set's messages almost never greeted; real customers almost always do.
+- **Two lessons:** a model's habits come from its data, down to details no review notices, and only a fresh exam shows
+  how well a model really generalises.
+
+![Every model on test v1 and the fresh test v2](docs/charts/v1_vs_v2.svg)
 
 ## Status
 
@@ -30,10 +37,10 @@ The goal is to beat both the untuned base model and a strong API baseline on a h
 | 1 | Training environment on the RTX 5080 | Done (smoke test passes) |
 | 2 | Base model choice | Done: [`google/gemma-4-12B-it`](https://huggingface.co/google/gemma-4-12B-it) (Apache-2.0) |
 | 3 | Task spec: businesses, tools, style switches, data format | Done: [docs/TASK_SPEC.md](docs/TASK_SPEC.md) |
-| 4 | Test set: 160 test + 40 dev cases, native-speaker reviewed, frozen | Done: [docs/TEST_SET.md](docs/TEST_SET.md) |
+| 4 | Test sets: v1 (160 test + 40 dev cases, native-speaker reviewed) and a fresh v2 (160 cases, new businesses), both frozen | Done: [docs/TEST_SET.md](docs/TEST_SET.md), [docs/TEST_SET_V2.md](docs/TEST_SET_V2.md) |
 | 5 | Benchmark harness and baselines | Done: results below |
 | 6 | Training data: generation, automatic checks, review | 1,162 reviewed conversations used in run 4; 95–97% of each recent batch passes review |
-| 7 | QLoRA fine-tuning | Gemma runs 1–4: 89.4% → 92.5% → 91.9% → **96.9%**; ALLaM-7B on the same data: 81.9% |
+| 7 | QLoRA fine-tuning | Test v2: ALLaM-7B **87.5%**, Gemma-4-12B run 4 75.6% (96.9% on test v1) |
 
 Nothing below this line is claimed until it is done and verified. Results, dataset card and model card will be added when they exist.
 
@@ -60,6 +67,12 @@ In a blind A/B test on 10 customer messages, judged by a native speaker before a
 
 Check them with `sha256sum data/test/*_v1.jsonl` (Linux, macOS, Git Bash) or `Get-FileHash data/test/*_v1.jsonl -Algorithm SHA256` (PowerShell). Any change to the test set becomes a new version (`test_v2`), never a silent edit.
 
+**Test v2: a fresh exam.** By Stage 7, v1 was partly used up: run 4's fix had been chosen by reading v1 failures. v2 has 160 new cases in the same 12 categories and counts, at four kinds of business that appear in neither v1 nor the training data (a padel club, a nutrition clinic, a henna studio and a phone repair shop), in a different week. The customer lines were drafted by Claude from a native speaker's style picks (a greeting on the first message, «ابي / ودي / بغيت / ممكن», spelling slips, both digit sets) and AI-reviewed against the native speaker's rules. Each model version runs on it once. Details: [docs/TEST_SET_V2.md](docs/TEST_SET_V2.md). Frozen on 2026-10-05:
+
+| File | SHA-256 |
+|---|---|
+| `data/test/test_v2.jsonl` | `180b3356043e5bce9777ab9e8f1fe318a845801b4adb26ed8a98c4889da17150` |
+
 **Stage 5: baselines.** Scored automatically on the 160 frozen test cases with scorer v1.3 (95% confidence interval in brackets). *Short* is the system prompt from [docs/TASK_SPEC.md](docs/TASK_SPEC.md), the one the fine-tuned model will use. *Long* adds the spec's behaviour rules written out in full (about 450 more tokens), frozen before its first test run.
 
 | Model | How it ran | Short prompt | Long prompt | Hallucinated actions / dates / numbers / times (short prompt) |
@@ -79,9 +92,9 @@ What the results show:
 
 These scores only check tools and facts. Whether the replies sound like natural Saudi dialect is judged separately, in a blind review by a native speaker.
 
-**Stage 7: fine-tuning (runs 1–4).** Gemma-4-12B-it with QLoRA on the RTX 5080, the same recipe every time; only the reviewed data changed:
+**Stage 7: fine-tuning.** Gemma-4-12B-it with QLoRA on the RTX 5080, the same recipe every time; only the reviewed data changed. Scores on test v1:
 
-| Run | Training data | Test score |
+| Run | Training data | Test v1 score |
 |---|---|---|
 | 1 | 352 conversations | 89.4% |
 | 2 | 874 conversations | 92.5% |
@@ -90,25 +103,40 @@ These scores only check tools and facts. Whether the replies sound like natural 
 
 For each run, twelve checkpoints were compared on the dev set and one was chosen by a rule fixed in advance (best dev score, ties broken by the lowest held-out loss), then run once on the test set.
 
-![Test score per run, against DeepSeek V4.1 Flash](docs/charts/runs.svg)
+![Test v1 score per Gemma run, against DeepSeek V4.1 Flash](docs/charts/runs.svg)
 
-- **Level with the best API model, on one consumer GPU, at no cost per reply.** Run 4 passes 155 of 160 cases (95% CI 93–99%), with no invented prices, times, dates or actions. DeepSeek V4.1 Flash, the model Mujawib runs on today, passes 151; the difference is within chance (paired McNemar test: 9 cases won, 5 lost, p = 0.42).
-- **Fine-tuning closed the gap that prompting could not.** The untuned model gains 4 points from a fully explained prompt; fine-tuning adds 56.
-- **The data's habits become the model's habits.** Adding more conversations about the weak spots (run 3) made two of them worse: in every closed-day conversation the teacher searched the service list before saying the day was closed, and the model learned that first move. Reviews passed those conversations because they read well as a whole. Removing them and adding conversations that open the right way (run 4) took unknown questions from 8 to 12 of 12 and closed days from 4 to 6 of 8 (run 3 → run 4: 10 cases won, 2 lost, p = 0.04). It also nudged complaints from 10 to 8 of 10: the model sometimes replies where it should hand off.
-- **Fine-tuning gave HUMAIN's ALLaM tool calling.** ALLaM-7B's chat template has no tool format, so its conversations were written with tool calls as text lines (`<tool_call>{...}</tool_call>`), and it was trained on exactly run 4's conversations with the same recipe (dev: 37/40 at checkpoint 414). On the test set it went from 38.1% to **81.9%** (95% CI 75–87%; 91 cases won, 21 lost), with 125 of 126 tool calls well-formed and no invented prices, times, dates or actions. To deploy it, a server needs the same template and a small parser for those lines.
-- **On identical data, Gemma-4-12B stays well ahead of ALLaM-7B** (96.9% vs 81.9%; 26 cases won, 2 lost). ALLaM's main weakness runs the opposite way from Gemma's: it reaches for a tool when it should just answer. It hands questions about opening hours, location and payment, which the system prompt answers, to a person (business info: 6 of 16, down from 12 untuned), and searches the service list during small talk. ALLaM is also the smaller model (7B against 12B), so this compares the two models as they come, not their makers.
+- **The data's habits become the model's habits.** Adding more conversations about the weak spots (run 3) made two of them worse: in every closed-day conversation the teacher searched the service list before saying the day was closed, and the model learned that first move. Reviews passed those conversations because they read well as a whole. Removing them and adding conversations that open the right way (run 4) took unknown questions from 8 to 12 of 12 and closed days from 4 to 6 of 8 (run 3 → run 4: 10 cases won, 2 lost, p = 0.04).
+- **Fine-tuning gave HUMAIN's ALLaM tool calling.** ALLaM-7B's chat template has no tool format, so its conversations were written with tool calls as text lines (`<tool_call>{...}</tool_call>`), and it was trained on exactly run 4's conversations with the same recipe (dev: 37/40 at checkpoint 414). To deploy it, a server needs the same template and a small parser for those lines.
 
-![Cases passed per category, per model](docs/charts/categories.svg)
+**Test v2: the fresh exam.** All seven models, once each, with the short prompt (the three API runs cost $0.22):
 
-![Replies with invented facts or actions, per model](docs/charts/invented_facts.svg)
+| Model | Test v1 | Test v2 (95% CI) | Made-up facts on v2 |
+|---|---|---|---|
+| **ALLaM-7B + QLoRA (this project)** | 81.9% | **87.5%** (81–92%) | 2 |
+| Gemma-4-12B + QLoRA, run 4 (this project) | 96.9% | 75.6% (68–82%) | 10 |
+| DeepSeek V4.1 Flash (API) | 94.4% | 92.5% (87–96%) | 0 |
+| GPT-5.4 mini (API) | 92.5% | 91.2% (86–95%) | 2 |
+| Gemini 3.8 Flash (API) | 87.5% | 88.1% (82–92%) | 0 |
+| Gemma-4-12B-it, untuned | 40.6% | 43.1% (36–51%) | 16 |
+| ALLaM-7B-Instruct, untuned | 38.1% | 40.0% (33–48%) | 33 |
 
-- **A caveat on 96.9%.** Run 4's fix was chosen by reading run 3's test failures, so this test set is no longer fully independent and the score is probably slightly optimistic. A fresh test set would give the unbiased number.
+- **The API and untuned models score about the same on both exams; only fine-tuned Gemma fell**, by 21 points, in three categories: prices (16 → 7 of 16), unknown questions (12 → 0 of 12) and complaints (8 → 1 of 10).
+- **A greeting caused it.** 154 of the 160 v2 messages open with a greeting, as real customers' do; only 2 of the 160 v1 messages did. On the same v1 cases with «السلام عليكم» added and nothing else changed, Gemma run 4 drops from 96.9% to 73.1%, failing the same three categories. The model greets back («وعليكم السلام، هلا والله») and then answers from memory, inventing the price. In its training data, a first turn that greets back is always a text reply, and a first turn that calls a tool never greets back, so greeting back switches it into "reply" mode. A comma was a suspect too (1,151 of the 1,153 training conversations open «السلام عليكم،»), but with the comma it still scores 76.9%. This was diagnosed on a practice copy of v1, without reading any v2 answer.
+- **Fine-tuned ALLaM is level with the API models** (against DeepSeek: 9 cases won, 17 lost, p = 0.17; GPT-5.4 mini p = 0.36; Gemini p = 1) **and clearly ahead of fine-tuned Gemma on v2** (32 won, 13 lost, p = 0.007), after the same training on the same data. It is the best of the seven on unknown questions (9 of 12; DeepSeek 2, Gemini 0). Its weak spot is business info (11 of 16): it hands questions the system prompt answers to a person.
+- **Fine-tuning closed the gap that prompting could not.** On the fresh exam it adds 47 points to ALLaM and 32 to Gemma; a fully explained prompt adds about 4.
+- **What test v1 got wrong about Gemma.** Its 96.9% held only for messages without a greeting, and run 4's fix had been chosen from v1's failures. v1 is now a practice set; the fresh exam is the number to trust.
+
+![Gemma run 4 on test v1 with and without a greeting](docs/charts/greeting_experiment.svg)
+
+![Test v2 cases passed per category, per model](docs/charts/categories.svg)
+
+![Test v2 replies with invented facts or actions, per model](docs/charts/invented_facts.svg)
 
 ![Dev-set score after each training checkpoint, one panel per run](docs/charts/checkpoint_curve.svg)
 
-Most of the gain arrives in the first pass over the data. Runs 2 and 3 reach 40/40, the ceiling of the dev set, which is why the test set decides; run 4 settles at 38/40 on dev while scoring highest on test, a reminder that 40 cases is a small sample. Run 2 needed one engineering change: vocabulary scores are now computed only at the positions the loss grades, which cut peak GPU memory from 13.5 to 9.6 GB with an identical loss. These scores check tools and facts only; whether the replies sound natural is judged separately in the blind dialect review (Stage 8). Raw outputs: [`results/stage7/`](results/stage7/). Charts: `uv run python scripts/make_charts.py`.
+Most of the gain arrives in the first pass over the data, for both models. Gemma runs 2 and 3 reach 40/40, the ceiling of the dev set, which is why the test set decides; run 4 settles at 38/40 on dev while scoring highest on test, a reminder that 40 cases is a small sample. Run 2 needed one engineering change: vocabulary scores are now computed only at the positions the loss grades, which cut peak GPU memory from 13.5 to 9.6 GB with an identical loss. These scores check tools and facts only; whether the replies sound natural is judged separately in the blind dialect review (Stage 8). Raw outputs: [`results/stage7/`](results/stage7/). Charts: `uv run python scripts/make_charts.py`.
 
-**Known limitations so far.** The test messages are synthetic drafts reviewed and edited by one native speaker, so their phrasing is less varied than real customers. The dialect verdicts come from one judge.
+**Known limitations so far.** The test messages are synthetic: v1's were reviewed and edited by one native speaker, and v2's were drafted by Claude and reviewed by an AI reviewer working from that native speaker's rules, so no native speaker read every v2 line and the two may share blind spots. Their phrasing is less varied than real customers'. The dialect verdicts come from one judge.
 
 ## Roadmap (plan, not results)
 
@@ -121,6 +149,7 @@ This is a comparison study as much as a fine-tune. The question is not only "did
 | 7 | QLoRA training on the RTX 5080, as a data comparison: **A** generated conversations only, **B** the same plus about 20% filtered human-written Saudi dialogues ([Voho](docs/DATA_SOURCES.md), no tools), and later **C** "dialect-first": training on Najdi web text before the task data. Compared on tool accuracy and blind dialect review |
 | 8 | Evaluation: automatic tool-call checks, blind A/B dialect review, confidence intervals, cost and speed per reply |
 | 9 | Publish: results table and charts (model vs model, short vs long prompt, before vs after fine-tuning), raw outputs per model, side-by-side conversation gallery, dataset card, model card with honest limitations |
+| Next | Gemma run 5 with greetings handled in the training data, checked first on the greeted practice copy of test v1; a test v3 for a clean final number after that; Gemma 4 E2B (a small model) on the same data |
 | Later | The same data on a larger model trained on rented cloud GPUs, to compare what model size buys; other regional dialects, each with its own test set |
 
 Fairness rules for the comparison: every model sees the same test cases, tools and system-prompt format. Prompt-only competitors are tested with the short prompt the fine-tuned model uses **and** with a longer, fully explained version, and both results are reported. Prompts are tuned only on the dev set and frozen before any test result exists. Each API's terms are checked before its outputs are published.

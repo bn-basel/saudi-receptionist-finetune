@@ -69,3 +69,8 @@ Short, plain definitions. Added to as each step introduces new terms.
 | **Test leakage** | When the test set influences a decision (for example, choosing a fix by reading test failures). The test then stops being a fresh exam, and its score is a little too good. |
 | **First move** | The receptionist's first action after a customer message: a reply, a tool call or a handoff. Grading whole conversations can miss a wrong first move that is fixed later in the conversation. |
 | **Small multiples** | A chart split into several small panels, one per series, with the same axes, so lines don't pile on top of each other. |
+| **Fresh test set** | A new exam nobody has used to make choices. Its score is the one to trust; an exam that guided earlier decisions becomes a practice set. |
+| **Oracle (harness check)** | A fake model that always gives the expected answer. It must score 100%; anything less means some test cases are broken, not hard. It cannot tell whether a conversation makes sense. |
+| **Controlled experiment** | Changing exactly one thing and keeping everything else the same, so any change in the result has one cause. |
+| **Confounding** | Two things changing at once, so their effects mix and you cannot tell which one caused the result. |
+| **Practice set** | Cases you may look at as often as you like while improving a model. Here: test v1 and its greeted copy, after test v2 replaced v1 as the final exam. |

@@ -22,7 +22,9 @@ from scoring import SCORER_VERSION, score_case, validity, wilson
 
 ROOT = Path(__file__).resolve().parent.parent
 SPLITS = {"test": ROOT / "data" / "test" / "test_v1.jsonl", "dev": ROOT / "data" / "test" / "dev_v1.jsonl",
-          "test_v2": ROOT / "data" / "test" / "test_v2.jsonl"}  # v2: a fresh final exam (docs/TEST_SET_V2.md)
+          "test_v2": ROOT / "data" / "test" / "test_v2.jsonl",  # v2: a fresh final exam (docs/TEST_SET_V2.md)
+          "v1_greeted": ROOT / "data" / "practice" / "test_v1_greeted.jsonl",  # practice: v1 with «السلام عليكم» first
+          "v1_greeted_comma": ROOT / "data" / "practice" / "test_v1_greeted_comma.jsonl"}  # the same with «السلام عليكم،»
 
 
 def load_cases(split: str) -> list[dict]:
