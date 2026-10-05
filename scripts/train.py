@@ -6,6 +6,14 @@ thinking off. The loss covers only what the receptionist writes: its replies, it
 tokens that end a turn (<|tool_response> after a tool call, <turn|> after a reply). The tool results inside
 its turn and everything the customer writes are masked out.
 
+--empty-thought (run 5 on): when the benchmark asks Gemma for a new turn with thinking off, the template adds an
+empty thinking block (<|channel>thought ... <channel|>) after <|turn>model, but a rendered conversation has none.
+Runs 1-4 were trained without it, so at test time the model decided its next move from a position it had never
+been trained at; on a greeted message it then greeted back and answered from memory (25/58 first moves right on
+held-back training conversations; 57/58 with the block removed from the test prompt). With this switch every model
+turn starts with that block, shown but never trained on, and the first turn is checked to match the test prompt
+exactly. Earlier turns in a test conversation have no block, so the history still differs slightly.
+
 ALLaM's chat template has no tool support, so its conversations use the benchmark's text format
 (models.text_tool_messages): the tools are described in the system prompt, a call is a line
 <tool_call>{...}</tool_call>, and a tool result comes back as a user turn. Training on that format is what gives
@@ -15,6 +23,7 @@ ALLaM tool calling; the loss covers each assistant turn and its closing </s>.
     uv run python scripts/train.py --run gold_v1 --max-steps 3    # smoke test: memory and speed
     uv run python scripts/train.py --run gold_v1                  # the real run, checkpoints in runs/gold_v1/
     uv run python scripts/train.py --run allam_v1 --model allam   # the same data on HUMAIN's ALLaM-7B
+    uv run python scripts/train.py --run gold_v5 --split-from gold_v4 --empty-thought   # run 4's data, test-prompt turns
 
 Gold data: conversations the review marked ok that also pass today's automatic checks (older pilot rows that
 use «الظهر / العصر» as time labels stay ok in the review but follow an older convention, so they are left out).
@@ -37,6 +46,7 @@ GOLD_TOKENIZER = MODELS["gemma"]  # the data checks measure length with Gemma's 
 SETS = ["pilot_v1", "pilot_v2", "pilot_v3", "train_v1", "focus_v1", "focus_v2"]
 TURN, END = "<|turn>model\n", "<turn|>"
 RESPONSE_OPEN, RESPONSE_CLOSE = "<|tool_response>", "<tool_response|>"
+EMPTY_THOUGHT = "<|channel>thought\n<channel|>"  # added by the template to a new turn's prompt when thinking is off
 
 
 def gold_conversations(tok) -> list[dict]:
@@ -62,7 +72,8 @@ def gold_conversations(tok) -> list[dict]:
     return out
 
 
-def render(rec: dict, tok, businesses: dict, styles: dict, tools: list[dict], text_tools: bool) -> tuple[str, list]:
+def render(rec: dict, tok, businesses: dict, styles: dict, tools: list[dict], text_tools: bool,
+           empty_thought: bool = False) -> tuple[str, list]:
     """The conversation as the benchmark would show it to this model, and the character spans the model learns."""
     meta = rec["meta"]
     system = build_system_prompt(businesses[meta["business_id"]], styles, meta["style"],
@@ -71,6 +82,12 @@ def render(rec: dict, tok, businesses: dict, styles: dict, tools: list[dict], te
     if not text_tools:
         messages = [{"role": "system", "content": system}] + rec["messages"]
         text = tok.apply_chat_template(messages, tools=order, tokenize=False, enable_thinking=False)
+        if empty_thought:
+            text = text.replace(TURN, TURN + EMPTY_THOUGHT)
+            # the first turn must now start exactly where the benchmark's prompt ends
+            prompt = tok.apply_chat_template(messages[:2], tools=order, add_generation_prompt=True,
+                                             enable_thinking=False, tokenize=False)
+            assert prompt.endswith(EMPTY_THOUGHT) and text.startswith(prompt), "training text and test prompt differ"
         return text, trained_spans(text)
     messages = text_tool_messages(system, rec["messages"], order)
     text = tok.apply_chat_template(messages, tokenize=False)
@@ -97,6 +114,8 @@ def trained_spans(text: str) -> list[tuple[int, int]]:
     spans, i = [], 0
     while (start := text.find(TURN, i)) != -1:
         start += len(TURN)
+        if text.startswith(EMPTY_THOUGHT, start):  # --empty-thought: shown, never trained on
+            start += len(EMPTY_THOUGHT)
         end = text.find(END, start)
         end = len(text) if end == -1 else end + len(END)
         pos = start
@@ -119,7 +138,8 @@ def encode(text: str, spans: list[tuple[int, int]], tok) -> dict:
     return {"input_ids": enc["input_ids"], "labels": labels}
 
 
-def build(tok, max_len: int, val_share: float, seed: int, split_from: str | None = None) -> tuple[list[dict], list[dict]]:
+def build(tok, max_len: int, val_share: float, seed: int, split_from: str | None = None,
+          empty_thought: bool = False) -> tuple[list[dict], list[dict]]:
     """split_from: train and validate on exactly the conversations another run used (runs/<run>/data.json), so a
     second model is compared on identical data however long its own rendering is."""
     from transformers import AutoTokenizer
@@ -130,7 +150,7 @@ def build(tok, max_len: int, val_share: float, seed: int, split_from: str | None
     gold_tok = tok if tok.name_or_path == GOLD_TOKENIZER else AutoTokenizer.from_pretrained(GOLD_TOKENIZER)
     rows, too_long = [], 0
     for rec in gold_conversations(gold_tok):
-        ex = encode(*render(rec, tok, businesses, styles, tools, text_tools), tok)
+        ex = encode(*render(rec, tok, businesses, styles, tools, text_tools, empty_thought), tok)
         if len(ex["input_ids"]) > max_len:
             too_long += 1
             continue
@@ -184,6 +204,8 @@ def main() -> None:
     ap.add_argument("--val-share", type=float, default=0.05)
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--split-from", help="use exactly the train/validation conversations of this earlier run")
+    ap.add_argument("--empty-thought", action="store_true",
+                    help="start every Gemma model turn with the empty thinking block the test prompt has (run 5)")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--resume", action="store_true", help="continue from the run's latest checkpoint")
     ap.add_argument("--mem-fraction", type=float, default=0.8,
@@ -192,7 +214,9 @@ def main() -> None:
 
     from transformers import AutoTokenizer
     tok = AutoTokenizer.from_pretrained(MODELS[args.model])
-    train, val = build(tok, args.max_len, args.val_share, args.seed, args.split_from)
+    if args.empty_thought and args.model != "gemma":
+        sys.exit("--empty-thought is for Gemma's template only")
+    train, val = build(tok, args.max_len, args.val_share, args.seed, args.split_from, args.empty_thought)
     out = ROOT / "runs" / args.run
     out.mkdir(parents=True, exist_ok=True)
     (out / "data.json").write_text(json.dumps({"train": [r["id"] for r in train], "validation": [r["id"] for r in val],
