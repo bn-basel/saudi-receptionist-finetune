@@ -137,11 +137,16 @@ class HFModel:
 
     price = (0.0, 0.0)
 
-    def __init__(self, repo_id: str, max_new_tokens: int = 256, adapter: str | None = None):
+    EMPTY_THOUGHT = "<|channel>thought\n<channel|>"  # what Gemma's template adds to a generation prompt with thinking off
+
+    def __init__(self, repo_id: str, max_new_tokens: int = 256, adapter: str | None = None, no_thought: bool = False):
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
-        self.name = repo_id + (f"@{adapter}" if adapter else "")
+        self.name = repo_id + (f"@{adapter}" if adapter else "") + ("~nothought" if no_thought else "")
+        # Diagnostic only (~nothought): leave out the empty thinking block, so the prompt ends where the training
+        # text did. The benchmark itself never uses this; it is how the train/test mismatch was checked (Oct 2026).
+        self.no_thought = no_thought
         self.torch = torch
         self.max_new_tokens = max_new_tokens
         self.tok = AutoTokenizer.from_pretrained(repo_id)
@@ -165,6 +170,8 @@ class HFModel:
         messages = [{"role": "system", "content": system_prompt}] + case["messages"]
         prompt = self.tok.apply_chat_template(messages, tools=tools, add_generation_prompt=True,
                                               enable_thinking=False, tokenize=False)
+        if self.no_thought and prompt.endswith(self.EMPTY_THOUGHT):
+            prompt = prompt[: -len(self.EMPTY_THOUGHT)]
         inputs = self.tok(prompt, return_tensors="pt", add_special_tokens=False).to(self.model.device)
         with self.torch.no_grad():
             out = self.model.generate(**inputs, max_new_tokens=self.max_new_tokens, do_sample=False)
@@ -261,9 +268,10 @@ class OpenRouterModel:
 def load_model(spec: str):
     if spec == "oracle":
         return OracleModel()
-    if spec.startswith("hf:"):  # hf:<repo> or hf:<repo>@<LoRA adapter folder> (Stage 7)
-        repo, _, adapter = spec[3:].partition("@")
-        return HFModel(repo, adapter=adapter or None)
+    if spec.startswith("hf:"):  # hf:<repo> or hf:<repo>@<LoRA adapter folder> (Stage 7); ~nothought: diagnostic
+        body, no_thought = (spec[3:-len("~nothought")], True) if spec.endswith("~nothought") else (spec[3:], False)
+        repo, _, adapter = body.partition("@")
+        return HFModel(repo, adapter=adapter or None, no_thought=no_thought)
     if spec.startswith("or:"):
         return OpenRouterModel(spec[3:])
     raise ValueError(f"unknown model {spec!r} (use oracle, hf:<repo>, or or:<{'|'.join(COMPETITORS)}>)")

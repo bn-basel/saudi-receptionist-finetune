@@ -1,0 +1,58 @@
+{"id": "pilot_v3/gen-00041", "step": {"text": null, "tool_calls": [{"name": "handoff_to_human", "arguments": {"reason": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00021", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00031", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00034", "step": {"text": "تمام", "tool_calls": [], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00075", "step": {"text": "تمام", "tool_calls": [], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00107", "step": {"text": null, "tool_calls": [{"name": "get_my_bookings", "arguments": {}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00126", "step": {"text": null, "tool_calls": [{"name": "get_my_bookings", "arguments": {}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00168", "step": {"text": "تمام", "tool_calls": [], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00171", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00214", "step": {"text": null, "tool_calls": [{"name": "handoff_to_human", "arguments": {"reason": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00229", "step": {"text": "تمام", "tool_calls": [], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00238", "step": {"text": "تمام", "tool_calls": [], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00255", "step": {"text": null, "tool_calls": [{"name": "handoff_to_human", "arguments": {"reason": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00262", "step": {"text": null, "tool_calls": [{"name": "handoff_to_human", "arguments": {"reason": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00306", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00315", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00336", "step": {"text": null, "tool_calls": [{"name": "get_my_bookings", "arguments": {}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00424", "step": {"text": "تمام", "tool_calls": [], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00439", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00444", "step": {"text": null, "tool_calls": [{"name": "handoff_to_human", "arguments": {"reason": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00462", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00524", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00548", "step": {"text": null, "tool_calls": [{"name": "handoff_to_human", "arguments": {"reason": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00551", "step": {"text": null, "tool_calls": [{"name": "handoff_to_human", "arguments": {"reason": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00579", "step": {"text": null, "tool_calls": [{"name": "get_my_bookings", "arguments": {}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00589", "step": {"text": null, "tool_calls": [{"name": "handoff_to_human", "arguments": {"reason": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00636", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00641", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00673", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00727", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00760", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00803", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00879", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00917", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00943", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00946", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-00969", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-01047", "step": {"text": "تمام", "tool_calls": [], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-01048", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-01092", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-01114", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-01115", "step": {"text": null, "tool_calls": [{"name": "get_my_bookings", "arguments": {}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-01121", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-01147", "step": {"text": null, "tool_calls": [{"name": "handoff_to_human", "arguments": {"reason": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "train_v1/gen-01178", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "focus_v1/gen-00024", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "focus_v1/gen-00028", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "focus_v1/gen-00032", "step": {"text": null, "tool_calls": [{"name": "handoff_to_human", "arguments": {"reason": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "focus_v1/gen-00043", "step": {"text": "تمام", "tool_calls": [], "raw": ""}, "seconds": 0.0}
+{"id": "focus_v1/gen-00100", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "focus_v1/gen-00212", "step": {"text": "تمام", "tool_calls": [], "raw": ""}, "seconds": 0.0}
+{"id": "focus_v1/gen-00280", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "focus_v2/gen-00006", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "focus_v2/gen-00012", "step": {"text": null, "tool_calls": [{"name": "handoff_to_human", "arguments": {"reason": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "focus_v2/gen-00024", "step": {"text": null, "tool_calls": [{"name": "handoff_to_human", "arguments": {"reason": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "focus_v2/gen-00038", "step": {"text": null, "tool_calls": [{"name": "handoff_to_human", "arguments": {"reason": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "focus_v2/gen-00058", "step": {"text": null, "tool_calls": [{"name": "search_services", "arguments": {"query": ""}}], "raw": ""}, "seconds": 0.0}
+{"id": "focus_v2/gen-00207", "step": {"text": "تمام", "tool_calls": [], "raw": ""}, "seconds": 0.0}

@@ -1,0 +1,52 @@
+{
+  "run": "oracle__val_first",
+  "model": "oracle",
+  "split": "val_first",
+  "prompt": "short",
+  "scorer": "1.3",
+  "cases": 58,
+  "passed": 58,
+  "pass_rate": 1.0,
+  "ci95": [
+    0.9378800031047062,
+    0.9999999999999999
+  ],
+  "by_category": {
+    "first_handoff_to_human": {
+      "passed": 13,
+      "total": 13
+    },
+    "first_search_services": {
+      "passed": 30,
+      "total": 30
+    },
+    "first_reply": {
+      "passed": 10,
+      "total": 10
+    },
+    "first_get_my_bookings": {
+      "passed": 5,
+      "total": 5
+    }
+  },
+  "answer_types": {},
+  "tool_call_valid": [
+    48,
+    48
+  ],
+  "emoji_ok": [
+    10,
+    10
+  ],
+  "mostly_arabic": [
+    10,
+    10
+  ],
+  "reply_problems": {
+    "Invented numbers (prices, counts)": 0,
+    "Times not from the calendar, customer or business hours": 0,
+    "Wrong or invented dates": 0,
+    "Claims an action no tool performed": 0
+  },
+  "seconds": 0.0019989013671875
+}
