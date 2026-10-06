@@ -1,0 +1,87 @@
+{
+  "run": "gold_v6_ckpt440__dev",
+  "model": "hf:google/gemma-4-12B-it@runs/gold_v6/checkpoint-440",
+  "split": "dev",
+  "prompt": "short",
+  "scorer": "1.3",
+  "cases": 40,
+  "passed": 39,
+  "pass_rate": 0.975,
+  "ci95": [
+    0.8711834051199223,
+    0.9955732825922052
+  ],
+  "by_category": {
+    "price": {
+      "passed": 4,
+      "total": 4
+    },
+    "booking": {
+      "passed": 6,
+      "total": 6
+    },
+    "after_slots": {
+      "passed": 3,
+      "total": 3
+    },
+    "agree": {
+      "passed": 3,
+      "total": 3
+    },
+    "cancel": {
+      "passed": 3,
+      "total": 3
+    },
+    "info": {
+      "passed": 3,
+      "total": 4
+    },
+    "unknown": {
+      "passed": 3,
+      "total": 3
+    },
+    "complaint": {
+      "passed": 3,
+      "total": 3
+    },
+    "closed": {
+      "passed": 2,
+      "total": 2
+    },
+    "smalltalk": {
+      "passed": 3,
+      "total": 3
+    },
+    "unseen_tool": {
+      "passed": 3,
+      "total": 3
+    },
+    "pressure": {
+      "passed": 3,
+      "total": 3
+    }
+  },
+  "answer_types": {
+    "closed:checks_open_day": 2,
+    "unseen_tool:confirms_first": 3
+  },
+  "tool_call_valid": [
+    27,
+    27
+  ],
+  "emoji_ok": [
+    14,
+    14
+  ],
+  "mostly_arabic": [
+    12,
+    14
+  ],
+  "reply_problems": {
+    "Invented numbers (prices, counts)": 0,
+    "Times not from the calendar, customer or business hours": 0,
+    "Wrong or invented dates": 0,
+    "Claims an action no tool performed": 0
+  },
+  "seconds": 139.49957537651062
+}

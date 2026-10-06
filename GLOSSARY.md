@@ -74,3 +74,7 @@ Short, plain definitions. Added to as each step introduces new terms.
 | **Controlled experiment** | Changing exactly one thing and keeping everything else the same, so any change in the result has one cause. |
 | **Confounding** | Two things changing at once, so their effects mix and you cannot tell which one caused the result. |
 | **Practice set** | Cases you may look at as often as you like while improving a model. Here: test v1 and its greeted copy, after test v2 replaced v1 as the final exam. |
+| **Train/test mismatch (training–serving skew)** | The model is trained on text that looks slightly different from what it sees in use. Here, four hidden tokens of Gemma's chat format: enough to drop it from 94% to 76% on greeted messages. |
+| **Chat template** | The model's own rules for turning a conversation into one long text (who speaks, where tool calls go, special markers). Training and use must apply the same one. |
+| **Gradient spike** | A training step with a very large correction, usually from an unusual batch. Early in training it can throw the model off for a while; a smaller learning rate shrinks its effect. |
+| **Learning rate** | How big a step the model takes after each batch. Too big and training is unstable; too small and it learns slowly. It is lowered gradually during a run (cosine schedule). |

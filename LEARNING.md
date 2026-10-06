@@ -205,7 +205,7 @@ One entry per step: the concept in one paragraph, what we did, and what I learne
 
 **Finding the cause without spoiling v2.** v2's first messages almost all greet («السلام عليكم»); v1's almost never did. Instead of reading v2's answers (that would use it up), I made a practice copy of v1 with only a greeting added. Gemma dropped from 96.9% to 73.1%, failing the same categories. One change, same drop: the greeting is the cause. (A comma was a second suspect; adding it changed nothing.)
 
-**Why the greeting breaks Gemma: still open.** My first explanation was "the training data always opens «السلام عليكم،» with a comma". That was my counting mistake: the script checked for «السلام عليكم» and I labelled it "with a comma" without looking (really: 594 with, 557 without). The training data actually does the right thing: all 142 greeted price questions start with a search, and the greeting back comes after the search. So Gemma learned the pattern on the 40 training businesses but doesn't carry it over to new ones when a greeting is present, and ALLaM does. A lesson about my own work: check a count before building a story on it.
+**Why the greeting breaks Gemma: still open at this point (solved in Step 7e).** My first explanation was "the training data always opens «السلام عليكم،» with a comma". That was my counting mistake: the script checked for «السلام عليكم» and I labelled it "with a comma" without looking (really: 594 with, 557 without). The training data actually does the right thing: all 142 greeted price questions start with a search, and the greeting back comes after the search. So Gemma learned the pattern on the 40 training businesses but doesn't carry it over to new ones when a greeting is present, and ALLaM does. A lesson about my own work: check a count before building a story on it.
 
 **What I learned.**
 - An exam that doesn't look like real customers can hide a big weakness. v1's messages were neat; real ones greet.
@@ -213,3 +213,23 @@ One entry per step: the concept in one paragraph, what we did, and what I learne
 - Diagnose on a practice set, not on the final exam.
 - Check a count before building a story on it. My first two explanations for the greeting problem sounded convincing and were both wrong; the data said so as soon as I counted properly.
 - The same data can teach two models differently. ALLaM generalised better than Gemma here.
+
+## Step 7e — Runs 5 and 6: four invisible tokens
+
+**The clue.** Gemma failed greeted first moves even on its *own* businesses: 25 of 58 held-back training conversations right with the greeting, 56 without. When a model fails on data like its training data, the usual suspect is that training and testing don't show it the same thing.
+
+**The cause.** At test time (and on any real server), Gemma's chat format adds an empty "thinking" block before a new answer when thinking is off: `<|channel>thought … <channel|>`. Our training text never had it. So Gemma made its first move from a spot it had never been trained at. Without a greeting, what it learned still carried over; with a greeting, its old habit (greet back, then chat) won. Taking the block out of the test prompt: 57 of 58 right, greeting and all.
+
+**Run 5:** add the block to every turn in training. Greetings fixed (117 → 150 of 160 on the greeted practice set). But a turn that continues after a tool result is *replayed* without the block at test time, so now those later moves (bookings) saw a mismatch and wobbled.
+
+**Run 6:** show each conversation twice. With the blocks, only first moves are trained; without them, only the moves after a tool result. Every trained spot now matches the test exactly, and the build checks it character by character. Same data, same recipe. Result on the fresh exam: **93.8%**, level with DeepSeek.
+
+**Why ALLaM never had this problem:** its format has no thinking block, and I'd built its training to match its test prompt exactly from the start. Same data, no mismatch.
+
+**Side lesson: gradient spikes.** Now and then one batch produces a huge correction. Early in training, when steps are big, it can knock the model off course for a while (run 6's checkpoint 176 dropped to 18/40 on greeted dev, then recovered). Late in training the learning rate is small, so spikes do little. Comparing many checkpoints with a fixed rule protects against picking a damaged one.
+
+**What I learned.**
+- Train exactly as you'll be used, down to the last token. A few invisible tokens cost 20 points.
+- Fixing one mismatch can create another. Check every kind of decision the model makes, not just the one that was broken.
+- Write the check into the code: run 6's build refuses to train if any position differs from its test prompt.
+- When a model fails on data like its training data, suspect the pipeline before the data.

@@ -42,8 +42,9 @@ RUNS = [  # Gemma fine-tuning runs: name, label, chosen checkpoint, conversation
 ]
 ALLAM_RUN = ("allam_v1", 414)  # HUMAIN's ALLaM-7B, fine-tuned on exactly run 4's conversations
 MODELS = [  # label, note, colour, results path without the split suffix
+    ("Gemma-4-12B + QLoRA, run 6 (this project)", "trained exactly as it is tested", "ours", "stage7/gold_v6_ckpt440"),
     ("ALLaM-7B + QLoRA (this project)", "HUMAIN's model, our data, tool calling added", "allam", "stage7/allam_v1_ckpt414"),
-    ("Gemma-4-12B + QLoRA, run 4 (this project)", "same data as ALLaM", "ours", "stage7/gold_v4_ckpt414"),
+    ("Gemma-4-12B + QLoRA, run 4", "same data, before the format fix", "r2", "stage7/gold_v4_ckpt414"),
     ("DeepSeek V4.1 Flash (API)", "the model Mujawib runs on today", "api", "stage5/or__deepseek-v4.1-flash"),
     ("GPT-5.4 mini (API)", "commercial API", "api", "stage5/or__gpt-5.4-mini"),
     ("Gemini 3.8 Flash (API)", "commercial API", "api", "stage5/or__gemini-3.8-flash"),
@@ -150,11 +151,36 @@ def score_bars(name: str, title: str, subtitle: str, rows: list[tuple]) -> None:
 
 def test_scores() -> None:
     """The headline: every model on the fresh test v2, best first."""
-    rows = sorted(((label, note, colour, f"{path}__test_v2") for label, note, colour, path in MODELS),
+    rows = sorted(((label, note, colour, f"{path}__test_v2") for label, note, colour, path in MODELS if colour != "r2"),
                   key=lambda r: -summary(r[3])["pass_rate"])
-    score_bars("test_scores", "On a fresh exam, fine-tuned ALLaM is level with the API models",
+    score_bars("test_scores", "On a fresh exam, fine-tuned open models match the API models",
                "Test v2: 160 new cases at 4 businesses no model trained on, scored on tool calls and facts. "
                "Whiskers: 95% interval.", rows)
+
+
+def format_fix() -> None:
+    """Runs 4-6 on the practice copy of test v1, with and without a greeting: the train/test format fix."""
+    rows = [("Run 4", "trained without the empty thinking block", "gold_v4_ckpt414"),
+            ("Run 5", "with the block on every turn", "gold_v5_ckpt368"),
+            ("Run 6", "every move exactly as tested", "gold_v6_ckpt440")]
+    left, top, bar_w, row_h, w = 330, 108, 430, 70, 880
+    body = header("Training on exactly what the model sees at test time fixed the greetings",
+                  "Gemma on the practice copy of test v1 (160 cases), as written and with a greeting added. "
+                  "Same data and recipe in all three runs.")
+    body += [rect(24, 76, 22, 10, "api", 3), text(52, 85, "as written (almost no greetings)", 11.5, colour="muted"),
+             rect(270, 76, 22, 10, "ours", 3), text(298, 85, "with a greeting first", 11.5, colour="muted")]
+    for p in range(0, 101, 25):
+        x = left + bar_w * p / 100
+        body += [line(x, top - 8, x, top + row_h * len(rows) - 18, "grid"),
+                 text(x, top + row_h * len(rows) - 2, f"{p}%", 11, "middle", "muted")]
+    for i, (label, note, run) in enumerate(rows):
+        y = top + i * row_h
+        plain, greeted = (summary(f"stage7/{run}__{s}")["pass_rate"] for s in ("test", "v1_greeted"))
+        body += [text(left - 14, y + 17, label, 14, "end", weight="bold"), text(left - 14, y + 34, note, 11.5, "end", "muted"),
+                 rect(left, y, bar_w * plain, 18, "api", 4), text(left + bar_w * plain + 8, y + 14, f"{plain:.1%}", 12.5),
+                 rect(left, y + 22, bar_w * greeted, 18, "ours" if greeted >= 0.9 else "h0", 4),
+                 text(left + bar_w * greeted + 8, y + 36, f"{greeted:.1%}", 12.5, weight="bold")]
+    save("format_fix", "Gemma runs 4-6 with and without a greeting", w, top + row_h * len(rows) + 10, body)
 
 
 def v1_vs_v2() -> None:
@@ -241,7 +267,7 @@ def runs_progress() -> None:
 
 def category_heatmap() -> None:
     """Test v2 cases passed per category, for every model, so the strengths and weak spots show at a glance."""
-    groups = [("Fine-tuned (this project)", [m for m in MODELS if ours(m[2])]),
+    groups = [("Fine-tuned (this project)", [m for m in MODELS if ours(m[2]) or m[2] == "r2"]),
               ("API models", [m for m in MODELS if m[2] == "api"]),
               ("Open models, untuned", [m for m in MODELS if m[2] == "open"])]
     left, top, cw, ch, gap = 236, 116, 63, 30, 4
@@ -294,7 +320,7 @@ def invented_facts() -> None:
     counts = [[summary(f"{path}__test_v2")["reply_problems"][key] for key, _, _ in INVENTED] for *_, path in rows]
     biggest = max(sum(c) for c in counts)
     left, top, bar_w, row_h, w = 300, 112, 470, 30, 880
-    body = header("Made-up facts on the fresh exam: dozens untuned, almost none after fine-tuning ALLaM",
+    body = header("Made-up facts on the fresh exam: dozens untuned, a handful after fine-tuning",
                   "Test v2 replies that invent a price, a time or a date, or claim an action no tool performed "
                   "(160 cases, short prompt).")
     x = 24
@@ -373,6 +399,7 @@ if __name__ == "__main__":
     test_scores()
     v1_vs_v2()
     greeting_experiment()
+    format_fix()
     runs_progress()
     category_heatmap()
     invented_facts()
