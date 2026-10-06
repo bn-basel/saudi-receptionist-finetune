@@ -24,6 +24,7 @@ ALLaM tool calling; the loss covers each assistant turn and its closing </s>.
     uv run python scripts/train.py --run gold_v1                  # the real run, checkpoints in runs/gold_v1/
     uv run python scripts/train.py --run allam_v1 --model allam   # the same data on HUMAIN's ALLaM-7B
     uv run python scripts/train.py --run gold_v5 --split-from gold_v4 --empty-thought   # run 4's data, test-prompt turns
+    uv run python scripts/train.py --run gold_v6 --split-from gold_v4 --exact-turns --accum 16   # every move exactly as tested
 
 Gold data: conversations the review marked ok that also pass today's automatic checks (older pilot rows that
 use «الظهر / العصر» as time labels stay ok in the review but follow an older convention, so they are left out).
@@ -108,25 +109,63 @@ def assistant_spans(messages: list[dict], tok, text: str) -> list[tuple[int, int
     return spans
 
 
-def trained_spans(text: str) -> list[tuple[int, int]]:
+def trained_segments(text: str) -> list[tuple[int, int, bool]]:
     """Character spans the model learns: each model turn up to and including <turn|>, minus every tool
-    result (what follows <|tool_response> up to and including <tool_response|>)."""
+    result (what follows <|tool_response> up to and including <tool_response|>). The flag marks the first move of
+    a turn (right after <|turn>model); the others are later moves (right after a tool result)."""
     spans, i = [], 0
     while (start := text.find(TURN, i)) != -1:
         start += len(TURN)
-        if text.startswith(EMPTY_THOUGHT, start):  # --empty-thought: shown, never trained on
+        if text.startswith(EMPTY_THOUGHT, start):  # shown, never trained on
             start += len(EMPTY_THOUGHT)
         end = text.find(END, start)
         end = len(text) if end == -1 else end + len(END)
-        pos = start
+        pos, first = start, True
         while (r := text.find(RESPONSE_OPEN, pos, end)) != -1:
-            spans.append((pos, r + len(RESPONSE_OPEN)))  # the call and the token that stops generation
+            spans.append((pos, r + len(RESPONSE_OPEN), first))  # the call and the token that stops generation
             close = text.find(RESPONSE_CLOSE, r, end)
-            pos = end if close == -1 else close + len(RESPONSE_CLOSE)
+            pos, first = (end if close == -1 else close + len(RESPONSE_CLOSE)), False
         if pos < end:
-            spans.append((pos, end))
+            spans.append((pos, end, first))
         i = end
     return spans
+
+
+def trained_spans(text: str) -> list[tuple[int, int]]:
+    return [(a, b) for a, b, _ in trained_segments(text)]
+
+
+def render_exact(rec: dict, tok, businesses: dict, styles: dict, tools: list[dict]) -> list[tuple[str, list, str]]:
+    """--exact-turns (run 6): the conversation twice, so every trained move sees exactly what the benchmark shows.
+    A new turn's prompt ends with the empty thinking block; a move after a tool result continues a turn that the
+    template replays without one. "first": rendered with the blocks, only each turn's first move is trained.
+    "later": rendered as is, only the moves after a tool result are trained. Both are checked against the test
+    prompts: the first turn's character for character, and every later move's start at a test prompt's end."""
+    meta = rec["meta"]
+    system = build_system_prompt(businesses[meta["business_id"]], styles, meta["style"],
+                                 datetime.fromisoformat(meta["now"]), meta["prayer_times"], "short")
+    order = [next(t for t in tools if t["function"]["name"] == n) for n in meta["tools"]]
+    messages = [{"role": "system", "content": system}] + rec["messages"]
+    plain = tok.apply_chat_template(messages, tools=order, tokenize=False, enable_thinking=False)
+    blocks = plain.replace(TURN, TURN + EMPTY_THOUGHT)
+    prompt = tok.apply_chat_template(messages[:2], tools=order, add_generation_prompt=True,
+                                     enable_thinking=False, tokenize=False)
+    assert prompt.endswith(EMPTY_THOUGHT) and blocks.startswith(prompt), "first turn differs from the test prompt"
+    # after two parallel tool calls the results come back to back, and the marker opening the second one is the
+    # template's, not a move the model makes (runs 1-5 trained on it as a span of its own); it is left out here
+    later = [(a, b) for a, b, first in trained_segments(plain) if not first and plain[a:b] != RESPONSE_OPEN]
+    ends = set()  # where the benchmark's prompt ends for every move that follows a tool result
+    for j, m in enumerate(messages):
+        if m["role"] == "tool" and j + 1 < len(messages) and messages[j + 1]["role"] == "assistant":
+            p = tok.apply_chat_template(messages[: j + 1], tools=order, add_generation_prompt=True,
+                                        enable_thinking=False, tokenize=False)
+            assert plain.startswith(p), "a later move's test prompt is not a prefix of the training text"
+            ends.add(len(p))
+    assert all(a in ends for a, _ in later), "a later move does not start where its test prompt ends"
+    out = [(blocks, [(a, b) for a, b, first in trained_segments(blocks) if first], "first")]
+    if later:
+        out.append((plain, later, "later"))
+    return out
 
 
 def encode(text: str, spans: list[tuple[int, int]], tok) -> dict:
@@ -139,9 +178,10 @@ def encode(text: str, spans: list[tuple[int, int]], tok) -> dict:
 
 
 def build(tok, max_len: int, val_share: float, seed: int, split_from: str | None = None,
-          empty_thought: bool = False) -> tuple[list[dict], list[dict]]:
+          empty_thought: bool = False, exact_turns: bool = False) -> tuple[list[dict], list[dict]]:
     """split_from: train and validate on exactly the conversations another run used (runs/<run>/data.json), so a
-    second model is compared on identical data however long its own rendering is."""
+    second model is compared on identical data however long its own rendering is. exact_turns: each conversation
+    becomes two examples (render_exact), kept on the same side of the split."""
     from transformers import AutoTokenizer
     businesses = {b["id"]: b for b in json.loads((ROOT / "spec" / "train_businesses.json").read_text(encoding="utf-8"))}
     _, styles, tools = load_spec()
@@ -150,22 +190,33 @@ def build(tok, max_len: int, val_share: float, seed: int, split_from: str | None
     gold_tok = tok if tok.name_or_path == GOLD_TOKENIZER else AutoTokenizer.from_pretrained(GOLD_TOKENIZER)
     rows, too_long = [], 0
     for rec in gold_conversations(gold_tok):
-        ex = encode(*render(rec, tok, businesses, styles, tools, text_tools, empty_thought), tok)
-        if len(ex["input_ids"]) > max_len:
+        base = f"{rec['set']}/{rec['id']}"
+        if exact_turns:
+            versions = [(text, spans, f"{base}#{tag}") for text, spans, tag in render_exact(rec, tok, businesses, styles, tools)]
+        else:
+            versions = [(*render(rec, tok, businesses, styles, tools, text_tools, empty_thought), base)]
+        exs = [(rid, encode(text, spans, tok)) for text, spans, rid in versions]
+        if any(len(ex["input_ids"]) > max_len for _, ex in exs):
             too_long += 1
             continue
-        rows.append({"id": f"{rec['set']}/{rec['id']}", **ex})
+        rows += [{"id": rid, "base": base, **ex} for rid, ex in exs]
     if split_from:
         ref = json.loads((ROOT / "runs" / split_from / "data.json").read_text(encoding="utf-8"))
-        by_id = {r["id"]: r for r in rows}
-        missing = [i for i in ref["train"] + ref["validation"] if i not in by_id]
+        bases = {r["base"] for r in rows}
+        missing = [i for i in ref["train"] + ref["validation"] if i.split("#")[0] not in bases]
         assert not missing, f"{len(missing)} of {split_from}'s conversations are missing here (raise --max-len?)"
-        train, val = [by_id[i] for i in ref["train"]], [by_id[i] for i in ref["validation"]]
+        by_base = {}
+        for r in rows:
+            by_base.setdefault(r["base"], []).append(r)
+        train = [r for i in dict.fromkeys(x.split("#")[0] for x in ref["train"]) for r in by_base[i]]
+        val = [r for i in dict.fromkeys(x.split("#")[0] for x in ref["validation"]) for r in by_base[i]]
         rows = train + val
-    else:
-        random.Random(seed).shuffle(rows)
-        n_val = max(1, round(len(rows) * val_share))
-        val, train = rows[:n_val], rows[n_val:]
+    else:  # shuffle whole conversations (one row each, unless --exact-turns), so both versions share a side
+        groups = list({r["base"]: [x for x in rows if x["base"] == r["base"]] for r in rows}.values())
+        random.Random(seed).shuffle(groups)
+        n_val = max(1, round(len(groups) * val_share))
+        val, train = [r for g in groups[:n_val] for r in g], [r for g in groups[n_val:] for r in g]
+        rows = val + train
     lens = sorted(len(r["input_ids"]) for r in rows)
     trained = sum(sum(1 for x in r["labels"] if x != -100) for r in rows)
     print(f"examples: {len(rows)} (train {len(train)}, validation {len(val)}); dropped over {max_len} tokens: {too_long}")
@@ -206,6 +257,8 @@ def main() -> None:
     ap.add_argument("--split-from", help="use exactly the train/validation conversations of this earlier run")
     ap.add_argument("--empty-thought", action="store_true",
                     help="start every Gemma model turn with the empty thinking block the test prompt has (run 5)")
+    ap.add_argument("--exact-turns", action="store_true",
+                    help="train each Gemma move with exactly its test prompt: two versions per conversation (run 6)")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--resume", action="store_true", help="continue from the run's latest checkpoint")
     ap.add_argument("--mem-fraction", type=float, default=0.8,
@@ -214,9 +267,12 @@ def main() -> None:
 
     from transformers import AutoTokenizer
     tok = AutoTokenizer.from_pretrained(MODELS[args.model])
-    if args.empty_thought and args.model != "gemma":
-        sys.exit("--empty-thought is for Gemma's template only")
-    train, val = build(tok, args.max_len, args.val_share, args.seed, args.split_from, args.empty_thought)
+    if (args.empty_thought or args.exact_turns) and args.model != "gemma":
+        sys.exit("--empty-thought and --exact-turns are for Gemma's template only")
+    if args.empty_thought and args.exact_turns:
+        sys.exit("choose one of --empty-thought (run 5) and --exact-turns (run 6)")
+    train, val = build(tok, args.max_len, args.val_share, args.seed, args.split_from, args.empty_thought,
+                       args.exact_turns)
     out = ROOT / "runs" / args.run
     out.mkdir(parents=True, exist_ok=True)
     (out / "data.json").write_text(json.dumps({"train": [r["id"] for r in train], "validation": [r["id"] for r in val],

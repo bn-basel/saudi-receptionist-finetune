@@ -20,6 +20,7 @@ $extra = @()  # settings added later; older runs (Gemma, own split) have neither
 if ($a.model) { $extra += @("--model", $a.model) }
 if ($a.split_from) { $extra += @("--split-from", $a.split_from) }
 if ($a.empty_thought) { $extra += @("--empty-thought") }
+if ($a.exact_turns) { $extra += @("--exact-turns") }
 uv run python scripts/train.py --run $Run --epochs $a.epochs --save-every $a.save_every --max-len $a.max_len `
     --lr $a.lr --rank $a.rank --accum $a.accum --val-share $a.val_share --seed $a.seed --mem-fraction $a.mem_fraction `
     @extra --resume
