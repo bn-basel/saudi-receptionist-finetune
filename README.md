@@ -1,36 +1,48 @@
-# saudi-dialect
+# Saudi-dialect receptionist: fine-tuning open models on one GPU
 
-## Why this project
+![Saudi receptionist on one GPU: Gemma-4-12B and HUMAIN's ALLaM-7B, tool calling in Saudi dialect](docs/charts/banner.png)
 
-I'm the founder of Mujawib, an AI agent receptionist for Saudi businesses. Today it runs on a large commercial API model. This project asks whether a small open model, fine-tuned on a single consumer GPU, can write more natural Saudi dialect *and* call booking tools correctly, and beat both that API model and Saudi Arabia's own open ALLaM model on a public, reproducible test set.
+**TL;DR**
 
-## What it does
+- I fine-tuned two open models, Google's **Gemma-4-12B** and HUMAIN's **ALLaM-7B**, on **one RTX 5080** to work as a
+  WhatsApp receptionist for Saudi businesses: they answer in Saudi dialect and call booking tools (prices, free times,
+  booking, cancelling, handing over to a person).
+- On a fresh 160-case test, fine-tuned Gemma scores **93.8%**, level with DeepSeek V4.1 Flash (92.5%, the API model my
+  company runs on) and GPT-5.4 mini (91.2%). ALLaM had no tool calling at all; fine-tuned, it scores **87.5%** (from 40%).
+- Locally they answer in **0.5–0.7 s** for **under $0.01 per 1,000 replies**.
+- The most useful finding: four hidden tokens in Gemma's chat format cost about 20 points on real-looking messages.
+  Training each move on exactly the prompt it gets at inference fixed it.
+- Everything is open: code, training data, both test sets, every raw result, and the models
+  ([Gemma](https://huggingface.co/bnbasel/saudi-receptionist-gemma-4-12b),
+  [ALLaM](https://huggingface.co/bnbasel/allam-7b-saudi-receptionist)).
 
-Fine-tuning small open models (Google's Gemma-4-12B and HUMAIN's ALLaM-7B) with QLoRA on one consumer GPU (RTX 5080, 16 GB) so that they:
-
-1. writes natural Saudi dialect the way a friendly receptionist texts on WhatsApp, and
-2. calls tools correctly (price lookup, available times, booking) in the same conversation.
-
-The goal is to beat both the untuned base model and a strong API baseline on a held-out test set, judged by a blind A/B dialect review from a native speaker plus automatic tool-call checks.
+**About.** I'm Basel, a CS student and the founder of Mujawib, an AI receptionist for Saudi businesses that runs on a
+commercial API model today. This project asks whether a small open model, fine-tuned on a single consumer GPU, can do
+the same job: call the tools correctly *and* write natural Saudi dialect. The tool-calling half is answered below; the
+dialect half (a blind native-speaker review) is next.
 
 ## Results at a glance
 
 ![Test v2 scores: two fine-tuned models against their untuned versions and three API models](docs/charts/test_scores.svg)
 
-- **On a fresh exam, both fine-tuned open models reach the commercial API models.** Gemma-4-12B scores 93.8% and
-  HUMAIN's ALLaM-7B 87.5%, against 88.1–92.5% for DeepSeek V4.1 Flash, GPT-5.4 mini and Gemini 3.8 Flash. Gemma
-  against DeepSeek, the model Mujawib runs on today: 10 cases won, 8 lost, within chance. Both run on one RTX 5080,
-  at no cost per reply.
-- **Fine-tuning gave HUMAIN's ALLaM tool calling**, which it did not have (untuned: 40.0%).
-- **Made-up prices, times, dates and actions:** 33 and 16 for the untuned models, 2 and 3 after fine-tuning.
-- **The hardest bug was invisible.** Gemma first scored 96.9% on the original test set but 75.6% on a fresh one: when
-  a customer greeted, it greeted back and invented answers. The cause was four hidden tokens. At test time Gemma's
-  chat format adds an empty "thinking" block that its training text never had. Training every move exactly as it is
-  tested fixed it.
-
 ![Accuracy, cost per 1,000 replies and speed per reply](docs/charts/scoreboard.svg)
 
 ![Every model on test v1 and the fresh test v2](docs/charts/v1_vs_v2.svg)
+
+## How it was built
+
+1. **Choose the base model by measurement.** Five open models compared on Saudi-dialect text, GPU memory and a blind
+   dialect test (Stage 2).
+2. **Write the tests first.** Test v1: 160 cases in 12 kinds of request, reviewed by a native speaker and frozen with a
+   checksum. Later a fresh test v2 at four new businesses, used only for final numbers (Stage 4).
+3. **Measure the baselines.** Three API models and two untuned open models on the same cases, scored automatically on
+   tool calls and invented facts (Stage 5).
+4. **Make and curate the data.** 1,153 conversations drafted on DeepSeek V4.1 Flash by our own generation pipeline,
+   under 51 rules written and refined through review, automatic checks and review (Stage 6).
+5. **Fine-tune and learn from the data.** Six QLoRA runs, one change at a time: more data, then better data, then a
+   format fix. Twelve checkpoints per run, chosen by a rule fixed in advance (Stage 7).
+6. **Release and re-check.** GGUF builds re-tested through llama.cpp, LM Studio-style chat and Ollama, plus a local
+   demo ([docs/RELEASE.md](docs/RELEASE.md)).
 
 ## Try it
 
@@ -58,7 +70,7 @@ The goal is to beat both the untuned base model and a strong API baseline on a h
 
 Nothing below this line is claimed until it is done and verified. Results, dataset card and model card will be added when they exist.
 
-## Findings so far
+## Details by stage
 
 **Stage 2: choosing the base model.** Measured on our own Saudi-dialect text and on this GPU, not taken from vendor claims.
 

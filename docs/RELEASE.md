@@ -52,13 +52,13 @@ one, and its chat API scores the same as the exact route.
 
 ## Publishing (Basel)
 
-1. Log in once: `hf auth login` (the token stays with you).
-2. Create two model repositories, for example `<hf-user>/saudi-receptionist-gemma-4-12b` and
-   `<hf-user>/allam-7b-saudi-receptionist`, and upload the adapter files, the two GGUF files, the model card as
+1. Log in once: `uv run hf auth login` (the token stays with you; `uv run` uses the project's copy of the tool).
+2. Create two model repositories, for example `bnbasel/saudi-receptionist-gemma-4-12b` and
+   `bnbasel/allam-7b-saudi-receptionist`, and upload the adapter files, the two GGUF files, the model card as
    `README.md`, the Modelfile, and for ALLaM `allam_tools.py`:
    ```bash
-   hf upload <hf-user>/allam-7b-saudi-receptionist runs/allam_v1/checkpoint-414 . --include "adapter_*"
-   hf upload <hf-user>/allam-7b-saudi-receptionist C:/WIP/release-work/allam-7b-saudi-receptionist/gguf . --include "*.gguf"
-   hf upload <hf-user>/allam-7b-saudi-receptionist release/allam .
+   uv run hf upload bnbasel/allam-7b-saudi-receptionist runs/allam_v1/checkpoint-414 . --include "adapter_*"
+   uv run hf upload bnbasel/allam-7b-saudi-receptionist C:/WIP/release-work/allam-7b-saudi-receptionist/gguf . --include "*.gguf"
+   uv run hf upload bnbasel/allam-7b-saudi-receptionist release/allam .
    ```
-3. Replace `<hf-user>` and `<github-user>` in the model cards and the README links.
+3. The model cards already use these names: `bnbasel` on Hugging Face and `bn-basel/mujawib-receptionist-finetune` on GitHub.

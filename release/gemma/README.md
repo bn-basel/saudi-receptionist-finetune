@@ -15,78 +15,75 @@ tags:
 - gguf
 ---
 
-# Gemma-4-12B Saudi receptionist (tool calling)
+![Gemma-4-12B, fine-tuned: Saudi-dialect receptionist with tool calling](assets/banner-gemma.png)
 
-Google's [Gemma-4-12B-it](https://huggingface.co/google/gemma-4-12B-it), fine-tuned with QLoRA on one RTX 5080 to work
-as a **Saudi-dialect WhatsApp receptionist that calls tools**: it looks up prices, checks free times, books, cancels
-and hands the conversation to a person.
+# Saudi receptionist · Gemma-4-12B, fine-tuned
 
-**On a fresh 160-case test it scores 93.8%, level with DeepSeek V4.1 Flash (92.5%) and GPT-5.4 mini (91.2%), running
-on one consumer GPU at no cost per reply.**
+**TL;DR**
 
-Part of the open project [saudi-dialect](https://github.com/<github-user>/saudi-dialect): code, training data, both
-test sets and every raw result are public there.
+- A WhatsApp receptionist for Saudi businesses: it answers in Saudi dialect and calls booking tools (prices, free
+  times, booking, cancelling, handing over to a person).
+- Fine-tuned from Google's Gemma-4-12B with QLoRA on **one RTX 5080**.
+- On a fresh 160-case test it scores **93.8%**, level with DeepSeek V4.1 Flash (92.5%) and GPT-5.4 mini (91.2%).
+  Untuned, the same model scores 43.1%.
+- Runs locally in **0.7 s per reply**, for **under $0.01 per 1,000 replies** in electricity.
+- Built by **Basel**, a CS student and the founder of Mujawib (AI receptionists for Saudi
+  businesses). Code, data and every result: [GitHub](https://github.com/bn-basel/mujawib-receptionist-finetune).
 
 ## Results
 
-Scored automatically on 160 test cases (one decision each: the right tool with the right arguments, or the right
-reply), short system prompt, scorer v1.3. Test v2 uses four businesses that appear in neither training nor test v1.
+![Test scores: the fine-tuned models against their untuned versions and three API models](assets/test_scores.png)
 
-| Model | Test v2 (95% CI) | Made-up facts |
+![Accuracy, cost per 1,000 replies and speed per reply](assets/scoreboard.png)
+
+Each test case is one decision in a conversation: call the right tool with the right arguments, or reply without
+inventing anything. Scoring is automatic. The test above (test v2) uses four businesses the model never saw in
+training. Against DeepSeek the difference is within chance (10 cases won, 8 lost; paired McNemar p = 0.81).
+
+## How it was built
+
+1. **Define the job.** Twelve kinds of customer request (prices, bookings with date phrases like «بكره العصر»,
+   cancelling, business info, complaints, closed days, small talk, pressure tests…), six tools, and fictional
+   businesses backed by a fake booking system.
+2. **Build the tests before training.** Test v1: 160 cases, reviewed by a native speaker, frozen with a checksum. Test
+   v2: 160 fresh cases at four new businesses, used only for final numbers.
+3. **Make the training data.** 1,153 conversations at 40 fictional businesses, drafted on DeepSeek V4.1 Flash by our own
+   generation pipeline under 51 rules written and refined through review, then filtered by automatic checks and
+   reviewed. No real customer data.
+4. **Fine-tune.** QLoRA on the 4-bit model (LoRA rank 16) on one RTX 5080, about 3.5 hours. Twelve checkpoints were
+   compared on a separate dev set, with the selection rule fixed in advance.
+5. **Find and fix a hidden bug.** The first version scored 97% on test v1 but 76% on the fresh test. A controlled
+   experiment found the trigger: when a customer opens with «السلام عليكم», it greeted back and made up an answer
+   instead of calling a tool. The cause was four hidden tokens: with thinking switched off, Gemma's chat format puts an
+   empty thinking block before each answer at inference time, and the training text never had it. Training each move
+   on exactly the prompt it gets at inference fixed it:
+
+   ![The fix: runs 4 to 6 with and without a greeting](assets/format_fix.png)
+
+6. **Check the release files.** The GGUF builds were re-tested three ways (the original prompts, llama-server's chat
+   API as LM Studio uses it, and Ollama) and score the same within noise.
+
+## Use it
+
+| File | Size | For |
 |---|---|---|
-| **This model** | **93.8% (89–97%)** | **3** |
-| DeepSeek V4.1 Flash (API) | 92.5% (87–96%) | 0 |
-| GPT-5.4 mini (API) | 91.2% (86–95%) | 2 |
-| Gemini 3.8 Flash (API) | 88.1% (82–92%) | 0 |
-| ALLaM-7B, fine-tuned the same way ([sister model](https://huggingface.co/<hf-user>/allam-7b-saudi-receptionist)) | 87.5% (81–92%) | 2 |
-| Gemma-4-12B-it, untuned | 43.1% (36–51%) | 16 |
+| `saudi-receptionist-gemma-4-12b-Q8_0.gguf` | 11.8 GB | best quality (recommended) |
+| `saudi-receptionist-gemma-4-12b-Q4_K_M.gguf` | 6.9 GB | smaller GPUs; may cost a little accuracy |
+| `adapter_model.safetensors` + `adapter_config.json` | 0.26 GB | Transformers + PEFT, on top of `google/gemma-4-12B-it` |
 
-Against DeepSeek: 10 cases won, 8 lost (paired McNemar p = 0.81); against GPT-5.4 mini p = 0.50. All 98 of its tool
-calls on test v2 were well formed. By kind of request: bookings 23/24, cancellations 12/12, complaints 10/10,
-pressure tests 14/14, unknown questions handed to a person 10/12 (DeepSeek 2/12); weakest on price questions (13/16).
-
-Note: this is the second Gemma run on test v2. The fix behind this version (below) was diagnosed on practice sets
-without reading test v2's answers, but the search began because of the first run's result.
-
-**GGUF builds, re-tested** on the practice copy of test v1 (160 cases, as written and with a greeting added), with
-the same prompts as the original:
-
-| Version | Test v1 | Test v1, greeted |
-|---|---|---|
-| Original (adapter on the 4-bit base, as evaluated) | 151 | 153 |
-| GGUF Q8_0 (11.8 GB) | 154 | 154 |
-| GGUF Q4_K_M (6.9 GB) | 153 | 148 |
-
-Q8_0 matches the original; Q4_K_M may cost a little on greeted messages (148 against 153; paired test p = 0.18, so
-not clearly more than chance). Pick Q8_0 if it fits. Through the ways people actually run it, Q4_K_M on greeted test v1
-scores 148 with llama-server's chat API (the GGUF's own template and tool parser, as in LM Studio) and 149 in Ollama.
-The built-in template gives exactly the training prompt in 320 of 320 cases.
-
-## Use it with thinking switched off, exactly as trained
-
-Gemma 4 has a thinking mode. This model was trained and tested **with thinking off**, which makes Gemma's chat
-template put an empty thinking block (`<|channel>thought` … `<channel|>`) at the start of each new answer. Use the same
-setting: `enable_thinking=False` in transformers, or `"chat_template_kwargs": {"enable_thinking": false}` with
-llama-server. This matters: an earlier version trained without that block in its training text lost about 20 points
-on greeted messages, because at test time it made its first move from a position it had never been trained at.
-This version is trained on exactly the prompts it is tested with (each training position checked character by
-character).
-
-## Run it
-
-**llama.cpp / LM Studio:** download `saudi-receptionist-gemma-4-12b-Q8_0.gguf` (11.8 GB, best) or `Q4_K_M` (6.9 GB).
-**Ollama:** `ollama create saudi-receptionist-gemma -f Modelfile.gemma` with [`Modelfile.gemma`](Modelfile.gemma) next to the GGUF; Ollama recognises Gemma 4 and uses its own Gemma 4 renderer and tool parser. Call `/api/chat` with `"think": false`.
+**Keep thinking switched off**, as in training: `enable_thinking=False` in Transformers,
+`"chat_template_kwargs": {"enable_thinking": false}` with llama-server, `"think": false` with Ollama.
 
 ```bash
-llama-server -m saudi-receptionist-gemma-4-12b-Q4_K_M.gguf -ngl 99 -c 4096 --jinja
+# llama.cpp (LM Studio works the same way with the GGUF)
+llama-server -m saudi-receptionist-gemma-4-12b-Q8_0.gguf -ngl 99 -c 4096 --jinja
+
+# Ollama (Modelfile.gemma is in this repository)
+ollama create saudi-receptionist-gemma -f Modelfile.gemma
 ```
 
-```python
-# OpenAI-style request to llama-server; tool calls come back in the standard tool_calls field
-{"messages": [...], "tools": [...], "chat_template_kwargs": {"enable_thinking": false}}
-```
-
-**Transformers + PEFT** (the adapter in this repository):
+<details>
+<summary><b>Transformers example</b></summary>
 
 ```python
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -94,13 +91,19 @@ from peft import PeftModel
 
 tok = AutoTokenizer.from_pretrained("google/gemma-4-12B-it")
 model = AutoModelForCausalLM.from_pretrained("google/gemma-4-12B-it", device_map="auto")
-model = PeftModel.from_pretrained(model, "<hf-user>/saudi-receptionist-gemma-4-12b")
-prompt = tok.apply_chat_template([{"role": "system", "content": system_prompt}] + conversation, tools=tools,
-                                 add_generation_prompt=True, enable_thinking=False, tokenize=False)
-```
+model = PeftModel.from_pretrained(model, "bnbasel/saudi-receptionist-gemma-4-12b")
 
-**The system prompt** it was trained with (one per business; the project's
-[`scripts/prompt.py`](https://github.com/<github-user>/saudi-dialect/blob/main/scripts/prompt.py) builds it):
+messages = [{"role": "system", "content": system_prompt}] + conversation
+prompt = tok.apply_chat_template(messages, tools=tools, add_generation_prompt=True,
+                                 enable_thinking=False, tokenize=False)
+```
+</details>
+
+<details>
+<summary><b>System prompt and tools it was trained with</b></summary>
+
+One system prompt per business, built by
+[`scripts/prompt.py`](https://github.com/bn-basel/mujawib-receptionist-finetune/blob/main/scripts/prompt.py):
 
 ```text
 You are نورة (female), WhatsApp receptionist of عيادة ابتسامة المروج لطب الأسنان, a dental clinic in الرياض.
@@ -113,38 +116,42 @@ Style: Relaxed everyday Saudi ... No emojis at all. Use masculine forms unless .
 Rules: General Saudi dialect only, short WhatsApp messages. Prices, times and bookings only from tools; never invent. ...
 ```
 
-Tools: `search_services`, `get_available_slots`, `create_booking`, `get_my_bookings`, `cancel_booking`,
-`handoff_to_human` ([schemas](https://github.com/<github-user>/saudi-dialect/blob/main/spec/tools.json)), passed in
-Gemma's own tool format. On a tool it never saw in training (`reschedule_booking`) it passed 9 of 10 cases.
+Tools ([schemas](https://github.com/bn-basel/mujawib-receptionist-finetune/blob/main/spec/tools.json)):
+`search_services`, `get_available_slots`, `create_booking`, `get_my_bookings`, `cancel_booking`, `handoff_to_human`,
+in Gemma's own tool format. Given a tool it never saw in training (`reschedule_booking`), it passed 9 of 10 cases.
+</details>
 
-## Training
+<details>
+<summary><b>Training details</b></summary>
 
-- **Data:** 1,153 receptionist conversations at 40 fictional Saudi businesses (1,095 for training, 58 held back).
-  They were drafted on DeepSeek V4.1 Flash by the project's own generation pipeline, under 51 rules written and
-  refined through review, then filtered by automatic checks and reviewed against rules set by a native speaker.
-  No real customer data. DeepSeek's terms allow training other models on its output.
-- **Format:** Gemma's own chat template with thinking off. Each conversation is shown twice: once with the empty
-  thinking block at the start of each turn, training only each turn's first move, and once as the template replays
-  it, training only the moves after a tool result. Every trained position therefore matches its test prompt exactly.
-  The loss covers only the receptionist's words, tool calls and end-of-turn tokens.
-- **Recipe:** QLoRA on the 4-bit (NF4) base, LoRA rank 16, alpha 32, dropout 0.05, all linear layers; learning rate
-  2e-4, cosine schedule; batch 1 with 16 accumulated; 4 passes (524 steps), about 3.5 hours on one RTX 5080 (9.3 GB
-  of GPU memory). Twelve checkpoints were compared on the 40-case dev set and a greeted copy of it, by a rule fixed in
-  advance; checkpoint 440 was chosen (39/40 and 39/40).
-- **GGUF:** the adapter merged into the 16-bit base while converting (llama.cpp), Q8_0, then Q4_K_M from Q8_0.
+- 1,153 conversations: 1,095 for training, 58 held back.
+- Gemma's chat template with thinking off. Each conversation is shown twice: once with the empty thinking block at
+  the start of each turn (only each turn's first move is trained), and once as the template replays it (only the moves
+  after a tool result are trained). Every trained position matches its inference prompt exactly; the build checks it.
+- Loss only on the receptionist's words, tool calls and end-of-turn tokens.
+- QLoRA: 4-bit NF4 base, LoRA rank 16, alpha 32, dropout 0.05, all linear layers; learning rate 2e-4 with a cosine
+  schedule; 16 examples per step; 4 passes (524 steps); peak 9.3 GB of GPU memory.
+- Chosen checkpoint: 440 of 524 (dev 39/40, greeted dev 39/40).
+- GGUF: the adapter merged into the 16-bit base while converting with llama.cpp (b11457), Q8_0, then Q4_K_M.
+
+| Re-test on test v1 (as written / with a greeting) | Score |
+|---|---|
+| Original (adapter on the 4-bit base) | 151 / 153 |
+| GGUF Q8_0 | 154 / 154 |
+| GGUF Q4_K_M | 153 / 148 |
+| Q4_K_M through llama-server chat · through Ollama (greeted) | 148 · 149 |
+</details>
 
 ## Limits
 
-- The tests are synthetic: test v1's customer messages were reviewed by one native speaker, test v2's were drafted by
-  an LLM from that speaker's style choices and AI-reviewed. Real customers write with more variety.
-- Each test case is one decision, not a whole conversation. Multi-turn reliability is not yet measured.
-- Scores check tools and facts. Whether the replies sound naturally Saudi has not yet been judged in the project's
-  blind native-speaker review.
-- It invents a fact now and then (3 of 160 fresh cases, mostly dates). In production, check every price, time and date
-  a reply states against the tool results before sending it.
-- Built for receptionist work at small Saudi businesses; not tested on anything else.
+- The tests are synthetic. Test v1 was reviewed by one native speaker; test v2 was drafted by an LLM from that speaker's
+  style choices and AI-reviewed. Real customers write with more variety.
+- Each test case is one decision, not a whole conversation; multi-turn reliability is the next thing to measure.
+- Scores check tools and facts, not how natural the dialect sounds (a blind native-speaker review is planned).
+- It occasionally states a wrong fact (3 of 160 fresh cases, mostly dates). In production, check prices, times and
+  dates in a reply against the tool results before sending it.
+- This is test v2's second Gemma run; the fix was diagnosed on practice sets, but the search began because of the
+  first result.
 
-## Licence
-
-Apache-2.0, as the base model ([Gemma 4 licence](https://ai.google.dev/gemma/docs/gemma_4_license)). Built by Basel
-([GitHub](https://github.com/<github-user>)).
+**Licence:** Apache-2.0, as the base model ([Gemma 4 licence](https://ai.google.dev/gemma/docs/gemma_4_license)).
+**Sister model:** [ALLaM-7B, fine-tuned the same way](https://huggingface.co/bnbasel/allam-7b-saudi-receptionist).

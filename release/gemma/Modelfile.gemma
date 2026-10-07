@@ -2,7 +2,8 @@
 #   ollama create saudi-receptionist-gemma -f Modelfile.gemma
 # Call /api/chat with "tools" and "think": false. Thinking must stay off: the model was trained and tested that way.
 
-FROM ./saudi-receptionist-gemma-4-12b-Q4_K_M.gguf
+FROM ./saudi-receptionist-gemma-4-12b-Q8_0.gguf
+# or ./saudi-receptionist-gemma-4-12b-Q4_K_M.gguf for a smaller download (see the model card)
 
 PARAMETER temperature 0
 PARAMETER num_ctx 4096

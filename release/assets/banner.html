@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { width: 1280px; height: 400px; font-family: "Segoe UI", system-ui, sans-serif; color: #f2f5f4;
+         background: radial-gradient(120% 140% at 0% 0%, #12423a 0%, #0b2622 55%, #081a17 100%); }
+  .wrap { display: grid; grid-template-columns: 1.25fr 0.75fr; gap: 40px; padding: 52px 60px; height: 100%; }
+  .kicker { font-size: 15px; letter-spacing: .14em; text-transform: uppercase; color: #8fd6c2; font-weight: 600; }
+  h1 { font-size: 44px; line-height: 1.1; margin: 14px 0 10px; font-weight: 700; white-space: nowrap; }
+  .sub { font-size: 19px; color: #b9cfca; }
+  .stats { display: flex; gap: 14px; margin-top: 34px; }
+  .stat { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 14px; padding: 14px 18px; min-width: 150px; }
+  .stat b { display: block; font-size: 30px; font-weight: 700; color: #ffffff; }
+  .stat span { font-size: 14px; color: #a7c4bd; }
+  .chat { align-self: center; display: flex; flex-direction: column; gap: 10px; direction: rtl;
+          font-family: "Segoe UI", "Noto Sans Arabic", Tahoma, sans-serif; }
+  .msg { max-width: 92%; padding: 11px 16px; border-radius: 16px; font-size: 19px; line-height: 1.55; }
+  .me { align-self: flex-start; background: #1f5a4c; border-start-start-radius: 4px; }
+  .them { align-self: flex-end; background: #f4f1ea; color: #1f2328; border-start-end-radius: 4px; }
+  .tool { align-self: center; direction: ltr; font: 14px/1.4 Consolas, ui-monospace, monospace; color: #9ad0ff;
+          background: rgba(80,150,255,.12); border: 1px solid rgba(120,170,255,.25); border-radius: 10px; padding: 7px 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <div class="kicker">Saudi-dialect receptionist · tool calling</div>
+    <h1 id="title">TITLE</h1>
+    <div class="sub" id="sub">SUB</div>
+    <div class="stats" id="stats"></div>
+  </div>
+  <div class="chat">
+    <div class="msg me">السلام عليكم بكم التنظيف عندكم</div>
+    <div class="tool">→ search_services(query: "تنظيف")  ← 250 SAR · 45 min</div>
+    <div class="msg them" id="reply"></div>
+  </div>
+</div>
+<script>
+  const p = new URLSearchParams(location.search);
+  document.getElementById("title").textContent = p.get("title");
+  document.getElementById("sub").textContent = p.get("sub");
+  document.getElementById("reply").textContent = p.get("reply");
+  document.getElementById("stats").innerHTML = p.get("stats").split("|").map(s => {
+    const [v, l] = s.split("~"); return `<div class="stat"><b>${v}</b><span>${l}</span></div>`; }).join("");
+</script>
+</body>
+</html>
