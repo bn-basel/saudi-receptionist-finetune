@@ -15,7 +15,7 @@ tags:
 - gguf
 ---
 
-![Gemma-4-12B, fine-tuned: Saudi-dialect receptionist with tool calling](assets/banner-gemma.png)
+![Gemma-4-12B, fine-tuned: a real WhatsApp-style chat on a phone, and the tool calls behind each reply](assets/banner-gemma.png)
 
 # Saudi receptionist · Gemma-4-12B, fine-tuned
 
@@ -27,8 +27,8 @@ tags:
 - On a fresh 160-case test it scores **93.8%**, level with DeepSeek V4.1 Flash (92.5%) and GPT-5.4 mini (91.2%).
   Untuned, the same model scores 43.1%.
 - Runs locally in **0.7 s per reply**, for **under $0.01 per 1,000 replies** in electricity.
-- Built by **Basel**, a CS student and the founder of Mujawib (AI receptionists for Saudi
-  businesses). Code, data and every result: [GitHub](https://github.com/bn-basel/mujawib-receptionist-finetune).
+- Built by **Basel**, a CS/AI student at the University of Melbourne and the founder of Mujawib, an AI agent
+  receptionist platform. Code, data and every result: [GitHub](https://github.com/bn-basel/mujawib-receptionist-finetune).
 
 ## Results
 

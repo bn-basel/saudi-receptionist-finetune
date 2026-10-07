@@ -15,21 +15,23 @@ tags:
 - gguf
 ---
 
-![ALLaM-7B, fine-tuned: Saudi-dialect receptionist with tool calling](assets/banner-allam.png)
+![ALLaM had no tools, now it uses them: a real chat on a phone, the tool call ALLaM writes, and the score from 40.0% to 87.5%](assets/banner-allam.png)
 
 # Saudi receptionist · ALLaM-7B, fine-tuned
 
 **TL;DR**
 
-- HUMAIN's [ALLaM-7B-Instruct](https://huggingface.co/humain-ai/ALLaM-7B-Instruct-preview) has no tool-calling format.
-  After fine-tuning on 1,153 conversations it makes **112 of 113 tool calls correctly** and works as a Saudi-dialect
-  WhatsApp receptionist: prices, free times, booking, cancelling, handing over to a person.
+- HUMAIN's [ALLaM-7B-Instruct](https://huggingface.co/humain-ai/ALLaM-7B-Instruct-preview) has no tool-calling format:
+  on our 160-case test it made **1 tool call**. We built six tools, a booking system behind them, a text format for
+  calling them and 1,153 training conversations that use them. After fine-tuning it made **113 tool calls** on the same
+  test (112 well formed) and works as a Saudi-dialect WhatsApp receptionist: prices, free times, booking, cancelling,
+  handing over to a person.
 - On a fresh 160-case test it scores **87.5%** (untuned: 40.0%), level with GPT-5.4 mini (91.2%) and Gemini 3.8 Flash
   (88.1%).
 - Fine-tuned with QLoRA on **one RTX 5080** in about an hour. Runs locally in **0.5 s per reply**, for **under $0.01 per
   1,000 replies** in electricity.
-- Built by **Basel**, a CS student and the founder of Mujawib (AI receptionists for Saudi
-  businesses). Code, data and every result: [GitHub](https://github.com/bn-basel/mujawib-receptionist-finetune).
+- Built by **Basel**, a CS/AI student at the University of Melbourne and the founder of Mujawib, an AI agent
+  receptionist platform. Code, data and every result: [GitHub](https://github.com/bn-basel/mujawib-receptionist-finetune).
 
 ## Results
 

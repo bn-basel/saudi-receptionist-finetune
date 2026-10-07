@@ -16,8 +16,8 @@
   ([Gemma](https://huggingface.co/bnbasel/saudi-receptionist-gemma-4-12b),
   [ALLaM](https://huggingface.co/bnbasel/allam-7b-saudi-receptionist)).
 
-**About.** I'm Basel, a CS student and the founder of Mujawib, an AI receptionist for Saudi businesses that runs on a
-commercial API model today. This project asks whether a small open model, fine-tuned on a single consumer GPU, can do
+**About.** I'm Basel, a CS/AI student at the University of Melbourne and the founder of Mujawib, an AI agent
+receptionist platform that runs on a commercial API model today. This project asks whether a small open model, fine-tuned on a single consumer GPU, can do
 the same job: call the tools correctly *and* write natural Saudi dialect. The tool-calling half is answered below; the
 dialect half (a blind native-speaker review) is next.
 

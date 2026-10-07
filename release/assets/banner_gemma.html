@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Gemma card banner, 1280 x 640. Every message, tool call and tool result below is copied unedited from a run of the
+     Q4_K_M build through release/demo/server.py (dental clinic, 2026-10-07). -->
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { width: 1280px; height: 640px; overflow: hidden; font-family: Inter, "Segoe UI", sans-serif; color: #e9eef7;
+         background: radial-gradient(900px 600px at 15% 10%, #1c3358 0%, transparent 60%),
+                     radial-gradient(700px 500px at 95% 100%, #1a2c4d 0%, transparent 60%), #0b1424; }
+  .wrap { display: grid; grid-template-columns: 360px 290px 470px; gap: 40px; padding: 15px 40px; height: 100%; align-items: center; }
+  .ar { font-family: "IBM Plex Sans Arabic", "Segoe UI", sans-serif; direction: rtl; unicode-bidi: isolate; }
+  .mono { font-family: "JetBrains Mono", Consolas, monospace; }
+
+  .kicker { font-size: 12px; font-weight: 700; letter-spacing: .14em; color: #8cb8ff; text-transform: uppercase; }
+  h1 { font-size: 46px; line-height: 1.05; font-weight: 800; margin: 14px 0 12px; color: #fff; letter-spacing: -.02em; }
+  h1 span { color: #8cb8ff; }
+  .sub { font-size: 16px; color: #b3c0d6; line-height: 1.5; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 26px; }
+  .stat { background: rgba(140,184,255,.08); border: 1px solid rgba(140,184,255,.22); border-radius: 12px; padding: 12px 14px; }
+  .stat b { display: block; font-size: 26px; font-weight: 800; color: #fff; }
+  .stat span { font-size: 12.5px; color: #a9b8d1; line-height: 1.35; display: block; margin-top: 2px; }
+  .note { margin-top: 18px; font-size: 12px; color: #7f8fab; }
+
+  /* phone */
+  .phone { width: 290px; height: 610px; border-radius: 46px; background: #05080f; padding: 10px; position: relative;
+           box-shadow: 0 0 0 2px #2b3a55, 0 30px 70px rgba(0,0,0,.55); }
+  .screen { width: 100%; height: 100%; border-radius: 37px; overflow: hidden; background: #ece5dd; display: flex; flex-direction: column; }
+  .island { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 84px; height: 24px; border-radius: 14px; background: #000; z-index: 2; }
+  .status { height: 42px; padding: 16px 26px 0; display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: #111; background: #f6f6f6; }
+  .head { background: #f6f6f6; padding: 6px 14px 9px; display: flex; align-items: center; gap: 9px; border-bottom: 1px solid #ddd; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: #2f6fd6; color: #fff; display: grid; place-items: center; font-size: 13px; }
+  .head .n { font-size: 12.5px; font-weight: 600; color: #111; }
+  .head .s { font-size: 10.5px; color: #4b8a3c; }
+  .chat { flex: 1; padding: 8px 9px; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; overflow: hidden; }
+  .b { max-width: 88%; padding: 6px 9px 4px; border-radius: 10px; font-size: 11.4px; line-height: 1.45; color: #111; white-space: pre-line;
+       box-shadow: 0 1px 0 rgba(0,0,0,.08); }
+  .me { align-self: flex-end; background: #d9fdd3; border-top-right-radius: 3px; }
+  .bot { align-self: flex-start; background: #fff; border-top-left-radius: 3px; }
+  .t { display: inline-block; direction: ltr; font-size: 9px; color: #8a8a8a; margin-right: 9px; vertical-align: -2px; font-family: Inter, sans-serif; }
+  .sp { display: block; height: 5px; }
+  .bar { background: #f6f6f6; padding: 7px 12px 14px; }
+  .bar div { background: #fff; border-radius: 16px; height: 28px; border: 1px solid #ddd; }
+
+  /* behind the screen */
+  .panel { background: rgba(8,14,26,.75); border: 1px solid #253656; border-radius: 16px; padding: 18px 20px; position: relative; }
+  .panel::before { content: ""; position: absolute; left: -41px; top: 50%; width: 40px; border-top: 2px dashed #3d5a8c; }
+  .ph { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+  .ph b { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #8cb8ff; }
+  .ph span { font-size: 11.5px; color: #7f8fab; }
+  .step { position: relative; padding-left: 22px; margin-bottom: 9px; }
+  .step::before { content: ""; position: absolute; left: 5px; top: 7px; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+  .step::after { content: ""; position: absolute; left: 8.5px; top: 18px; bottom: -12px; border-left: 1px solid #2a3c5e; }
+  .step:last-child::after { display: none; }
+  .lab { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--c); }
+  .call { font-size: 12.3px; color: #d6e4ff; margin-top: 2px; line-height: 1.45; }
+  .call .fn { color: #8cb8ff; } .call .s { color: #f2c98a; }
+  .res { font-size: 12px; color: #c7d2e3; margin-top: 2px; line-height: 1.45; }
+  .ok { font-size: 12px; color: #7fd8a4; margin-top: 2px; }
+  .gap { height: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <div class="kicker">Saudi-dialect receptionist · tool calling</div>
+    <h1>Gemma-4-12B,<br><span>fine-tuned</span></h1>
+    <div class="sub">Google's Gemma 4, trained with QLoRA on one RTX&nbsp;5080 to answer WhatsApp customers using the business's own tools.</div>
+    <div class="stats">
+      <div class="stat"><b>93.8%</b><span>on a fresh 160-case test</span></div>
+      <div class="stat"><b style="font-size:21px;line-height:31px">= DeepSeek</b><span>level with its V4.1 Flash API (92.5%)</span></div>
+      <div class="stat"><b>0.7 s</b><span>per reply, on one PC</span></div>
+      <div class="stat"><b>&lt;$0.01</b><span>per 1,000 replies</span></div>
+    </div>
+    <div class="note">Real, unedited replies from the 4-bit GGUF build.</div>
+  </div>
+
+  <div class="phone"><div class="island"></div><div class="screen">
+    <div class="status"><span>9:41</span><span>●●● 5G</span></div>
+    <div class="head"><div class="avatar ar">ع</div><div><div class="n ar">عيادة ابتسامة المروج</div><div class="s">online · AI receptionist</div></div></div>
+    <div class="chat">
+      <div class="b me ar">السلام عليكم، وش عندكم خدمات وكم أسعارها؟<span class="t">9:41</span></div>
+      <div class="b bot ar">وعليكم السلام، هلا. عندنا هذي الخدمات:
+<i class="sp"></i>كشف واستشارة - 100 ريال، 20 دقيقة
+تنظيف أسنان - 250 ريال، 45 دقيقة
+حشوة تجميلية - 350 ريال، 60 دقيقة
+تبييض - 1200 ريال، 90 دقيقة
+استشارة تقويم - 150 ريال، 30 دقيقة
+<i class="sp"></i>وش اللي يريحك؟<span class="t">9:41</span></div>
+      <div class="b me ar">ابي تنظيف بكره العصر<span class="t">9:42</span></div>
+      <div class="b bot ar">بكرة الخميس المتاح لتنظيف الأسنان:
+<i class="sp"></i>4 المسا
+4 ونص المسا
+6 المسا
+8 المسا
+9 ونص المسا
+<i class="sp"></i>أي وقت يناسبك؟<span class="t">9:42</span></div>
+    </div>
+    <div class="bar"><div></div></div>
+  </div></div>
+
+  <div class="panel">
+    <div class="ph"><b>Behind the screen</b><span>what the model did</span></div>
+    <div class="step" style="--c:#8cb8ff"><div class="lab">Model calls a tool</div>
+      <div class="call mono"><span class="fn">search_services</span>(query: <span class="s">""</span>)</div></div>
+    <div class="step" style="--c:#f2c98a"><div class="lab">Booking system answers</div>
+      <div class="res">5 services, each with a price and a duration</div></div>
+    <div class="step" style="--c:#7fd8a4"><div class="lab">Reply checked</div>
+      <div class="ok">✓ all 5 prices and durations come from the tool</div></div>
+    <div class="gap"></div>
+    <div class="step" style="--c:#8cb8ff"><div class="lab">Model calls a tool</div>
+      <div class="call mono"><span class="fn">get_available_slots</span>(service_id: <span class="s">"cleaning"</span>,<br>&nbsp;&nbsp;date: <span class="s">"2026-10-08"</span>, after: <span class="s">"15:00"</span>)</div>
+      <div class="res"><span class="ar">«بكره العصر»</span> → tomorrow (Thursday), after Asr</div></div>
+    <div class="step" style="--c:#f2c98a"><div class="lab">Booking system answers</div>
+      <div class="res mono">16:00 · 16:30 · 18:00 · 20:00 · 21:30</div></div>
+    <div class="step" style="--c:#7fd8a4"><div class="lab">Reply checked</div>
+      <div class="ok">✓ exactly these 5 times, nothing invented</div></div>
+  </div>
+</div>
+</body>
+</html>
