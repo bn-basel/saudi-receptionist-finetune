@@ -56,7 +56,9 @@ the same prompts as the original:
 | GGUF Q4_K_M (4.0 GB) | 134 | 149 |
 
 The GGUF's built-in chat template gives exactly the training prompt in 320 of 320 cases (llama-server `--jinja`,
-LM Studio).
+LM Studio). Through the ways people actually run it, Q4_K_M on greeted test v1 scores 152 with llama-server's chat API
+and 145 in Ollama with the Modelfile in this repository (the same first move as the exact route in 155 of 160 cases;
+Ollama ships its own llama.cpp build, whose arithmetic differs slightly).
 
 ## How it calls tools
 
@@ -80,6 +82,7 @@ text, calls = parse_tool_calls(reply)                               # [{"name": 
 ## Run it
 
 **LM Studio / llama.cpp:** download `allam-7b-saudi-receptionist-Q4_K_M.gguf` (4.0 GB, fits a laptop) or `Q8_0`.
+**Ollama:** put [`Modelfile.allam`](Modelfile.allam) next to the GGUF and run `ollama create allam-saudi-receptionist -f Modelfile.allam`.
 
 ```bash
 llama-server -m allam-7b-saudi-receptionist-Q4_K_M.gguf -ngl 99 -c 4096 --jinja

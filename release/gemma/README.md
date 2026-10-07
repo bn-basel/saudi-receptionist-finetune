@@ -49,7 +49,18 @@ Note: this is the second Gemma run on test v2. The fix behind this version (belo
 without reading test v2's answers, but the search began because of the first run's result.
 
 **GGUF builds, re-tested** on the practice copy of test v1 (160 cases, as written and with a greeting added), with
-the same prompts as the original: GGUF_RESULTS
+the same prompts as the original:
+
+| Version | Test v1 | Test v1, greeted |
+|---|---|---|
+| Original (adapter on the 4-bit base, as evaluated) | 151 | 153 |
+| GGUF Q8_0 (11.8 GB) | 154 | 154 |
+| GGUF Q4_K_M (6.9 GB) | 153 | 148 |
+
+Q8_0 matches the original; Q4_K_M may cost a little on greeted messages (148 against 153; paired test p = 0.18, so
+not clearly more than chance). Pick Q8_0 if it fits. Through the ways people actually run it, Q4_K_M on greeted test v1
+scores 148 with llama-server's chat API (the GGUF's own template and tool parser, as in LM Studio) and 149 in Ollama.
+The built-in template gives exactly the training prompt in 320 of 320 cases.
 
 ## Use it with thinking switched off, exactly as trained
 
@@ -63,7 +74,8 @@ character).
 
 ## Run it
 
-**llama.cpp / LM Studio:** download `saudi-receptionist-gemma-4-12b-Q4_K_M.gguf` (6.9 GB) or `Q8_0` (11.8 GB).
+**llama.cpp / LM Studio:** download `saudi-receptionist-gemma-4-12b-Q8_0.gguf` (11.8 GB, best) or `Q4_K_M` (6.9 GB).
+**Ollama:** `ollama create saudi-receptionist-gemma -f Modelfile.gemma` with [`Modelfile.gemma`](Modelfile.gemma) next to the GGUF; Ollama recognises Gemma 4 and uses its own Gemma 4 renderer and tool parser. Call `/api/chat` with `"think": false`.
 
 ```bash
 llama-server -m saudi-receptionist-gemma-4-12b-Q4_K_M.gguf -ngl 99 -c 4096 --jinja

@@ -28,7 +28,19 @@ The goal is to beat both the untuned base model and a strong API baseline on a h
   chat format adds an empty "thinking" block that its training text never had. Training every move exactly as it is
   tested fixed it.
 
+![Accuracy, cost per 1,000 replies and speed per reply](docs/charts/scoreboard.svg)
+
 ![Every model on test v1 and the fresh test v2](docs/charts/v1_vs_v2.svg)
+
+## Try it
+
+- **Models:** both fine-tuned models as one-file GGUF downloads for LM Studio, llama.cpp and Ollama, plus the
+  adapters, with model cards: [Gemma-4-12B](release/gemma/README.md), [ALLaM-7B](release/allam/README.md). Each file was
+  re-tested before release, including through LM Studio-style chat and Ollama ([docs/RELEASE.md](docs/RELEASE.md)).
+- **Demo:** [`release/demo/`](release/demo/) is a local chat page: write as a Saudi customer and watch the receptionist
+  call its tools (prices, free times, booking) against a fake clinic calendar. Nothing leaves your PC.
+- **ALLaM tool calling:** [`release/allam/allam_tools.py`](release/allam/allam_tools.py), a dependency-free helper for
+  ALLaM's text tool format.
 
 ## Status
 

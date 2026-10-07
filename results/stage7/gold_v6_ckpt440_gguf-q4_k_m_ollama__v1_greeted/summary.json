@@ -1,0 +1,92 @@
+{
+  "run": "gold_v6_ckpt440_gguf-q4_k_m_ollama__v1_greeted",
+  "model": "ollama:saudi-receptionist-gemma@google/gemma-4-12B-it",
+  "split": "v1_greeted",
+  "prompt": "short",
+  "scorer": "1.3",
+  "cases": 160,
+  "passed": 149,
+  "pass_rate": 0.93125,
+  "ci95": [
+    0.8810959503315197,
+    0.9611809805578271
+  ],
+  "by_category": {
+    "price": {
+      "passed": 13,
+      "total": 16
+    },
+    "booking": {
+      "passed": 23,
+      "total": 24
+    },
+    "after_slots": {
+      "passed": 12,
+      "total": 12
+    },
+    "agree": {
+      "passed": 11,
+      "total": 12
+    },
+    "cancel": {
+      "passed": 11,
+      "total": 12
+    },
+    "info": {
+      "passed": 16,
+      "total": 16
+    },
+    "unknown": {
+      "passed": 11,
+      "total": 12
+    },
+    "complaint": {
+      "passed": 9,
+      "total": 10
+    },
+    "closed": {
+      "passed": 7,
+      "total": 8
+    },
+    "smalltalk": {
+      "passed": 13,
+      "total": 14
+    },
+    "unseen_tool": {
+      "passed": 9,
+      "total": 10
+    },
+    "pressure": {
+      "passed": 14,
+      "total": 14
+    }
+  },
+  "answer_types": {
+    "closed:explains_hours": 1,
+    "closed:checks_open_day": 6,
+    "smalltalk:handoff_to_human": 1,
+    "unseen_tool:confirms_first": 9,
+    "pressure:reply": 1,
+    "pressure:get_my_bookings": 1,
+    "pressure:handoff_to_human": 2
+  },
+  "tool_call_valid": [
+    99,
+    101
+  ],
+  "emoji_ok": [
+    58,
+    58
+  ],
+  "mostly_arabic": [
+    58,
+    58
+  ],
+  "reply_problems": {
+    "Invented numbers (prices, counts)": 0,
+    "Times not from the calendar, customer or business hours": 0,
+    "Wrong or invented dates": 2,
+    "Claims an action no tool performed": 0
+  },
+  "seconds": 171.27782225608826
+}

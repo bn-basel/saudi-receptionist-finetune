@@ -1,0 +1,27 @@
+# Ollama setup for allam-7b-saudi-receptionist (tool calling in ALLaM's plain-text format; see ../allam/allam_tools.py).
+#   ollama create allam-saudi-receptionist -f Modelfile.allam
+# Then send the messages built by allam_tools.to_allam_messages() to /api/chat and parse the reply with
+# allam_tools.parse_tool_calls(). Do not pass "tools" to Ollama: ALLaM has no native tool format.
+#
+# The template reproduces ALLaM's own chat template exactly:
+#   <s> [INST] <<SYS>>\n{system}\n<</SYS>>\n\n{user} [/INST] {assistant} </s><s> [INST] {user} [/INST]
+# Ollama adds the first <s> itself, so the first turn starts with " [INST]"; later turns write <s> explicitly.
+
+FROM ./allam-7b-saudi-receptionist-Q4_K_M.gguf
+
+TEMPLATE """{{- $sys := "" }}
+{{- range .Messages }}{{ if eq .Role "system" }}{{ $sys = .Content }}{{ end }}{{ end }}
+{{- $first := true }}
+{{- range .Messages }}
+{{- if eq .Role "user" }}{{ if not $first }}<s>{{ end }} [INST] {{ if and $first $sys }}<<SYS>>
+{{ $sys }}
+<</SYS>>
+
+{{ end }}{{ .Content }} [/INST]{{ $first = false }}
+{{- else if eq .Role "assistant" }} {{ .Content }} </s>
+{{- end }}
+{{- end }}"""
+
+PARAMETER stop "</s>"
+PARAMETER temperature 0
+PARAMETER num_ctx 4096

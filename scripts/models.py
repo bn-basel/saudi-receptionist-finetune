@@ -8,6 +8,13 @@
   llamacpp:<url>@<repo_id>  A GGUF build served by llama.cpp's llama-server at <url>. The prompt is rendered
                    by <repo_id>'s tokenizer exactly as for hf: and sent as token ids, so a re-test measures
                    only the GGUF file (merged weights, 8- or 4-bit), not a different prompt. Greedy decoding.
+  llamachat:<url>@<repo_id>  The same llama-server, used the way apps use it (LM Studio, OpenAI-style clients):
+                   its chat API builds the prompt with the GGUF's own template (start llama-server with
+                   --jinja) and parses Gemma's tool calls itself. Greedy decoding.
+  ollama:<model>@<repo_id>  A model imported into a local Ollama (http://127.0.0.1:11434), used the way Ollama's
+                   users use it: through its chat API, with Ollama's own template and tool-call parsing (for
+                   ALLaM, the plain-text tool format of release/allam/allam_tools.py). <repo_id> only decides
+                   which of the two formats applies. Greedy decoding.
   or:<competitor>  An API model through OpenRouter, one of COMPETITORS below: a fixed model,
                    fixed providers (so results are reproducible), thinking on, max_tokens 2048
                    (the same cap the production setup uses), providers that store data excluded.
@@ -250,6 +257,95 @@ class LlamaCppModel(HFModel):
         return out
 
 
+class LlamaChatModel:
+    """llama-server's OpenAI-style chat API: what an app such as LM Studio gets, template and tool parser included."""
+
+    price = (0.0, 0.0)
+
+    def __init__(self, url: str, repo_id: str, max_new_tokens: int = 256):
+        from transformers import AutoTokenizer
+        self.url, self.max_new_tokens = url.rstrip("/"), max_new_tokens
+        self.name = f"llamachat:{self.url}@{repo_id}"
+        self.text_tools = uses_text_tools(AutoTokenizer.from_pretrained(repo_id))
+
+    def chat(self, messages: list[dict], tools: list[dict] | None) -> dict:
+        import urllib.request
+        body = {"messages": messages, "temperature": 0, "top_k": 1, "max_tokens": self.max_new_tokens}
+        if tools:
+            body.update(tools=tools, chat_template_kwargs={"enable_thinking": False})
+        req = urllib.request.Request(f"{self.url}/v1/chat/completions", data=json.dumps(body, ensure_ascii=False).encode(),
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=600) as r:
+            return json.loads(r.read())["choices"][0]["message"]
+
+    def step(self, case: dict, system_prompt: str, tools: list[dict]) -> dict:
+        if self.text_tools:
+            msg = self.chat(text_tool_messages(system_prompt, case["messages"], tools), None)
+            text, calls = parse_text_tool_calls(msg.get("content") or "")
+            return {"text": text, "tool_calls": calls, "raw": msg.get("content") or "", "tool_format": "text"}
+        messages = [{"role": "system", "content": system_prompt}]
+        for m in case["messages"]:
+            if m.get("tool_calls"):  # OpenAI style: arguments as a JSON string
+                messages.append({"role": "assistant", "content": "", "tool_calls": [
+                    {"id": tc["id"], "type": "function", "function": {"name": tc["function"]["name"],
+                     "arguments": json.dumps(tc["function"]["arguments"], ensure_ascii=False)}} for tc in m["tool_calls"]]})
+            else:
+                messages.append({k: v for k, v in m.items() if k in ("role", "content", "tool_call_id", "name")})
+        msg = self.chat(messages, tools)
+        calls = []
+        for tc in msg.get("tool_calls") or []:
+            args = tc["function"].get("arguments") or "{}"
+            try:
+                args = json.loads(args) if isinstance(args, str) else args
+            except json.JSONDecodeError:
+                pass
+            calls.append({"name": tc["function"]["name"], "arguments": args})
+        return {"text": (msg.get("content") or "").strip() or None, "tool_calls": calls, "raw": msg.get("content") or ""}
+
+
+class OllamaModel:
+    """A GGUF build served by Ollama, through its chat API: what an Ollama user gets, template and parser included."""
+
+    price = (0.0, 0.0)
+
+    def __init__(self, model: str, repo_id: str, url: str = "http://127.0.0.1:11434", max_new_tokens: int = 256):
+        from transformers import AutoTokenizer
+        self.model, self.url, self.max_new_tokens = model, url, max_new_tokens
+        self.name = f"ollama:{model}@{repo_id}"
+        self.text_tools = uses_text_tools(AutoTokenizer.from_pretrained(repo_id))
+
+    def chat(self, messages: list[dict], tools: list[dict] | None) -> dict:
+        import urllib.request
+        body = {"model": self.model, "messages": messages, "stream": False, "think": False,
+                "options": {"temperature": 0, "top_k": 1, "seed": 0, "num_predict": self.max_new_tokens, "num_ctx": 4096}}
+        if tools:
+            body["tools"] = tools
+        req = urllib.request.Request(f"{self.url}/api/chat", data=json.dumps(body, ensure_ascii=False).encode(),
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=600) as r:
+            return json.loads(r.read())["message"]
+
+    def step(self, case: dict, system_prompt: str, tools: list[dict]) -> dict:
+        if self.text_tools:
+            msg = self.chat(text_tool_messages(system_prompt, case["messages"], tools), None)
+            text, calls = parse_text_tool_calls(msg.get("content") or "")
+            return {"text": text, "tool_calls": calls, "raw": msg.get("content") or "", "tool_format": "text"}
+        messages = [{"role": "system", "content": system_prompt}]
+        for m in case["messages"]:
+            if m.get("tool_calls"):
+                messages.append({"role": "assistant", "content": m.get("content") or "", "tool_calls": [
+                    {"function": {"name": tc["function"]["name"], "arguments": tc["function"]["arguments"]}}
+                    for tc in m["tool_calls"]]})
+            elif m["role"] == "tool":
+                messages.append({"role": "tool", "content": m["content"], "tool_name": m.get("name", "")})
+            else:
+                messages.append({"role": m["role"], "content": m["content"]})
+        msg = self.chat(messages, tools)
+        calls = [{"name": tc["function"]["name"], "arguments": tc["function"].get("arguments") or {}}
+                 for tc in msg.get("tool_calls") or []]
+        return {"text": (msg.get("content") or "").strip() or None, "tool_calls": calls, "raw": msg.get("content") or ""}
+
+
 class OpenRouterModel:
     """An API competitor through OpenRouter's OpenAI-compatible endpoint."""
 
@@ -323,6 +419,12 @@ def load_model(spec: str):
     if spec.startswith("llamacpp:"):  # llamacpp:<url>@<repo_id>
         url, _, repo = spec[len("llamacpp:"):].rpartition("@")
         return LlamaCppModel(url, repo)
+    if spec.startswith("llamachat:"):  # llamachat:<url>@<repo_id>
+        url, _, repo = spec[len("llamachat:"):].rpartition("@")
+        return LlamaChatModel(url, repo)
+    if spec.startswith("ollama:"):  # ollama:<model>@<repo_id>
+        model, _, repo = spec[len("ollama:"):].rpartition("@")
+        return OllamaModel(model, repo)
     if spec.startswith("or:"):
         return OpenRouterModel(spec[3:])
     raise ValueError(f"unknown model {spec!r} (use oracle, hf:<repo>, or or:<{'|'.join(COMPETITORS)}>)")

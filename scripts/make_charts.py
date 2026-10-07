@@ -158,6 +158,48 @@ def test_scores() -> None:
                "Whiskers: 95% interval.", rows)
 
 
+WATTS, USD_PER_KWH = 360, 0.15  # RTX 5080 at its full power limit, a typical electricity price: a generous upper bound
+SCOREBOARD = [  # label, colour, test v2 run (accuracy), run for speed, API cost source (None: local, electricity only)
+    ("Gemma-4-12B, fine-tuned (ours)", "ours", "stage7/gold_v6_ckpt440__test_v2", "stage7/gold_v6_ckpt440_gguf-q4_k_m__test", None),
+    ("DeepSeek V4.1 Flash (API)", "api", "stage5/or__deepseek-v4.1-flash__test_v2", "stage5/or__deepseek-v4.1-flash__test_v2", "api"),
+    ("GPT-5.4 mini (API)", "api", "stage5/or__gpt-5.4-mini__test_v2", "stage5/or__gpt-5.4-mini__test_v2", "api"),
+    ("Gemini 3.8 Flash (API)", "api", "stage5/or__gemini-3.8-flash__test_v2", "stage5/or__gemini-3.8-flash__test_v2", "api"),
+    ("ALLaM-7B, fine-tuned (ours)", "allam", "stage7/allam_v1_ckpt414__test_v2", "stage7/allam_v1_ckpt414_gguf-q4_k_m__test", None),
+]
+
+
+def scoreboard() -> None:
+    """Accuracy, cost per 1,000 replies and seconds per reply, side by side."""
+    rows = []
+    for label, colour, acc, speed, cost in SCOREBOARD:
+        if not (exists(acc) and exists(speed)):
+            return
+        a, s = summary(acc), summary(speed)
+        sec = s["seconds"] / s["cases"]
+        usd = (a["usage"]["estimated_usd"] / a["cases"] * 1000) if cost else sec * WATTS / 3.6e6 * USD_PER_KWH * 1000
+        rows.append((label, colour, a["pass_rate"], usd, sec, cost is None))
+    left, top, row_h, w = 250, 112, 40, 880
+    panels = [(left, 175, "Accuracy (test v2)", lambda r: r[2], 1.0, lambda r: f"{r[2]:.1%}"),
+              (left + 215, 165, "Cost per 1,000 replies", lambda r: r[3], max(r[3] for r in rows) * 1.05,
+               lambda r: f"${r[3]:.2f}" if r[3] >= 0.05 else f"<${max(0.01, round(r[3], 2)):.2f}"),
+              (left + 420, 150, "Seconds per reply", lambda r: r[4], max(r[4] for r in rows) * 1.05, lambda r: f"{r[4]:.1f} s")]
+    body = header("Same accuracy, a fraction of the cost, faster",
+                  f"Ours: 4-bit GGUF on one RTX 5080, cost = electricity at {WATTS} W and ${USD_PER_KWH}/kWh. "
+                  "APIs: providers' prices and measured speed.")
+    for x0, width, title, _, _, _ in panels:
+        body.append(text(x0, top - 14, title, 12.5, colour="muted", weight="bold"))
+    for i, row in enumerate(rows):
+        label, colour, *_ = row
+        y = top + i * row_h
+        body.append(text(left - 14, y + 14, label, 13, "end", colour if ours(colour) else "ink",
+                         "bold" if ours(colour) else "normal"))
+        for x0, width, _, get, top_value, fmt in panels:
+            bar = width * 0.72 * get(row) / top_value
+            body += [rect(x0, y, width * 0.72, 18, "grid", 4), rect(x0, y, max(bar, 2), 18, colour, 4),
+                     text(x0 + width * 0.72 + 6, y + 14, fmt(row), 12, weight="bold" if ours(colour) else "normal")]
+    save("scoreboard", "Accuracy, cost and speed per model", w, top + row_h * len(rows) + 10, body)
+
+
 def format_fix() -> None:
     """Runs 4-6 on the practice copy of test v1, with and without a greeting: the train/test format fix."""
     rows = [("Run 4", "trained without the empty thinking block", "gold_v4_ckpt414"),
@@ -400,6 +442,7 @@ if __name__ == "__main__":
     v1_vs_v2()
     greeting_experiment()
     format_fix()
+    scoreboard()
     runs_progress()
     category_heatmap()
     invented_facts()
