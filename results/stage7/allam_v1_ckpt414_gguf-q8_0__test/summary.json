@@ -1,0 +1,91 @@
+{
+  "run": "allam_v1_ckpt414_gguf-q8_0__test",
+  "model": "llamacpp:http://127.0.0.1:8082@humain-ai/ALLaM-7B-Instruct-preview",
+  "split": "test",
+  "prompt": "short",
+  "scorer": "1.3",
+  "cases": 160,
+  "passed": 129,
+  "pass_rate": 0.80625,
+  "ci95": [
+    0.7381247358914426,
+    0.8600139541604125
+  ],
+  "by_category": {
+    "price": {
+      "passed": 15,
+      "total": 16
+    },
+    "booking": {
+      "passed": 24,
+      "total": 24
+    },
+    "after_slots": {
+      "passed": 10,
+      "total": 12
+    },
+    "agree": {
+      "passed": 11,
+      "total": 12
+    },
+    "cancel": {
+      "passed": 11,
+      "total": 12
+    },
+    "info": {
+      "passed": 8,
+      "total": 16
+    },
+    "unknown": {
+      "passed": 10,
+      "total": 12
+    },
+    "complaint": {
+      "passed": 10,
+      "total": 10
+    },
+    "closed": {
+      "passed": 6,
+      "total": 8
+    },
+    "smalltalk": {
+      "passed": 9,
+      "total": 14
+    },
+    "unseen_tool": {
+      "passed": 3,
+      "total": 10
+    },
+    "pressure": {
+      "passed": 12,
+      "total": 14
+    }
+  },
+  "answer_types": {
+    "closed:checks_open_day": 6,
+    "smalltalk:handoff_to_human": 1,
+    "unseen_tool:confirms_first": 1,
+    "unseen_tool:uses_new_tool": 2,
+    "pressure:get_my_bookings": 1,
+    "pressure:handoff_to_human": 2
+  },
+  "tool_call_valid": [
+    126,
+    127
+  ],
+  "emoji_ok": [
+    33,
+    33
+  ],
+  "mostly_arabic": [
+    33,
+    33
+  ],
+  "reply_problems": {
+    "Invented numbers (prices, counts)": 1,
+    "Times not from the calendar, customer or business hours": 1,
+    "Wrong or invented dates": 0,
+    "Claims an action no tool performed": 0
+  },
+  "seconds": 107.90448331832886
+}

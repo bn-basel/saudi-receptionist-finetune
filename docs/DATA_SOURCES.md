@@ -6,7 +6,7 @@ Every model and dataset considered for training, with its licence and the decisi
 
 | Model | Licence | Outputs may train another model? | Decision |
 |---|---|---|---|
-| DeepSeek V4.1 Flash (via OpenRouter, DeepInfra) | MIT (open weights) | Yes: DeepSeek's terms list "training other models (such as model distillation)" as a permitted use | **Used** as the teacher |
+| DeepSeek V4.1 Flash (via OpenRouter, DeepInfra) | MIT (open weights) | Yes: DeepSeek's terms list "training other models (such as model distillation)" as a permitted use | **Used** as the base model of our generation pipeline: conversations drafted on it under our own rules (51, written and refined through review), then filtered by automatic checks and reviewed |
 | GPT-5.4 mini, Gemini 3.8 Flash | provider terms | No: their terms forbid using outputs to develop competing models | Benchmark competitors only, never training data |
 | Claude models | Anthropic commercial terms | No: "train competing AI models" is not allowed | Not used to write training data; the test drafts came from this family, so the training data deliberately comes from a different one. Used as the reviewer of generated conversations (below): its accept/reject verdicts choose which conversations are kept, but none of its text is in the training data |
 

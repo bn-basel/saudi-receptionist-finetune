@@ -42,6 +42,7 @@ The goal is to beat both the untuned base model and a strong API baseline on a h
 | 5 | Benchmark harness and baselines | Done: results below |
 | 6 | Training data: generation, automatic checks, review | 1,162 reviewed conversations used in run 4; 95–97% of each recent batch passes review |
 | 7 | QLoRA fine-tuning | Test v2: Gemma-4-12B (run 6) **93.8%**, ALLaM-7B **87.5%**; API models 88–93% |
+| Release | Model files, cards, demo | GGUF builds made and re-tested; model cards and a local demo ready ([docs/RELEASE.md](docs/RELEASE.md)); Hugging Face upload next |
 
 Nothing below this line is claimed until it is done and verified. Results, dataset card and model card will be added when they exist.
 

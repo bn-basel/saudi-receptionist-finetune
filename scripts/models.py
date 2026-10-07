@@ -5,6 +5,9 @@
                    the harness: it must score 100%.
   hf:<repo_id>     A local Hugging Face model in 4-bit (the same way it will be trained),
                    greedy decoding so every run gives the same output.
+  llamacpp:<url>@<repo_id>  A GGUF build served by llama.cpp's llama-server at <url>. The prompt is rendered
+                   by <repo_id>'s tokenizer exactly as for hf: and sent as token ids, so a re-test measures
+                   only the GGUF file (merged weights, 8- or 4-bit), not a different prompt. Greedy decoding.
   or:<competitor>  An API model through OpenRouter, one of COMPETITORS below: a fixed model,
                    fixed providers (so results are reproducible), thinking on, max_tokens 2048
                    (the same cap the production setup uses), providers that store data excluded.
@@ -172,10 +175,7 @@ class HFModel:
                                               enable_thinking=False, tokenize=False)
         if self.no_thought and prompt.endswith(self.EMPTY_THOUGHT):
             prompt = prompt[: -len(self.EMPTY_THOUGHT)]
-        inputs = self.tok(prompt, return_tensors="pt", add_special_tokens=False).to(self.model.device)
-        with self.torch.no_grad():
-            out = self.model.generate(**inputs, max_new_tokens=self.max_new_tokens, do_sample=False)
-        raw = self.tok.decode(out[0, inputs["input_ids"].shape[1]:], skip_special_tokens=False)
+        raw = self.tok.decode(self.generate_ids(prompt), skip_special_tokens=False)
         try:
             parsed = self.tok.parse_response(raw, prefix=prompt)
         except Exception as e:  # unparseable output counts as a plain-text reply
@@ -194,12 +194,60 @@ class HFModel:
     def text_tool_step(self, case: dict, system_prompt: str, tools: list[dict]) -> dict:
         messages = text_tool_messages(system_prompt, case["messages"], tools)
         prompt = self.tok.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
+        raw = self.tok.decode(self.generate_ids(prompt), skip_special_tokens=True)
+        text, calls = parse_text_tool_calls(raw)
+        return {"text": text, "tool_calls": calls, "raw": raw, "tool_format": "text"}
+
+    def generate_ids(self, prompt: str) -> list[int]:
+        """Greedy continuation of the prompt, as token ids (the end-of-turn token included)."""
         inputs = self.tok(prompt, return_tensors="pt", add_special_tokens=False).to(self.model.device)
         with self.torch.no_grad():
             out = self.model.generate(**inputs, max_new_tokens=self.max_new_tokens, do_sample=False)
-        raw = self.tok.decode(out[0, inputs["input_ids"].shape[1]:], skip_special_tokens=True)
-        text, calls = parse_text_tool_calls(raw)
-        return {"text": text, "tool_calls": calls, "raw": raw, "tool_format": "text"}
+        return out[0, inputs["input_ids"].shape[1]:].tolist()
+
+
+class LlamaCppModel(HFModel):
+    """A GGUF build behind llama.cpp's llama-server. Everything but generation is HFModel's: the same tokenizer renders
+    the same prompt, which is sent as token ids; the reply comes back as token ids and is parsed the same way."""
+
+    def __init__(self, url: str, repo_id: str, max_new_tokens: int = 256):
+        from transformers import AutoTokenizer
+
+        self.url = url.rstrip("/")
+        self.name = f"llamacpp:{self.url}@{repo_id}"
+        self.max_new_tokens, self.no_thought = max_new_tokens, False
+        self.tok = AutoTokenizer.from_pretrained(repo_id)
+        self.text_tools = uses_text_tools(self.tok)
+        eos = self.gen_eos(repo_id)
+        self.stop_ids = set(eos if isinstance(eos, list) else [eos])
+
+    @staticmethod
+    def gen_eos(repo_id: str):
+        from transformers import GenerationConfig
+        return GenerationConfig.from_pretrained(repo_id).eos_token_id
+
+    def generate_ids(self, prompt: str) -> list[int]:
+        import urllib.request
+        ids = self.tok(prompt, add_special_tokens=False)["input_ids"]
+        body = {"prompt": ids, "n_predict": self.max_new_tokens, "temperature": 0, "top_k": 1, "return_tokens": True,
+                "cache_prompt": True}
+        req = urllib.request.Request(f"{self.url}/completion", data=json.dumps(body).encode(),
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=600) as r:
+            res = json.loads(r.read())
+        out = list(res.get("tokens") or [])
+        # llama-server leaves out the token it stopped on; Hugging Face's generate keeps it. Put it back, so the two
+        # parse the same text: for Gemma a tool call ends on <|tool_response>, a reply on <turn|>; for ALLaM </s>
+        # (skipped when decoding anyway).
+        if res.get("stop_type") == "eos" and (not out or out[-1] not in self.stop_ids):
+            text = self.tok.decode(out, skip_special_tokens=False)
+            if self.text_tools:
+                out.append(self.tok.eos_token_id)
+            elif text.rstrip().endswith("<tool_call|>"):
+                out.append(self.tok.convert_tokens_to_ids("<|tool_response>"))
+            else:
+                out.append(self.tok.convert_tokens_to_ids("<turn|>"))
+        return out
 
 
 class OpenRouterModel:
@@ -272,6 +320,9 @@ def load_model(spec: str):
         body, no_thought = (spec[3:-len("~nothought")], True) if spec.endswith("~nothought") else (spec[3:], False)
         repo, _, adapter = body.partition("@")
         return HFModel(repo, adapter=adapter or None, no_thought=no_thought)
+    if spec.startswith("llamacpp:"):  # llamacpp:<url>@<repo_id>
+        url, _, repo = spec[len("llamacpp:"):].rpartition("@")
+        return LlamaCppModel(url, repo)
     if spec.startswith("or:"):
         return OpenRouterModel(spec[3:])
     raise ValueError(f"unknown model {spec!r} (use oracle, hf:<repo>, or or:<{'|'.join(COMPETITORS)}>)")
