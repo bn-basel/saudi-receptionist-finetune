@@ -30,7 +30,7 @@ tags:
   (88.1%).
 - Fine-tuned with QLoRA on **one RTX 5080** in about an hour. Runs locally in **0.5 s per reply**, for **under $0.01 per
   1,000 replies** in electricity.
-- Built by **Basel**, a CS/AI student at the University of Melbourne and the founder of Mudeef, an AI agent
+- Built by **Basel**, a Computing and Software Systems student, specialising in AI, at the University of Melbourne, and the founder of Mudeef, an AI agent
   receptionist platform. Code, data and every result: [GitHub](https://github.com/bn-basel/saudi-receptionist-finetune).
 
 ## Results
