@@ -31,7 +31,7 @@ tags:
 - Fine-tuned with QLoRA on **one RTX 5080** in about an hour. Runs locally in **0.5 s per reply**, for **under $0.01 per
   1,000 replies** in electricity.
 - Built by **Basel**, a CS/AI student at the University of Melbourne and the founder of Mudeef, an AI agent
-  receptionist platform. Code, data and every result: [GitHub](https://github.com/bn-basel/mujawib-receptionist-finetune).
+  receptionist platform. Code, data and every result: [GitHub](https://github.com/bn-basel/saudi-receptionist-finetune).
 
 ## Results
 
@@ -117,7 +117,7 @@ prompt = tok.apply_chat_template(to_allam_messages(system_prompt, conversation, 
 <summary><b>System prompt and tools it was trained with</b></summary>
 
 One system prompt per business, built by
-[`scripts/prompt.py`](https://github.com/bn-basel/mujawib-receptionist-finetune/blob/main/scripts/prompt.py):
+[`scripts/prompt.py`](https://github.com/bn-basel/saudi-receptionist-finetune/blob/main/scripts/prompt.py):
 
 ```text
 You are نورة (female), WhatsApp receptionist of عيادة ابتسامة المروج لطب الأسنان, a dental clinic in الرياض.
@@ -130,7 +130,7 @@ Style: Relaxed everyday Saudi ... No emojis at all. Use masculine forms unless .
 Rules: General Saudi dialect only, short WhatsApp messages. Prices, times and bookings only from tools; never invent. ...
 ```
 
-Tools ([schemas](https://github.com/bn-basel/mujawib-receptionist-finetune/blob/main/spec/tools.json)):
+Tools ([schemas](https://github.com/bn-basel/saudi-receptionist-finetune/blob/main/spec/tools.json)):
 `search_services`, `get_available_slots`, `create_booking`, `get_my_bookings`, `cancel_booking`, `handoff_to_human`.
 New tools can be added in the same format: given a tool it never saw in training (`reschedule_booking`), it passed 9 of
 10 cases.
