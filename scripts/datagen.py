@@ -47,7 +47,7 @@ TOKEN_LIMIT = 1280  # hard cap; Stage 2 measured 1,024 as safe, Stage 7 may exte
 DAYS_EN = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 # Writing rules for the teacher: the native-speaker decisions from the Stage 4 and Stage 6 reviews
-# (reviews/mujawib/decisions_v4.md). The important ones are also enforced by rule_checks().
+# (local review notes, decisions_v4.md). The important ones are also enforced by rule_checks().
 TEACHER_RULES = """Writing rules for every reply (decided by a native Saudi reviewer):
 - Write like a real Saudi receptionist texting on WhatsApp: short, natural spoken Saudi. Never Modern Standard Arabic, Egyptian or Levantine words (no ماذا، لماذا، أريد، الآن، سوف، يرجى، حسنًا). Every sentence complete, no "...".
 - If the customer's message has «السلام عليكم», your reply starts with «وعليكم السلام». Return the salaam once only: never start a later reply with «وعليكم السلام».
@@ -501,7 +501,7 @@ def generate_one(idx: int, sc: dict, teacher: OpenRouterModel, spec: tuple) -> t
     return rec, [], spent
 
 
-# --- Review rules (reviews/mujawib/decisions_v4.md), each backed by a check -------------------
+# --- Review rules (local review notes, decisions_v4.md), each backed by a check -------------------
 AR_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
 AR = "ء-ي"  # Arabic letters, for whole-word matching
 WEEKDAY = {"الاثنين": 0, "الإثنين": 0, "الثلاثاء": 1, "الثلاثا": 1, "الأربعاء": 2, "الاربعاء": 2, "الأربعا": 2,

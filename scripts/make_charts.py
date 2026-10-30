@@ -45,7 +45,7 @@ MODELS = [  # label, note, colour, results path without the split suffix
     ("Gemma-4-12B + QLoRA, run 6 (this project)", "trained exactly as it is tested", "ours", "stage7/gold_v6_ckpt440"),
     ("ALLaM-7B + QLoRA (this project)", "HUMAIN's model, our data, tool calling added", "allam", "stage7/allam_v1_ckpt414"),
     ("Gemma-4-12B + QLoRA, run 4", "same data, before the format fix", "r2", "stage7/gold_v4_ckpt414"),
-    ("DeepSeek V4.1 Flash (API)", "the model Mujawib runs on today", "api", "stage5/or__deepseek-v4.1-flash"),
+    ("DeepSeek V4.1 Flash (API)", "the model Mudeef runs on today", "api", "stage5/or__deepseek-v4.1-flash"),
     ("GPT-5.4 mini (API)", "commercial API", "api", "stage5/or__gpt-5.4-mini"),
     ("Gemini 3.8 Flash (API)", "commercial API", "api", "stage5/or__gemini-3.8-flash"),
     ("Gemma-4-12B, untuned", "Google's open model, prompted", "open", "stage5/google__gemma-4-12B-it"),
@@ -286,7 +286,7 @@ def runs_progress() -> None:
     body += [line(left, ys(deepseek), left + pw, ys(deepseek), "api", 1.6, "6 4"),
              text(left + pw + 12, ys(deepseek) - 2, f"DeepSeek V4.1 Flash {deepseek:.1%}", 12, colour="api",
                   weight="bold"),
-             text(left + pw + 12, ys(deepseek) + 14, "the API model Mujawib uses", 11, colour="muted")]
+             text(left + pw + 12, ys(deepseek) + 14, "the API model Mudeef uses", 11, colour="muted")]
     for i in range(len(points) - 1):
         body.append(line(xs(i), ys(points[i][3]["pass_rate"]), xs(i + 1), ys(points[i + 1][3]["pass_rate"]),
                          "axis", 2))

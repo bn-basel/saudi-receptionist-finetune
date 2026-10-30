@@ -61,4 +61,4 @@ one, and its chat API scores the same as the exact route.
    uv run hf upload bnbasel/allam-7b-saudi-receptionist C:/WIP/release-work/allam-7b-saudi-receptionist/gguf . --include "*.gguf"
    uv run hf upload bnbasel/allam-7b-saudi-receptionist release/allam .
    ```
-3. The model cards already use these names: `bnbasel` on Hugging Face and `bn-basel/mujawib-receptionist-finetune` on GitHub.
+3. The model cards already use these names: `bnbasel` on Hugging Face and `bn-basel/saudi-receptionist-finetune` on GitHub.

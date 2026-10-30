@@ -109,7 +109,7 @@ The review applied 13 rules. The ones that shape the text: the assistant writes 
 
 Safeguards:
 - No test or dev case is ever used for training, and the training data will come from a different generator than the test drafts, so the test cannot resemble the training set through a shared writer.
-- Nothing from Mujawib (prompts, cases, outputs) is used in the test or dev sets.
+- Nothing from Mudeef (prompts, cases, outputs) is used in the test or dev sets.
 - A leakage check (n-gram overlap) between the test set and the training data runs in Stage 6.
 - Limitation, to be stated in the README: one drafting source and one human editor, so the phrasing is less varied than real customers.
 
