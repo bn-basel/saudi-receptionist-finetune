@@ -32,4 +32,4 @@ Review verdicts: an AI reviewer (Claude) reviewed every conversation against rul
 
 ## Never used
 
-Nothing from Mujawib's code, prompts, rules or evaluation cases is used anywhere in this project, and none of its outputs are used as test or training text. One narrow exception: the Stage 2 tokenizer probe (only measured tokenizers, kept out of git).
+Nothing from Mudeef's code, prompts, rules or evaluation cases is used anywhere in this project, and none of its outputs are used as test or training text. One narrow exception: the Stage 2 tokenizer probe (only measured tokenizers, kept out of git).

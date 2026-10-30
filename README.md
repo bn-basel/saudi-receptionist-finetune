@@ -16,7 +16,7 @@
   ([Gemma](https://huggingface.co/bnbasel/saudi-receptionist-gemma-4-12b),
   [ALLaM](https://huggingface.co/bnbasel/allam-7b-saudi-receptionist)).
 
-**About.** I'm Basel, a CS/AI student at the University of Melbourne and the founder of Mujawib, an AI agent
+**About.** I'm Basel, a CS/AI student at the University of Melbourne and the founder of Mudeef, an AI agent
 receptionist platform that runs on a commercial API model today. This project asks whether a small open model, fine-tuned on a single consumer GPU, can do
 the same job: call the tools correctly *and* write natural Saudi dialect. The tool-calling half is answered below; the
 dialect half (a blind native-speaker review) is next.
@@ -66,7 +66,7 @@ dialect half (a blind native-speaker review) is next.
 | 5 | Benchmark harness and baselines | Done: results below |
 | 6 | Training data: generation, automatic checks, review | 1,162 reviewed conversations used in run 4; 95–97% of each recent batch passes review |
 | 7 | QLoRA fine-tuning | Test v2: Gemma-4-12B (run 6) **93.8%**, ALLaM-7B **87.5%**; API models 88–93% |
-| Release | Model files, cards, demo | GGUF builds made and re-tested; model cards and a local demo ready ([docs/RELEASE.md](docs/RELEASE.md)); Hugging Face upload next |
+| Release | Model files, cards, demo | GGUF builds made and re-tested; model cards and a local demo ready ([docs/RELEASE.md](docs/RELEASE.md)); both models are live on Hugging Face ([Gemma](https://huggingface.co/bnbasel/saudi-receptionist-gemma-4-12b), [ALLaM](https://huggingface.co/bnbasel/allam-7b-saudi-receptionist)) |
 
 Nothing below this line is claimed until it is done and verified. Results, dataset card and model card will be added when they exist.
 
@@ -109,7 +109,7 @@ Check them with `sha256sum data/test/*_v1.jsonl` (Linux, macOS, Git Bash) or `Ge
 | Gemma-4-12B-it, untuned | local, 4-bit, greedy, thinking off | 40.6% (33–48%) | 44.4% (37–52%) | 13 / 5 / 5 / 0 |
 | ALLaM-7B-Instruct-preview | local, 4-bit, greedy; no tool support in its template, so tools are described in text | 38.1% (31–46%) | 41.9% (35–50%) | 9 / 0 / 21 / 4 |
 
-All API runs together cost under $0.60. DeepSeek V4.1 Flash is the model Mujawib runs on today, so it is the bar the fine-tuned model has to clear with the short prompt.
+All API runs together cost under $0.60. DeepSeek V4.1 Flash is the model Mudeef runs on today, so it is the bar the fine-tuned model has to clear with the short prompt.
 
 What the results show:
 - **The API models use their tools well**, and a fully explained prompt lifts them further. Their main remaining weakness is questions nobody can answer: they search the service list instead of handing off to a person (Gemini on most of them, even with the long prompt).
@@ -186,7 +186,8 @@ This is a comparison study as much as a fine-tune. The question is not only "did
 | 7 | QLoRA training on the RTX 5080, as a data comparison: **A** generated conversations only, **B** the same plus about 20% filtered human-written Saudi dialogues ([Voho](docs/DATA_SOURCES.md), no tools), and later **C** "dialect-first": training on Najdi web text before the task data. Compared on tool accuracy and blind dialect review |
 | 8 | Evaluation: automatic tool-call checks, blind A/B dialect review, confidence intervals, cost and speed per reply |
 | 9 | Publish: results table and charts (model vs model, short vs long prompt, before vs after fine-tuning), raw outputs per model, side-by-side conversation gallery, dataset card, model card with honest limitations |
-| Next | Blind native-speaker dialect review (Stage 8); release of both fine-tuned models on Hugging Face with model cards and GGUF builds, re-tested through their own chat templates; a multi-turn test (whole conversations, judged by the final booking state); a test v3; Gemma 4 E2B (a small model) on the same data |
+| Done | Release of both fine-tuned models on Hugging Face with model cards and GGUF builds, re-tested through their own chat templates ([Gemma](https://huggingface.co/bnbasel/saudi-receptionist-gemma-4-12b), [ALLaM](https://huggingface.co/bnbasel/allam-7b-saudi-receptionist)) |
+| Next | Blind native-speaker dialect review (Stage 8); a multi-turn test (whole conversations, judged by the final booking state); a test v3; Gemma 4 E2B (a small model) on the same data |
 | Later | The same data on a larger model trained on rented cloud GPUs, to compare what model size buys; other regional dialects, each with its own test set |
 
 Fairness rules for the comparison: every model sees the same test cases, tools and system-prompt format. Prompt-only competitors are tested with the short prompt the fine-tuned model uses **and** with a longer, fully explained version, and both results are reported. Prompts are tuned only on the dev set and frozen before any test result exists. Each API's terms are checked before its outputs are published.
